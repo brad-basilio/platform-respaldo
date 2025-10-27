@@ -1,0 +1,108 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Student extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'user_id',
+        // Datos Personales
+        'first_name',
+        'paternal_last_name',
+        'maternal_last_name',
+        'phone_number',
+        'gender',
+        'birth_date',
+        'document_type',
+        'document_number',
+        'education_level',
+        // Estado y Tipo
+        'status',
+        'class_type',
+        'level',
+        // Datos Académicos
+        'payment_date',
+        'enrollment_date',
+        'registration_date',
+        'enrollment_code',
+        'contracted_plan',
+        'contract_url',
+        'contract_file_name',
+        'payment_verified',
+        // Examen de Categorización
+        'has_placement_test',
+        'test_date',
+        'test_score',
+        // Datos del Apoderado
+        'guardian_name',
+        'guardian_document_number',
+        'guardian_email',
+        'guardian_birth_date',
+        'guardian_phone',
+        'guardian_address',
+        // Gamificación
+        'points',
+        // Estado del Prospecto
+        'prospect_status',
+    ];
+
+    protected $casts = [
+        'birth_date' => 'date',
+        'payment_date' => 'date',
+        'enrollment_date' => 'date',
+        'registration_date' => 'date',
+        'test_date' => 'date',
+        'guardian_birth_date' => 'date',
+        'has_placement_test' => 'boolean',
+        'payment_verified' => 'boolean',
+        'test_score' => 'decimal:2',
+        'points' => 'integer',
+    ];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function groups(): BelongsToMany
+    {
+        return $this->belongsToMany(Group::class, 'group_student')
+            ->withTimestamps();
+    }
+
+    public function badges(): BelongsToMany
+    {
+        return $this->belongsToMany(Badge::class, 'badge_student')
+            ->withTimestamps();
+    }
+
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(Certificate::class);
+    }
+
+    public function attendanceRecords(): HasMany
+    {
+        return $this->hasMany(AttendanceRecord::class);
+    }
+
+    public function workshops(): BelongsToMany
+    {
+        return $this->belongsToMany(Workshop::class, 'student_workshop')
+            ->withTimestamps();
+    }
+
+    // Accessor for full name
+    public function getFullNameAttribute(): string
+    {
+        return trim("{$this->first_name} {$this->paternal_last_name} {$this->maternal_last_name}");
+    }
+}

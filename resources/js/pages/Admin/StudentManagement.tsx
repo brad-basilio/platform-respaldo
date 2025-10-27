@@ -1,0 +1,1352 @@
+import React, { useState } from 'react';
+import { Users, Plus, CreditCard as Edit, Trash2, Search, Filter, UserCheck, UserX, BookOpen, Calendar, Eye, List, Columns2 as Columns } from 'lucide-react';
+import { Student, Group } from '../../types';
+import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
+
+const StudentManagement: React.FC = () => {
+  const [students, setStudents] = useState<Student[]>([
+    {
+      id: '1',
+      name: 'Juan Pérez',
+      email: 'john@example.com',
+      role: 'student',
+      status: 'active',
+      classType: 'theoretical',
+      assignedGroupId: 'group1',
+      attendanceHistory: [],
+      enrolledGroups: ['group1'],
+      level: 'intermediate',
+      points: 1250,
+      badges: [],
+      certificates: [],
+      createdAt: new Date(),
+      prospectStatus: 'matriculado',
+      paymentDate: '2024-01-15',
+      enrollmentDate: '2024-01-15',
+      enrollmentCode: 'MAT-202401-1234',
+    },
+    {
+      id: '2',
+      name: 'María García',
+      email: 'maria@example.com',
+      role: 'student',
+      status: 'active',
+      classType: 'practical',
+      assignedGroupId: 'group2',
+      attendanceHistory: [],
+      enrolledGroups: ['group2'],
+      level: 'basic',
+      points: 850,
+      badges: [],
+      certificates: [],
+      createdAt: new Date(),
+      prospectStatus: 'matriculado',
+      paymentDate: '2024-01-10',
+      enrollmentDate: '2024-01-10',
+      enrollmentCode: 'MAT-202401-5678',
+    },
+    {
+      id: '3',
+      name: 'Ahmed Hassan',
+      email: 'ahmed@example.com',
+      role: 'student',
+      status: 'inactive',
+      classType: 'theoretical',
+      attendanceHistory: [],
+      enrolledGroups: [],
+      level: 'advanced',
+      points: 2100,
+      badges: [],
+      certificates: [],
+      createdAt: new Date(),
+      prospectStatus: 'registrado',
+      // Sin fecha de pago ni matrícula
+    },
+    {
+      id: '4',
+      name: 'Ana López',
+      email: 'ana@example.com',
+      role: 'student',
+      status: 'active',
+      classType: 'practical',
+      attendanceHistory: [],
+      enrolledGroups: [],
+      level: 'basic',
+      points: 0,
+      badges: [],
+      certificates: [],
+      createdAt: new Date(),
+      prospectStatus: 'propuesta_enviada',
+      // Sin fecha de pago ni matrícula
+    },
+    {
+      id: '5',
+      name: 'Carlos Mendoza',
+      email: 'carlos@example.com',
+      role: 'student',
+      status: 'active',
+      classType: 'theoretical',
+      attendanceHistory: [],
+      enrolledGroups: [],
+      level: 'intermediate',
+      points: 0,
+      badges: [],
+      certificates: [],
+      createdAt: new Date(),
+      prospectStatus: 'registrado',
+      // Sin fecha de pago ni matrícula
+    },
+    {
+      id: '6',
+      name: 'Sofia Ramírez',
+      email: 'sofia@example.com',
+      role: 'student',
+      status: 'active',
+      classType: 'practical',
+      attendanceHistory: [],
+      enrolledGroups: [],
+      level: 'advanced',
+      points: 0,
+      badges: [],
+      certificates: [],
+      createdAt: new Date(),
+      prospectStatus: 'propuesta_enviada',
+      // Sin fecha de pago ni matrícula
+    },
+  ]);
+
+  const [groups] = useState<Group[]>([
+    {
+      id: 'group1',
+      name: 'Teórico Básico A',
+      type: 'theoretical',
+      teacherId: 'teacher1',
+      teacherName: 'Sarah Johnson',
+      studentIds: ['1'],
+      maxCapacity: 4,
+      schedule: { dayOfWeek: 'Monday', startTime: '09:00', endTime: '10:30', duration: 90 },
+      status: 'active',
+      level: 'basic',
+      startDate: new Date(),
+      endDate: new Date(),
+    },
+    {
+      id: 'group2',
+      name: 'Práctico Intermedio B',
+      type: 'practical',
+      teacherId: 'teacher2',
+      teacherName: 'Mike Wilson',
+      studentIds: ['2'],
+      maxCapacity: 6,
+      schedule: { dayOfWeek: 'Wednesday', startTime: '14:00', endTime: '15:30', duration: 90 },
+      status: 'active',
+      level: 'intermediate',
+      startDate: new Date(),
+      endDate: new Date(),
+    },
+  ]);
+
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [classTypeFilter, setClassTypeFilter] = useState<'all' | 'theoretical' | 'practical'>('all');
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+  const [draggedStudent, setDraggedStudent] = useState<Student | null>(null);
+
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         student.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
+    const matchesClassType = classTypeFilter === 'all' || student.classType === classTypeFilter;
+
+    return matchesSearch && matchesStatus && matchesClassType;
+  });
+
+  const getProspectStatusColor = (status: string) => {
+    switch (status) {
+      case 'registrado': return 'bg-blue-100 text-blue-800';
+      case 'propuesta_enviada': return 'bg-yellow-100 text-yellow-800';
+      case 'verificacion_pago': return 'bg-orange-100 text-orange-800';
+      case 'matriculado': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getProspectStatusLabel = (status: string) => {
+    switch (status) {
+      case 'registrado': return 'Registrado';
+      case 'propuesta_enviada': return 'Propuesta Enviada';
+      case 'verificacion_pago': return 'Verificación de Pago';
+      case 'matriculado': return 'Matriculado';
+      default: return 'Sin Estado';
+    }
+  };
+
+  const enrollmentCode = `ENG${new Date().getFullYear()}${String(Date.now()).slice(-3)}`;
+  const handleProspectStatusChange = (studentId: string, newStatus: string) => {
+    setStudents(students.map(student =>
+      student.id === studentId
+        ? { ...student, prospectStatus: newStatus as 'registrado' | 'propuesta_enviada' | 'verificacion_pago' | 'matriculado' }
+        : student
+    ));
+  };
+
+  const handleDragStart = (e: React.DragEvent, student: Student) => {
+    const currentDate = new Date().toISOString().split('T')[0];
+    const enrollmentCode = `ENG${new Date().getFullYear()}${String(Date.now()).slice(-3)}`;
+    
+    if (student.prospectStatus === 'matriculado') {
+      const updatedStudent = {
+        ...student,
+        paymentDate: currentDate,
+        enrollmentCode: enrollmentCode,
+      };
+      setStudents(students.map(s => s.id === student.id ? updatedStudent : s));
+    }
+    
+    setDraggedStudent(student);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, newStatus: 'registrado' | 'propuesta_enviada' | 'verificacion_pago' | 'matriculado') => {
+    e.preventDefault();
+    if (draggedStudent) {
+      // Validar si se intenta mover a "matriculado" sin los requisitos
+      if (newStatus === 'matriculado') {
+        // Verificar si el prospecto tiene fecha de pago y matrícula
+        const hasPaymentDate = draggedStudent.paymentDate; // Asumiendo que agregamos este campo
+        const hasEnrollmentDate = draggedStudent.enrollmentDate; // Asumiendo que agregamos este campo
+        
+        if (!hasPaymentDate || !hasEnrollmentDate) {
+          // Mostrar alerta elegante
+          showEnrollmentAlert();
+          setDraggedStudent(null);
+          return;
+        }
+      }
+      
+      handleProspectStatusChange(draggedStudent.id, newStatus);
+      setDraggedStudent(null);
+    }
+  };
+
+  const [showAlert, setShowAlert] = useState(false);
+
+  const showEnrollmentAlert = () => {
+    setShowAlert(true);
+    setTimeout(() => setShowAlert(false), 4000); // Auto-hide después de 4 segundos
+  };
+
+  const handleCreateStudent = (formData: any) => {
+    const newStudent: Student = {
+      id: Date.now().toString(),
+      name: formData.name,
+      email: formData.email,
+      role: 'student',
+      status: 'active',
+      classType: formData.classType,
+      assignedGroupId: formData.groupId || undefined,
+      attendanceHistory: [],
+      enrolledGroups: formData.groupId ? [formData.groupId] : [],
+      level: formData.level,
+      points: 0,
+      badges: [],
+      certificates: [],
+      createdAt: new Date(),
+      prospectStatus: 'registrado',
+    };
+
+    setStudents([...students, newStudent]);
+    setShowCreateForm(false);
+  };
+
+  const handleUpdateStudent = (formData: any) => {
+    if (!editingStudent) return;
+
+    const updatedStudent: Student = {
+      ...editingStudent,
+      // Datos Personales
+      firstName: formData.firstName,
+      paternalLastName: formData.paternalLastName,
+      maternalLastName: formData.maternalLastName,
+      name: `${formData.firstName} ${formData.paternalLastName} ${formData.maternalLastName}`,
+      phoneNumber: formData.phoneNumber,
+      gender: formData.gender,
+      birthDate: formData.birthDate,
+      documentType: formData.documentType,
+      documentNumber: formData.documentNumber,
+      educationLevel: formData.educationLevel,
+      email: formData.email,
+
+      // Datos Académicos
+      paymentDate: formData.paymentDate,
+      enrollmentDate: formData.enrollmentDate,
+      registrationDate: formData.registrationDate,
+      enrollmentCode: formData.enrollmentCode,
+      level: formData.academicLevel,
+      contractedPlan: formData.contractedPlan,
+      contractFileName: formData.contractFileName,
+      paymentVerified: formData.paymentVerified,
+
+      // Examen de Categorización
+      hasPlacementTest: formData.hasPlacementTest,
+      testDate: formData.testDate,
+      testScore: formData.testScore,
+
+      // Datos del Apoderado/Titular
+      guardianName: formData.guardianName,
+      guardianDocumentNumber: formData.guardianDocumentNumber,
+      guardianEmail: formData.guardianEmail,
+      guardianBirthDate: formData.guardianBirthDate,
+      guardianPhone: formData.guardianPhone,
+      guardianAddress: formData.guardianAddress,
+
+      status: formData.status,
+
+      // Actualizar prospectStatus si tiene fecha de matrícula
+      prospectStatus: formData.enrollmentDate ? 'matriculado' : editingStudent.prospectStatus,
+    };
+
+    setStudents(students.map(s => s.id === editingStudent.id ? updatedStudent : s));
+    setEditingStudent(null);
+  };
+
+  const handleDeleteStudent = (studentId: string) => {
+    if (confirm('¿Estás seguro de que quieres eliminar este prospecto?')) {
+      setStudents(students.filter(s => s.id !== studentId));
+    }
+  };
+
+  const getGroupName = (groupId?: string) => {
+    if (!groupId) return 'Sin asignar';
+    const group = groups.find(g => g.id === groupId);
+    return group ? group.name : 'Grupo desconocido';
+  };
+
+  const kanbanColumns = [
+    { id: 'registrado', title: 'Registrado', color: 'border-blue-500 bg-blue-50' },
+    { id: 'propuesta_enviada', title: 'Propuesta Enviada', color: 'border-yellow-500 bg-yellow-50' },
+    { id: 'verificacion_pago', title: 'Verificación de Pago', color: 'border-orange-500 bg-orange-50' },
+    { id: 'matriculado', title: 'Matriculado', color: 'border-green-500 bg-green-50' },
+  ];
+
+  const getStudentsByStatus = (status: string) => {
+    return filteredStudents.filter(student => student.prospectStatus === status);
+  };
+
+  const StudentForm = ({ student, onSubmit, onCancel }: {
+    student?: Student;
+    onSubmit: (data: any) => void;
+    onCancel: () => void;
+  }) => {
+    const [formData, setFormData] = useState({
+      // Datos Personales
+      firstName: student?.firstName || '',
+      paternalLastName: student?.paternalLastName || '',
+      maternalLastName: student?.maternalLastName || '',
+      phoneNumber: student?.phoneNumber || '',
+      gender: student?.gender || '',
+      birthDate: student?.birthDate || '',
+      documentType: student?.documentType || 'dni',
+      documentNumber: student?.documentNumber || '',
+      educationLevel: student?.educationLevel || '',
+      email: student?.email || '',
+
+      // Datos Académicos
+      paymentDate: student?.paymentDate || '',
+      enrollmentDate: student?.enrollmentDate || '',
+      registrationDate: student?.registrationDate || new Date().toISOString().split('T')[0],
+      enrollmentCode: student?.enrollmentCode || '',
+      academicLevel: student?.level || 'basic',
+      contractedPlan: student?.contractedPlan || '',
+      contractFile: null as File | null,
+      contractFileName: student?.contractFileName || '',
+      paymentVerified: student?.paymentVerified || false,
+
+      // Examen de Categorización
+      hasPlacementTest: student?.hasPlacementTest || false,
+      testDate: student?.testDate || '',
+      testScore: student?.testScore || '',
+
+      // Datos del Apoderado/Titular
+      guardianName: student?.guardianName || '',
+      guardianDocumentNumber: student?.guardianDocumentNumber || '',
+      guardianEmail: student?.guardianEmail || '',
+      guardianBirthDate: student?.guardianBirthDate || '',
+      guardianPhone: student?.guardianPhone || '',
+      guardianAddress: student?.guardianAddress || '',
+
+      status: student?.status || 'active',
+    });
+
+    // Función para generar código de matrícula
+    const generateEnrollmentCode = () => {
+      const year = new Date().getFullYear();
+      const month = String(new Date().getMonth() + 1).padStart(2, '0');
+      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      return `MAT-${year}${month}-${random}`;
+    };
+
+    // Efecto para manejar el cambio de fecha de pago
+    const handlePaymentDateChange = (paymentDate: string) => {
+      if (paymentDate) {
+        // Automáticamente llenar la fecha de matrícula con la misma fecha de pago
+        const enrollmentDate = paymentDate;
+        // Generar código de matrícula automáticamente
+        const enrollmentCode = generateEnrollmentCode();
+        
+        setFormData(prev => ({
+          ...prev,
+          paymentDate,
+          enrollmentDate,
+          enrollmentCode
+        }));
+      } else {
+        // Si se borra la fecha de pago, limpiar matrícula y código
+        setFormData(prev => ({
+          ...prev,
+          paymentDate: '',
+          enrollmentDate: '',
+          enrollmentCode: ''
+        }));
+      }
+    };
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      onSubmit(formData);
+    };
+
+    return (
+      <div className="bg-white rounded-lg shadow-lg border border-gray-200 max-w-6xl mx-auto">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-6 rounded-t-lg">
+          <h3 className="text-2xl font-bold">
+            {student ? 'Editar Prospecto' : 'Ficha de Registro de Prospecto'}
+          </h3>
+          <p className="text-blue-100 mt-1">Complete todos los campos requeridos</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-8 space-y-8">
+          {/* Sección: Datos Personales */}
+          <div>
+            <div className="flex items-center mb-4 pb-2 border-b-2 border-blue-600">
+              <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                1
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900">Datos Personales del Prospecto</h4>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombres <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Apellido Paterno <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.paternalLastName}
+                  onChange={(e) => setFormData({...formData, paternalLastName: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Apellido Materno <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.maternalLastName}
+                  onChange={(e) => setFormData({...formData, maternalLastName: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo de Documento <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.documentType}
+                  onChange={(e) => setFormData({...formData, documentType: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="dni">DNI</option>
+                  <option value="ce">Carnet de Extranjería</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de Documento <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.documentNumber}
+                  onChange={(e) => setFormData({...formData, documentNumber: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fecha de Nacimiento <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={formData.birthDate}
+                  onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sexo <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.gender}
+                  onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="">Seleccionar</option>
+                  <option value="M">Masculino</option>
+                  <option value="F">Femenino</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de Celular <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Grado de Instrucción <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.educationLevel}
+                  onChange={(e) => setFormData({...formData, educationLevel: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="">Seleccionar</option>
+                  <option value="primaria">Primaria</option>
+                  <option value="secundaria">Secundaria</option>
+                  <option value="tecnico">Técnico</option>
+                  <option value="universitario">Universitario</option>
+                  <option value="postgrado">Postgrado</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Correo Electrónico <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Sección: Datos Académicos */}
+          <div>
+            <div className="flex items-center mb-4 pb-2 border-b-2 border-green-600">
+              <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                2
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900">Datos Académicos y de Matrícula</h4>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fecha de Registro <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={formData.registrationDate}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                  disabled
+                  readOnly
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Se establece automáticamente con la fecha actual
+                </p>
+              </div>
+
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fecha de Pago
+                </label>
+                <input
+                  type="date"
+                  value={formData.paymentDate}
+                  onChange={(e) => handlePaymentDateChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nivel Académico
+                </label>
+                <select
+                  value={formData.academicLevel}
+                  onChange={(e) => setFormData({...formData, academicLevel: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="basic">Básico</option>
+                  <option value="intermediate">Intermedio</option>
+                  <option value="advanced">Avanzado</option>
+                </select>
+              </div>
+
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Plan Contratado
+              </label>
+              <select
+                value={formData.contractedPlan}
+                onChange={(e) => setFormData({...formData, contractedPlan: e.target.value})}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  !formData.paymentDate ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
+                }`}
+                disabled={!formData.paymentDate}
+              >
+                <option value="">Seleccionar Plan</option>
+                <option value="basico">Plan Básico</option>
+                <option value="estandar">Plan Estándar</option>
+                <option value="premium">Plan Premium</option>
+                <option value="intensivo">Plan Intensivo</option>
+              </select>
+              {!formData.paymentDate && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Selecciona primero una fecha de pago para activar este campo
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fecha de Matrícula
+                </label>
+                <input
+                  type="date"
+                  value={formData.enrollmentDate}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                  disabled
+                  placeholder="Se llena automáticamente al seleccionar fecha de pago"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Se llena automáticamente al seleccionar la fecha de pago
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Código de Matrícula
+                </label>
+                <input
+                  type="text"
+                  value={formData.enrollmentCode}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                  disabled
+                  placeholder="Se genera automáticamente"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Se genera automáticamente al confirmar el pago
+                </p>
+              </div>
+            </div>
+
+            {/* Subir Contrato y Verificación de Pago */}
+            <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Contrato (PDF)
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <label className="flex-1 cursor-pointer">
+                      <div className="flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all">
+                        <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <span className="text-sm text-gray-600">
+                          {formData.contractFileName || 'Seleccionar archivo PDF'}
+                        </span>
+                      </div>
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setFormData({
+                              ...formData,
+                              contractFile: file,
+                              contractFileName: file.name
+                            });
+                          }
+                        }}
+                      />
+                    </label>
+                    {formData.contractFileName && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({...formData, contractFile: null, contractFileName: ''})}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Eliminar archivo"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Adjunta el contrato firmado en formato PDF
+                  </p>
+                </div>
+
+                <div className="flex items-center">
+                  <label className="flex items-center space-x-3 cursor-pointer p-4 bg-white rounded-lg border border-slate-200 hover:border-blue-500 transition-all w-full">
+                    <input
+                      type="checkbox"
+                      checked={formData.paymentVerified}
+                      onChange={(e) => setFormData({...formData, paymentVerified: e.target.checked})}
+                      className="w-5 h-5 text-blue-600 focus:ring-blue-500 rounded border-gray-300"
+                    />
+                    <div className="flex-1">
+                      <span className="text-sm font-semibold text-gray-900 block">Pago Verificado</span>
+                      <span className="text-xs text-gray-500">Marca si el pago ha sido confirmado</span>
+                    </div>
+                    {formData.paymentVerified && (
+                      <div className="flex-shrink-0">
+                        <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sección: Examen de Categorización */}
+          <div>
+            <div className="flex items-center mb-4 pb-2 border-b-2 border-purple-600">
+              <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                3
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900">Examen de Categorización</h4>
+            </div>
+
+            <div className="mb-4">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.hasPlacementTest}
+                  onChange={(e) => setFormData({...formData, hasPlacementTest: e.target.checked})}
+                  className="w-5 h-5 text-purple-600 focus:ring-purple-500 rounded"
+                />
+                <span className="text-sm font-medium text-gray-700">El prospecto realizó examen de categorización</span>
+              </label>
+            </div>
+
+            {formData.hasPlacementTest && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-8">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fecha del Examen <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.testDate}
+                    onChange={(e) => setFormData({...formData, testDate: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    required={formData.hasPlacementTest}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nota del Examen (0-20) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    step="0.1"
+                    value={formData.testScore}
+                    onChange={(e) => setFormData({...formData, testScore: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    required={formData.hasPlacementTest}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sección: Datos del Apoderado/Titular */}
+          <div>
+            <div className="flex items-center mb-4 pb-2 border-b-2 border-orange-600">
+              <div className="w-8 h-8 bg-orange-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                4
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900">Datos del Apoderado o Titular de la Cuenta</h4>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre Completo del Titular
+                </label>
+                <input
+                  type="text"
+                  value={formData.guardianName}
+                  onChange={(e) => setFormData({...formData, guardianName: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  DNI del Titular
+                </label>
+                <input
+                  type="text"
+                  value={formData.guardianDocumentNumber}
+                  onChange={(e) => setFormData({...formData, guardianDocumentNumber: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Correo Electrónico del Titular
+                </label>
+                <input
+                  type="email"
+                  value={formData.guardianEmail}
+                  onChange={(e) => setFormData({...formData, guardianEmail: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fecha de Nacimiento del Titular
+                </label>
+                <input
+                  type="date"
+                  value={formData.guardianBirthDate}
+                  onChange={(e) => setFormData({...formData, guardianBirthDate: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de Celular del Apoderado
+                </label>
+                <input
+                  type="tel"
+                  value={formData.guardianPhone}
+                  onChange={(e) => setFormData({...formData, guardianPhone: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Dirección del Titular
+                </label>
+                <input
+                  type="text"
+                  value={formData.guardianAddress}
+                  onChange={(e) => setFormData({...formData, guardianAddress: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Botones de Acción */}
+          <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-medium transition-all shadow-md hover:shadow-lg"
+            >
+              {student ? 'Actualizar Prospecto' : 'Registrar Prospecto'}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  };
+
+  return (
+    <AuthenticatedLayout>
+      <div className="p-6 space-y-6">
+        {/* Alerta Elegante */}
+        {showAlert && (
+        <div className="fixed top-4 right-4 z-50 animate-slide-in">
+          <div className="bg-white border-l-4 border-red-500 rounded-lg shadow-lg p-4 max-w-md">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-gray-900">
+                  No se puede matricular
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  El prospecto debe tener fecha de pago y fecha de matrícula para poder ser movido al estado "Matriculado".
+                </p>
+              </div>
+              <div className="ml-auto pl-3">
+                <button
+                  onClick={() => setShowAlert(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Gestión de Prospectos</h1>
+          <p className="text-gray-600">Gestiona la inscripción de prospectos y seguimiento del proceso comercial</p>
+        </div>
+        <div className="flex items-center space-x-4">
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <List className="h-4 w-4" />
+              <span>Lista</span>
+            </button>
+            <button
+              onClick={() => setViewMode('kanban')}
+              className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'kanban'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Columns className="h-4 w-4" />
+              <span>Kanban</span>
+            </button>
+          </div>
+          
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+          >
+            <Plus className="h-5 w-5" />
+            <span>Agregar Prospecto</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Create/Edit Form */}
+      {showCreateForm && (
+        <StudentForm
+          onSubmit={handleCreateStudent}
+          onCancel={() => setShowCreateForm(false)}
+        />
+      )}
+
+      {editingStudent && (
+        <StudentForm
+          student={editingStudent}
+          onSubmit={handleUpdateStudent}
+          onCancel={() => setEditingStudent(null)}
+        />
+      )}
+
+      {/* Filters */}
+      <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-64">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar prospectos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">Todos los Estados</option>
+            <option value="active">Activo</option>
+            <option value="inactive">Inactivo</option>
+          </select>
+          
+          <select
+            value={classTypeFilter}
+            onChange={(e) => setClassTypeFilter(e.target.value as any)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">Todos los Tipos</option>
+            <option value="theoretical">Teórico</option>
+            <option value="practical">Práctico</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Kanban View */}
+      {viewMode === 'kanban' && (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          {kanbanColumns.map((column) => (
+            <div
+              key={column.id}
+              className={`bg-white rounded-lg shadow-sm border-t-4 ${column.color} min-h-96`}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, column.id as any)}
+            >
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">{column.title}</h3>
+                  <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-sm font-medium">
+                    {getStudentsByStatus(column.id).length}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="p-4 space-y-3">
+                {getStudentsByStatus(column.id).map((student) => (
+                  <div
+                    key={student.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, student)}
+                    className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-all cursor-move"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                          <span className="text-white text-sm font-semibold">
+                            {student.name.split(' ').map(n => n[0]).join('')}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{student.name}</p>
+                          <p className="text-sm text-gray-600">{student.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={() => setEditingStudent(student)}
+                          className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteStudent(student.id)}
+                          className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-2 pt-2 border-t border-gray-200">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Registro:</span>
+                        <span className="text-gray-900">{student.createdAt.toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {getStudentsByStatus(column.id).length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No hay prospectos en esta etapa</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* List View */}
+      {viewMode === 'list' && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Prospecto
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Estado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Estado Prospecto
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tipo de Clase
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Nivel
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Grupo Asignado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Puntos
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredStudents.map((student) => (
+                  <tr key={student.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                          <span className="text-white text-sm font-semibold">
+                            {student.name.split(' ').map(n => n[0]).join('')}
+                          </span>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">{student.name}</div>
+                          <div className="text-sm text-gray-500">{student.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        student.status === 'active' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {student.status === 'active' ? <UserCheck className="w-3 h-3 mr-1" /> : <UserX className="w-3 h-3 mr-1" />}
+                        {student.status === 'active' ? 'activo' : 'inactivo'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <select
+                        value={student.prospectStatus || 'registrado'}
+                        onChange={(e) => handleProspectStatusChange(student.id, e.target.value)}
+                        className={`text-xs font-medium px-2.5 py-0.5 rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getProspectStatusColor(student.prospectStatus || 'registrado')}`}
+                      >
+                        <option value="registrado">Registrado</option>
+                        <option value="propuesta_enviada">Propuesta Enviada</option>
+                        <option value="verificacion_pago">Verificación de Pago</option>
+                        <option value="matriculado">Matriculado</option>
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        student.classType === 'theoretical' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-purple-100 text-purple-800'
+                      }`}>
+                        <BookOpen className="w-3 h-3 mr-1" />
+                        {student.classType === 'theoretical' ? 'teórico' : 'práctico'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
+                      {student.level === 'basic' ? 'básico' : student.level === 'intermediate' ? 'intermedio' : 'avanzado'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {getGroupName(student.assignedGroupId)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {student.points.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setEditingStudent(student)}
+                          className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteStudent(student.id)}
+                          className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {filteredStudents.length === 0 && (
+            <div className="text-center py-8">
+              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">No se encontraron prospectos</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total de Prospectos</p>
+              <p className="text-2xl font-semibold text-gray-900">{students.length}</p>
+            </div>
+            <Users className="h-8 w-8 text-blue-600" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Registrados</p>
+              <p className="text-2xl font-semibold text-blue-600">
+                {students.filter(s => s.prospectStatus === 'registrado').length}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Propuesta Enviada</p>
+              <p className="text-2xl font-semibold text-yellow-600">
+                {students.filter(s => s.prospectStatus === 'propuesta_enviada').length}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+              <div className="w-3 h-3 bg-yellow-600 rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Verificación Pago</p>
+              <p className="text-2xl font-semibold text-orange-600">
+                {students.filter(s => s.prospectStatus === 'verificacion_pago').length}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+              <div className="w-3 h-3 bg-orange-600 rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Matriculados</p>
+              <p className="text-2xl font-semibold text-green-600">
+                {students.filter(s => s.prospectStatus === 'matriculado').length}
+              </p>
+            </div>
+            <UserCheck className="h-8 w-8 text-green-600" />
+          </div>
+        </div>
+      </div>
+      </div>
+    </AuthenticatedLayout>
+  );
+};
+
+export default StudentManagement;
