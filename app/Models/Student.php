@@ -15,6 +15,10 @@ class Student extends Model
     protected $fillable = [
         'user_id',
         'registered_by',
+        'verified_payment_by',
+        'payment_verified_at',
+        'verified_enrollment_by',
+        'enrollment_verified_at',
         // Datos Personales
         'first_name',
         'paternal_last_name',
@@ -60,6 +64,8 @@ class Student extends Model
         'payment_date' => 'date',
         'enrollment_date' => 'date',
         'registration_date' => 'date',
+        'payment_verified_at' => 'datetime',
+        'enrollment_verified_at' => 'datetime',
         'test_date' => 'date',
         'guardian_birth_date' => 'date',
         'has_placement_test' => 'boolean',
@@ -76,6 +82,16 @@ class Student extends Model
     public function registeredBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'registered_by');
+    }
+
+    public function verifiedPaymentBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'verified_payment_by');
+    }
+
+    public function verifiedEnrollmentBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'verified_enrollment_by');
     }
 
     public function groups(): BelongsToMany

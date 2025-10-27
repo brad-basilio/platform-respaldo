@@ -34,8 +34,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
     switch (status) {
       case 'registrado': return 'bg-blue-100 text-blue-800';
       case 'propuesta_enviada': return 'bg-yellow-100 text-yellow-800';
-      case 'pago_reportado': return 'bg-cyan-100 text-cyan-800';
-      case 'verificacion_pago': return 'bg-orange-100 text-orange-800';
+      case 'pago_por_verificar': return 'bg-orange-100 text-orange-800';
       case 'matriculado': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -45,8 +44,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
     switch (status) {
       case 'registrado': return 'Registrado';
       case 'propuesta_enviada': return 'Propuesta Enviada';
-      case 'pago_reportado': return 'Pago Reportado';
-      case 'verificacion_pago': return 'Verificación de Pago';
+      case 'pago_por_verificar': return 'Pago Por Verificar';
       case 'matriculado': return 'Matriculado';
       default: return 'Sin Estado';
     }
@@ -61,19 +59,18 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
     if (userRole === 'sales_advisor') {
       const allowedTransitions = [
         student.prospectStatus === 'registrado' && newStatus === 'propuesta_enviada',
-        student.prospectStatus === 'propuesta_enviada' && newStatus === 'pago_reportado'
+        student.prospectStatus === 'propuesta_enviada' && newStatus === 'pago_por_verificar'
       ];
       if (!allowedTransitions.some(t => t)) {
-        alert('Como asesor de ventas solo puedes: Registrado → Propuesta Enviada → Pago Reportado');
+        alert('Como asesor de ventas solo puedes: Registrado → Propuesta Enviada → Pago Por Verificar');
         return;
       }
     } else if (userRole === 'cashier') {
       const allowedTransitions = [
-        student.prospectStatus === 'pago_reportado' && newStatus === 'verificacion_pago',
-        student.prospectStatus === 'verificacion_pago' && newStatus === 'matriculado'
+        student.prospectStatus === 'pago_por_verificar' && newStatus === 'matriculado'
       ];
       if (!allowedTransitions.some(t => t)) {
-        alert('Como cajero solo puedes: Pago Reportado → Verificación de Pago → Matriculado');
+        alert('Como cajero solo puedes verificar pagos en estado "Pago Por Verificar"');
         return;
       }
     }
@@ -87,7 +84,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         // Actualizar estado local
         setStudents(students.map(student =>
           student.id === studentId
-            ? { ...student, prospectStatus: newStatus as 'registrado' | 'propuesta_enviada' | 'pago_reportado' | 'verificacion_pago' | 'matriculado' }
+            ? { ...student, prospectStatus: newStatus as 'registrado' | 'propuesta_enviada' | 'pago_por_verificar' | 'matriculado' }
             : student
         ));
       }
@@ -116,27 +113,35 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = (e: React.DragEvent, newStatus: 'registrado' | 'propuesta_enviada' | 'pago_reportado' | 'verificacion_pago' | 'matriculado') => {
+  const handleDrop = (e: React.DragEvent, newStatus: 'registrado' | 'propuesta_enviada' | 'pago_por_verificar' | 'matriculado') => {
     e.preventDefault();
     if (draggedStudent) {
       // Validar transiciones según el rol
       if (userRole === 'sales_advisor') {
         const allowedTransitions = [
           draggedStudent.prospectStatus === 'registrado' && newStatus === 'propuesta_enviada',
-          draggedStudent.prospectStatus === 'propuesta_enviada' && newStatus === 'pago_reportado'
+          draggedStudent.prospectStatus === 'propuesta_enviada' && newStatus === 'pago_por_verificar'
         ];
         if (!allowedTransitions.some(t => t)) {
-          alert('Como asesor de ventas solo puedes: Registrado → Propuesta Enviada → Pago Reportado');
+          alert('Como asesor de ventas solo puedes: Registrado → Propuesta Enviada → Pago Por Verificar');
           setDraggedStudent(null);
           return;
         }
+        
+        // Validar que tenga los datos necesarios para pasar a pago_por_verificar
+        if (newStatus === 'pago_por_verificar') {
+          if (!draggedStudent.paymentDate || !draggedStudent.level || !draggedStudent.contractedPlan) {
+            alert('Debes completar fecha de pago, nivel académico y plan contratado antes de marcar como "Pago Por Verificar"');
+            setDraggedStudent(null);
+            return;
+          }
+        }
       } else if (userRole === 'cashier') {
         const allowedTransitions = [
-          draggedStudent.prospectStatus === 'pago_reportado' && newStatus === 'verificacion_pago',
-          draggedStudent.prospectStatus === 'verificacion_pago' && newStatus === 'matriculado'
+          draggedStudent.prospectStatus === 'pago_por_verificar' && newStatus === 'matriculado'
         ];
         if (!allowedTransitions.some(t => t)) {
-          alert('Como cajero solo puedes: Pago Reportado → Verificación de Pago → Matriculado');
+          alert('Como cajero solo puedes verificar pagos en estado "Pago Por Verificar"');
           setDraggedStudent(null);
           return;
         }
@@ -144,11 +149,10 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
       // Validar si se intenta mover a "matriculado" sin los requisitos
       if (newStatus === 'matriculado') {
-        // Verificar si el prospecto tiene fecha de pago y matrícula
-        const hasPaymentDate = draggedStudent.paymentDate; // Asumiendo que agregamos este campo
-        const hasEnrollmentDate = draggedStudent.enrollmentDate; // Asumiendo que agregamos este campo
+        // Verificar si el prospecto tiene fecha de pago
+        const hasPaymentDate = draggedStudent.paymentDate;
         
-        if (!hasPaymentDate || !hasEnrollmentDate) {
+        if (!hasPaymentDate) {
           // Mostrar alerta elegante
           showEnrollmentAlert();
           setDraggedStudent(null);
@@ -234,6 +238,8 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
           status: formData.status,
         };
 
+    console.log('Datos que se enviarán al backend:', updateData);
+
     router.put(`/admin/students/${editingStudent.id}`, updateData, {
       preserveScroll: true,
       onSuccess: () => {
@@ -261,22 +267,21 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
   const kanbanColumns = [
     { id: 'registrado', title: 'Registrado', color: 'border-blue-500 bg-blue-50' },
     { id: 'propuesta_enviada', title: 'Propuesta Enviada', color: 'border-yellow-500 bg-yellow-50' },
-    { id: 'pago_reportado', title: 'Pago Reportado', color: 'border-cyan-500 bg-cyan-50' },
-    { id: 'verificacion_pago', title: 'Verificación de Pago', color: 'border-orange-500 bg-orange-50' },
+    { id: 'pago_por_verificar', title: 'Pago Por Verificar', color: 'border-orange-500 bg-orange-50' },
     { id: 'matriculado', title: 'Matriculado', color: 'border-green-500 bg-green-50' },
   ];
 
   // Filtrar columnas según el rol
   const getVisibleKanbanColumns = () => {
     if (userRole === 'cashier') {
-      // Cajero solo ve: Pago Reportado, Verificación de Pago, Matriculado
+      // Cajero solo ve: Pago Por Verificar, Matriculado
       return kanbanColumns.filter(col => 
-        ['pago_reportado', 'verificacion_pago', 'matriculado'].includes(col.id)
+        ['pago_por_verificar', 'matriculado'].includes(col.id)
       );
     } else if (userRole === 'sales_advisor') {
-      // Asesor de ventas solo ve: Registrado, Propuesta Enviada, Pago Reportado
+      // Asesor de ventas ve todas excepto puede que no necesite ver matriculado
       return kanbanColumns.filter(col => 
-        ['registrado', 'propuesta_enviada', 'pago_reportado'].includes(col.id)
+        ['registrado', 'propuesta_enviada', 'pago_por_verificar', 'matriculado'].includes(col.id)
       );
     }
     // Admin ve todas las columnas
@@ -331,6 +336,14 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
       status: student?.status || 'active',
     });
+
+    // Debug: Mostrar valores iniciales cuando es cajero
+    React.useEffect(() => {
+      if (isCashierEditing) {
+        console.log('Estudiante recibido:', student);
+        console.log('FormData inicial:', formData);
+      }
+    }, []);
 
     // Determinar si el cajero está editando
     const isCashierEditing = userRole === 'cashier' && student;
@@ -391,12 +404,12 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 space-y-8">{isCashierEditing ? (
-            // VISTA SIMPLIFICADA PARA CAJERO
+            // VISTA SIMPLIFICADA PARA CAJERO - SOLO VERIFICACIÓN
             <>
               {/* Información del Prospecto (Solo lectura) */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
                 <h4 className="text-lg font-semibold text-blue-900 mb-4">Información del Prospecto</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm text-gray-600">Nombre Completo</p>
                     <p className="text-base font-medium text-gray-900">{student?.name}</p>
@@ -415,148 +428,97 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
                     <p className="text-sm text-gray-600">Teléfono</p>
                     <p className="text-base font-medium text-gray-900">{student?.phoneNumber}</p>
                   </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Nivel Académico</p>
+                    <p className="text-base font-medium text-gray-900 capitalize">{student?.level || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Plan Contratado</p>
+                    <p className="text-base font-medium text-gray-900 capitalize">{student?.contractedPlan || '-'}</p>
+                  </div>
                 </div>
               </div>
 
-              {/* Datos de Matrícula - EDITABLE */}
-              <div>
-                <div className="flex items-center mb-4 pb-2 border-b-2 border-green-600">
-                  <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <h4 className="text-lg font-semibold text-gray-900">Datos de Pago y Matrícula</h4>
-                </div>
-
+              {/* Datos de Pago (Solo lectura) */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                <h4 className="text-lg font-semibold text-green-900 mb-4">Datos de Pago Reportados</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Fecha de Pago <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.paymentDate}
-                      onChange={(e) => handlePaymentDateChange(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nivel Académico <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={formData.academicLevel}
-                      onChange={(e) => setFormData({...formData, academicLevel: e.target.value as 'basic' | 'intermediate' | 'advanced'})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="basic">Básico</option>
-                      <option value="intermediate">Intermedio</option>
-                      <option value="advanced">Avanzado</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Plan Contratado <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.contractedPlan}
-                    onChange={(e) => setFormData({...formData, contractedPlan: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="">Seleccionar Plan</option>
-                    <option value="basico">Plan Básico</option>
-                    <option value="estandar">Plan Estándar</option>
-                    <option value="premium">Plan Premium</option>
-                    <option value="intensivo">Plan Intensivo</option>
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Fecha de Matrícula
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.enrollmentDate}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
-                      disabled
-                      readOnly
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Se llena automáticamente al seleccionar la fecha de pago
+                    <p className="text-sm text-gray-600">Fecha de Pago</p>
+                    <p className="text-base font-medium text-gray-900">
+                      {student?.paymentDate ? new Date(student.paymentDate).toLocaleDateString('es-PE') : '-'}
                     </p>
                   </div>
-
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Código de Matrícula
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.enrollmentCode}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
-                      disabled
-                      readOnly
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Se genera automáticamente
-                    </p>
+                    <p className="text-sm text-gray-600">Registrado por</p>
+                    <p className="text-base font-medium text-gray-900">{student?.registeredBy?.name || '-'}</p>
                   </div>
                 </div>
-
-                {/* Verificación de Pago */}
-                <div className="mt-6 p-4 bg-green-50 rounded-xl border-2 border-green-200">
-                  <label className="flex items-center space-x-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.paymentVerified}
-                      onChange={(e) => setFormData({...formData, paymentVerified: e.target.checked})}
-                      className="w-6 h-6 text-green-600 focus:ring-green-500 rounded border-gray-300"
-                    />
-                    <div className="flex-1">
-                      <span className="text-base font-bold text-gray-900 block">Confirmar Verificación de Pago</span>
-                      <span className="text-sm text-gray-600">
-                        Marca esta casilla después de verificar el pago. 
-                        {student?.prospectStatus === 'pago_reportado' && (
-                          <span className="text-green-700 font-medium"> El estado cambiará automáticamente a "Verificación de Pago".</span>
-                        )}
-                      </span>
-                    </div>
-                    {formData.paymentVerified && (
-                      <div className="flex-shrink-0">
-                        <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    )}
-                  </label>
-                </div>
-
-                {/* Mensaje informativo sobre matrícula */}
-                {formData.paymentVerified && student?.prospectStatus === 'verificacion_pago' && (
-                  <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                    <div className="flex items-start">
-                      <svg className="w-6 h-6 text-blue-600 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
-                      <div>
-                        <p className="text-sm font-medium text-blue-900">Listo para matricular</p>
-                        <p className="text-sm text-blue-700 mt-1">
-                          Una vez guardados estos datos, podrás cambiar el estado a "Matriculado" desde el Kanban o la tabla.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
+
+              {/* Verificación de Pago - ACCIÓN PRINCIPAL DEL CAJERO */}
+              <div className="mt-6 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-300">
+                <label className="flex items-start space-x-4 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.paymentVerified}
+                    onChange={(e) => setFormData({...formData, paymentVerified: e.target.checked})}
+                    className="w-7 h-7 text-green-600 focus:ring-green-500 rounded border-gray-300 mt-1"
+                  />
+                  <div className="flex-1">
+                    <span className="text-lg font-bold text-gray-900 block mb-2">✓ Confirmar Verificación de Pago</span>
+                    <span className="text-sm text-gray-700">
+                      He verificado que el pago ha sido recibido correctamente. 
+                      <span className="block mt-2 text-green-700 font-medium">
+                        Al confirmar, el estudiante será <strong>matriculado automáticamente</strong> en el sistema.
+                      </span>
+                    </span>
+                  </div>
+                  {formData.paymentVerified && (
+                    <div className="flex-shrink-0">
+                      <svg className="w-10 h-10 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  )}
+                </label>
+              </div>
+
+              {/* Mensaje informativo sobre matrícula */}
+              {formData.paymentVerified && (
+                <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
+                  <div className="flex items-start">
+                    <svg className="w-6 h-6 text-green-600 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-medium text-green-900">Pago verificado - Listo para matricular</p>
+                      <p className="text-sm text-green-700 mt-1">
+                        Al guardar, el estudiante será matriculado automáticamente y pasará al estado "Matriculado".
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Información de verificación de pago */}
+              {student?.verifiedPaymentBy && (
+                <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
+                  <h5 className="text-sm font-semibold text-green-900 mb-2">✓ Pago Verificado</h5>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-gray-600">Verificado por:</p>
+                      <p className="font-medium text-gray-900">{student.verifiedPaymentBy.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Fecha de verificación:</p>
+                      <p className="font-medium text-gray-900">
+                        {student.paymentVerifiedAt ? new Date(student.paymentVerifiedAt).toLocaleString('es-PE') : '-'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             // VISTA COMPLETA PARA ADMIN Y ASESOR DE VENTAS
@@ -1068,10 +1030,15 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
             </button>
             <button
               type="submit"
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-medium transition-all shadow-md hover:shadow-lg"
+              disabled={isCashierEditing && !formData.paymentVerified}
+              className={`px-6 py-3 rounded-lg font-medium transition-all shadow-md hover:shadow-lg ${
+                isCashierEditing && !formData.paymentVerified
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white'
+              }`}
             >
               {isCashierEditing 
-                ? 'Guardar Datos de Matrícula'
+                ? (formData.paymentVerified ? '✓ Verificar Pago y Matricular' : 'Confirma la verificación primero')
                 : student 
                 ? 'Actualizar Prospecto' 
                 : 'Registrar Prospecto'}
@@ -1251,7 +1218,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
                   const isDraggable = 
                     userRole === 'admin' || 
                     (userRole === 'sales_advisor' && (student.prospectStatus === 'registrado' || student.prospectStatus === 'propuesta_enviada')) ||
-                    (userRole === 'cashier' && (student.prospectStatus === 'pago_reportado' || student.prospectStatus === 'verificacion_pago'));
+                    (userRole === 'cashier' && student.prospectStatus === 'pago_por_verificar');
 
                   return (
                   <div
@@ -1400,15 +1367,14 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
                         className={`text-xs font-medium px-2.5 py-0.5 rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getProspectStatusColor(student.prospectStatus || 'registrado')}`}
                         disabled={
                           (userRole === 'sales_advisor' && (student.prospectStatus !== 'registrado' && student.prospectStatus !== 'propuesta_enviada')) ||
-                          (userRole === 'cashier' && (student.prospectStatus !== 'pago_reportado' && student.prospectStatus !== 'verificacion_pago'))
+                          (userRole === 'cashier' && student.prospectStatus !== 'pago_por_verificar')
                         }
                       >
                         {userRole === 'admin' && (
                           <>
                             <option value="registrado">Registrado</option>
                             <option value="propuesta_enviada">Propuesta Enviada</option>
-                            <option value="pago_reportado">Pago Reportado</option>
-                            <option value="verificacion_pago">Verificación de Pago</option>
+                            <option value="pago_por_verificar">Pago Por Verificar</option>
                             <option value="matriculado">Matriculado</option>
                           </>
                         )}
@@ -1418,7 +1384,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
                               <>
                                 <option value="registrado">Registrado</option>
                                 <option value="propuesta_enviada">Propuesta Enviada</option>
-                                <option value="pago_reportado">Pago Reportado</option>
+                                <option value="pago_por_verificar">Pago Por Verificar</option>
                               </>
                             ) : (
                               <>
@@ -1429,10 +1395,9 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
                         )}
                         {userRole === 'cashier' && (
                           <>
-                            {(student.prospectStatus === 'pago_reportado' || student.prospectStatus === 'verificacion_pago') ? (
+                            {student.prospectStatus === 'pago_por_verificar' ? (
                               <>
-                                <option value="pago_reportado">Pago Reportado</option>
-                                <option value="verificacion_pago">Verificación de Pago</option>
+                                <option value="pago_por_verificar">Pago Por Verificar</option>
                                 <option value="matriculado">Matriculado</option>
                               </>
                             ) : (
@@ -1574,28 +1539,13 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
           </div>
         )}
 
-        {/* Pago Reportado - Todos */}
+        {/* Pago Por Verificar - Todos */}
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Pago Reportado</p>
-              <p className="text-2xl font-semibold text-cyan-600">
-                {students.filter(s => s.prospectStatus === 'pago_reportado').length}
-              </p>
-            </div>
-            <div className="w-8 h-8 bg-cyan-100 rounded-full flex items-center justify-center">
-              <div className="w-3 h-3 bg-cyan-600 rounded-full"></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Verificación Pago - Todos */}
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Verificación Pago</p>
+              <p className="text-sm text-gray-600">Pago Por Verificar</p>
               <p className="text-2xl font-semibold text-orange-600">
-                {students.filter(s => s.prospectStatus === 'verificacion_pago').length}
+                {students.filter(s => s.prospectStatus === 'pago_por_verificar').length}
               </p>
             </div>
             <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">

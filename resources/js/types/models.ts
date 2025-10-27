@@ -18,7 +18,7 @@ export interface Student extends User {
   points: number;
   badges: Badge[];
   certificates: Certificate[];
-  prospectStatus?: 'registrado' | 'propuesta_enviada' | 'pago_reportado' | 'verificacion_pago' | 'matriculado';
+  prospectStatus?: 'registrado' | 'propuesta_enviada' | 'pago_por_verificar' | 'matriculado';
 
   // Datos Personales Extendidos
   firstName?: string;
@@ -60,6 +60,22 @@ export interface Student extends User {
     name: string;
     email: string;
   };
+  
+  // Datos de Verificación de Pago
+  verifiedPaymentBy?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  paymentVerifiedAt?: string;
+  
+  // Datos de Verificación de Matrícula
+  verifiedEnrollmentBy?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  enrollmentVerifiedAt?: string;
 }
 
 export interface Teacher extends User {
