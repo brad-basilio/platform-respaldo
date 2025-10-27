@@ -16,7 +16,20 @@ const Header: React.FC = () => {
       case 'admin': return 'bg-amber-50 text-amber-700 border border-amber-200';
       case 'teacher': return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
       case 'student': return 'bg-blue-50 text-blue-700 border border-blue-200';
+      case 'sales_advisor': return 'bg-purple-50 text-purple-700 border border-purple-200';
+      case 'cashier': return 'bg-cyan-50 text-cyan-700 border border-cyan-200';
       default: return 'bg-slate-50 text-slate-700 border border-slate-200';
+    }
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'admin': return 'Administrador';
+      case 'teacher': return 'Profesor';
+      case 'student': return 'Estudiante';
+      case 'sales_advisor': return 'Asesor de Ventas';
+      case 'cashier': return 'Cajero';
+      default: return 'Usuario';
     }
   };
 
@@ -50,7 +63,7 @@ const Header: React.FC = () => {
                 <div className="hidden md:block">
                   <p className="text-sm font-semibold text-slate-900">{user?.name}</p>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium ${getRoleColor(user?.role || '')}`}>
-                    {user?.role === 'admin' ? 'Administrador' : user?.role === 'teacher' ? 'Profesor' : 'Estudiante'}
+                    {getRoleLabel(user?.role || '')}
                   </span>
                 </div>
               </div>
