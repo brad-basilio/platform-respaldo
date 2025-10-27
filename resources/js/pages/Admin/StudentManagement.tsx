@@ -1006,9 +1006,9 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
       {/* Kanban View */}
       {viewMode === 'kanban' && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <div className="inline-flex gap-4 p-4 min-w-full">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="overflow-x-auto overflow-y-hidden">
+            <div className="flex gap-4 p-4" style={{ minWidth: 'max-content' }}>
               {kanbanColumns.map((column) => (
                 <div
                   key={column.id}
@@ -1179,8 +1179,8 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
                         onChange={(e) => handleProspectStatusChange(student.id, e.target.value)}
                         className={`text-xs font-medium px-2.5 py-0.5 rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getProspectStatusColor(student.prospectStatus || 'registrado')}`}
                         disabled={
-                          (userRole === 'sales_advisor' && student.prospectStatus !== 'registrado') ||
-                          (userRole === 'cashier' && student.prospectStatus !== 'verificacion_pago')
+                          (userRole === 'sales_advisor' && (student.prospectStatus !== 'registrado' && student.prospectStatus !== 'propuesta_enviada')) ||
+                          (userRole === 'cashier' && (student.prospectStatus !== 'pago_reportado' && student.prospectStatus !== 'verificacion_pago'))
                         }
                       >
                         {userRole === 'admin' && (
@@ -1194,39 +1194,31 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
                         )}
                         {userRole === 'sales_advisor' && (
                           <>
-                            {student.prospectStatus === 'registrado' && (
+                            {(student.prospectStatus === 'registrado' || student.prospectStatus === 'propuesta_enviada') ? (
                               <>
                                 <option value="registrado">Registrado</option>
                                 <option value="propuesta_enviada">Propuesta Enviada</option>
-                              </>
-                            )}
-                            {student.prospectStatus === 'propuesta_enviada' && (
-                              <>
-                                <option value="propuesta_enviada">Propuesta Enviada</option>
                                 <option value="pago_reportado">Pago Reportado</option>
                               </>
-                            )}
-                            {student.prospectStatus === 'pago_reportado' && (
-                              <option value="pago_reportado">Pago Reportado</option>
+                            ) : (
+                              <>
+                                <option value={student.prospectStatus}>{getProspectStatusLabel(student.prospectStatus || 'registrado')}</option>
+                              </>
                             )}
                           </>
                         )}
                         {userRole === 'cashier' && (
                           <>
-                            {student.prospectStatus === 'pago_reportado' && (
+                            {(student.prospectStatus === 'pago_reportado' || student.prospectStatus === 'verificacion_pago') ? (
                               <>
                                 <option value="pago_reportado">Pago Reportado</option>
                                 <option value="verificacion_pago">Verificación de Pago</option>
-                              </>
-                            )}
-                            {student.prospectStatus === 'verificacion_pago' && (
-                              <>
-                                <option value="verificacion_pago">Verificación de Pago</option>
                                 <option value="matriculado">Matriculado</option>
                               </>
-                            )}
-                            {student.prospectStatus !== 'pago_reportado' && student.prospectStatus !== 'verificacion_pago' && (
-                              <option value={student.prospectStatus}>{getProspectStatusLabel(student.prospectStatus || 'registrado')}</option>
+                            ) : (
+                              <>
+                                <option value={student.prospectStatus}>{getProspectStatusLabel(student.prospectStatus || 'registrado')}</option>
+                              </>
                             )}
                           </>
                         )}

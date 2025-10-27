@@ -3,6 +3,8 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="format-detection" content="telephone=no">
 
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>
@@ -19,14 +21,35 @@
             })();
         </script>
 
-        {{-- Inline style to set the HTML background color based on our theme in app.css --}}
+        {{-- Critical CSS to prevent FOUC (Flash of Unstyled Content) --}}
         <style>
             html {
                 background-color: oklch(1 0 0);
+                font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
             }
 
             html.dark {
                 background-color: oklch(0.145 0 0);
+            }
+            
+            body {
+                margin: 0;
+                padding: 0;
+                font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+            }
+            
+            /* Loading skeleton to prevent layout shift */
+            .loading-skeleton {
+                background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+                background-size: 200% 100%;
+                animation: loading 1.5s infinite;
+            }
+            
+            @keyframes loading {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
             }
         </style>
 
@@ -37,7 +60,8 @@
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
         <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
+        <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+        <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600&display=swap" rel="stylesheet" />
 
         @viteReactRefresh
         @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])

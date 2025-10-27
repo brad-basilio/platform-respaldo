@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Test de Estilos - Modo Incógnito</title>
+    
+    <!-- Font loading test -->
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+    <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600&display=swap" rel="stylesheet">
+    
+    <!-- CSS build test -->
+    <link rel="stylesheet" href="/build/assets/app-DAKfMne0.css">
+    
+    <style>
+        body {
+            font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .test-item {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+        
+        .success {
+            background: #f0fdf4;
+            border-color: #16a34a;
+        }
+        
+        .error {
+            background: #fef2f2;
+            border-color: #dc2626;
+        }
+        
+        .tailwind-test {
+            @apply bg-blue-500 text-white px-4 py-2 rounded-lg font-medium;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">Test de Compatibilidad - Modo Incógnito</h1>
+        
+        <div class="test-item">
+            <h3>1. Carga de Fuente (Instrument Sans)</h3>
+            <p style="font-family: 'Instrument Sans', sans-serif; font-weight: 600;">
+                Esta línea debería usar Instrument Sans Bold si se cargó correctamente.
+            </p>
+        </div>
+        
+        <div class="test-item">
+            <h3>2. Tailwind CSS Classes</h3>
+            <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Botón con clases Tailwind
+            </button>
+        </div>
+        
+        <div class="test-item">
+            <h3>3. CSS Custom Properties</h3>
+            <div style="background: var(--color-primary, #3b82f6); color: white; padding: 10px; border-radius: 4px;">
+                Este div usa CSS custom properties
+            </div>
+        </div>
+        
+        <div class="test-item">
+            <h3>4. Test de Carga de Assets</h3>
+            <div id="asset-test">Verificando carga de assets...</div>
+        </div>
+        
+        <div class="test-item">
+            <h3>5. Información del Navegador</h3>
+            <div id="browser-info">Cargando información...</div>
+        </div>
+    </div>
+    
+    <script>
+        // Test de carga de assets
+        const cssLoaded = document.styleSheets.length > 0;
+        const assetTest = document.getElementById('asset-test');
+        
+        if (cssLoaded) {
+            assetTest.innerHTML = '✅ Assets CSS cargados correctamente';
+            assetTest.parentElement.classList.add('success');
+        } else {
+            assetTest.innerHTML = '❌ Error cargando assets CSS';
+            assetTest.parentElement.classList.add('error');
+        }
+        
+        // Información del navegador
+        const browserInfo = document.getElementById('browser-info');
+        const info = `
+            <strong>User Agent:</strong> ${navigator.userAgent}<br>
+            <strong>Modo Incógnito:</strong> ${navigator.webdriver ? 'Posiblemente Sí' : 'No detectado'}<br>
+            <strong>Cookies Habilitadas:</strong> ${navigator.cookieEnabled ? 'Sí' : 'No'}<br>
+            <strong>Storage Disponible:</strong> ${typeof(Storage) !== "undefined" ? 'Sí' : 'No'}<br>
+            <strong>Online:</strong> ${navigator.onLine ? 'Sí' : 'No'}
+        `;
+        browserInfo.innerHTML = info;
+        
+        // Test específico para modo incógnito
+        try {
+            localStorage.setItem('test', 'test');
+            localStorage.removeItem('test');
+        } catch (e) {
+            browserInfo.innerHTML += '<br><strong style="color: red;">MODO INCÓGNITO DETECTADO</strong>';
+        }
+    </script>
+</body>
+</html>

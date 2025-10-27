@@ -19,11 +19,11 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
     }, []);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 overflow-x-hidden">
             <Header />
-            <div className="flex">
+            <div className="flex overflow-x-hidden">
                 <Sidebar activeView={activeView} onViewChange={setActiveView} />
-                <main className="flex-1 min-h-screen">
+                <main className="flex-1 min-h-screen overflow-x-hidden">
                     <div className="animate-fade-in">
                         {children}
                     </div>
