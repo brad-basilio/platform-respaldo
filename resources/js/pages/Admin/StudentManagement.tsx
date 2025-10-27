@@ -386,97 +386,166 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
       onSubmit(formData);
     };
 
-    return (
-      <div className="bg-white rounded-lg shadow-lg border border-gray-200 max-w-6xl mx-auto">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-6 rounded-t-lg">
-          <h3 className="text-2xl font-bold">
-            {isCashierEditing 
-              ? 'Completar Datos de Matrícula'
-              : student 
-              ? 'Editar Prospecto' 
-              : 'Ficha de Registro de Prospecto'}
-          </h3>
-          <p className="text-blue-100 mt-1">
-            {isCashierEditing 
-              ? 'Complete los datos de pago y matrícula para procesar al estudiante'
-              : 'Complete todos los campos requeridos'}
-          </p>
-        </div>
+    // Bloquear scroll del body cuando el modal está abierto
+    React.useEffect(() => {
+      // Guardar el scroll actual
+      const scrollY = window.scrollY;
+      
+      // Bloquear scroll completamente
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      
+      return () => {
+        // Restaurar scroll
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }, []);
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-8">{isCashierEditing ? (
+    return (
+      <div 
+        className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-sm animate-fade-in flex items-center justify-center p-4"
+        onClick={onCancel}
+        style={{ height: '100vh', width: '100vw' }}
+      >
+        {/* Modal Container */}
+        <div 
+          className="relative bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col animate-scale-in"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header del Modal */}
+          <div className="relative bg-blue-600 px-8 py-6 rounded-t-3xl flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-bold text-white mb-1">
+                  {isCashierEditing 
+                    ? 'Verificación de Pago'
+                    : student 
+                    ? 'Editar Prospecto'
+                    : 'Nuevo Prospecto'
+                  }
+                </h3>
+                <p className="text-blue-100">
+                  {isCashierEditing 
+                    ? 'Verifica el pago y matricula al estudiante'
+                    : student
+                    ? 'Actualiza la información del prospecto'
+                    : 'Completa la información para registrar un nuevo prospecto'}
+                </p>
+              </div>
+
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={onCancel}
+                className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-all duration-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Contenido del Modal - Con scroll */}
+          <div className="p-8 space-y-6 overflow-y-auto flex-1">
+            <form onSubmit={handleSubmit} className="space-y-6">{isCashierEditing ? (
             // VISTA SIMPLIFICADA PARA CAJERO - SOLO VERIFICACIÓN
             <>
               {/* Información del Prospecto (Solo lectura) */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <h4 className="text-lg font-semibold text-blue-900 mb-4">Información del Prospecto</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-600">Nombre Completo</p>
-                    <p className="text-base font-medium text-gray-900">{student?.name}</p>
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 shadow-sm">
+                <h4 className="text-lg font-bold text-blue-900 mb-5 flex items-center gap-2">
+                  <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                  </svg>
+                  Información del Prospecto
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm hover:shadow-md transition-all">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Nombre Completo</p>
+                    <p className="text-base font-bold text-gray-900">{student?.name}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Correo Electrónico</p>
-                    <p className="text-base font-medium text-gray-900">{student?.email}</p>
+                  <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm hover:shadow-md transition-all">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Correo Electrónico</p>
+                    <p className="text-sm font-bold text-gray-900 break-all">{student?.email}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Documento</p>
-                    <p className="text-base font-medium text-gray-900">
+                  <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm hover:shadow-md transition-all">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Documento</p>
+                    <p className="text-base font-bold text-gray-900">
                       {student?.documentType?.toUpperCase()}: {student?.documentNumber}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Teléfono</p>
-                    <p className="text-base font-medium text-gray-900">{student?.phoneNumber}</p>
+                  <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm hover:shadow-md transition-all">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Teléfono</p>
+                    <p className="text-base font-bold text-gray-900">{student?.phoneNumber}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Nivel Académico</p>
-                    <p className="text-base font-medium text-gray-900 capitalize">{student?.level || '-'}</p>
+                  <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm hover:shadow-md transition-all">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Nivel Académico</p>
+                    <p className="text-base font-bold text-gray-900 capitalize">{student?.level || '-'}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Plan Contratado</p>
-                    <p className="text-base font-medium text-gray-900 capitalize">{student?.contractedPlan || '-'}</p>
+                  <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm hover:shadow-md transition-all">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Plan Contratado</p>
+                    <p className="text-base font-bold text-gray-900 capitalize">{student?.contractedPlan || '-'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Datos de Pago (Solo lectura) */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                <h4 className="text-lg font-semibold text-green-900 mb-4">Datos de Pago Reportados</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-600">Fecha de Pago</p>
-                    <p className="text-base font-medium text-gray-900">
-                      {student?.paymentDate ? new Date(student.paymentDate).toLocaleDateString('es-PE') : '-'}
+              <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6 shadow-sm">
+                <h4 className="text-lg font-bold text-green-900 mb-5 flex items-center gap-2">
+                  <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+                    <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
+                  </svg>
+                  Datos de Pago Reportados
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="bg-white rounded-xl p-4 border border-green-100 shadow-sm hover:shadow-md transition-all">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Fecha de Pago</p>
+                    <p className="text-base font-bold text-gray-900">
+                      {student?.paymentDate ? new Date(student.paymentDate).toLocaleDateString('es-PE', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      }) : '-'}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Registrado por</p>
-                    <p className="text-base font-medium text-gray-900">{student?.registeredBy?.name || '-'}</p>
+                  <div className="bg-white rounded-xl p-4 border border-green-100 shadow-sm hover:shadow-md transition-all">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Registrado por</p>
+                    <p className="text-base font-bold text-gray-900">{student?.registeredBy?.name || '-'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Verificación de Pago - ACCIÓN PRINCIPAL DEL CAJERO */}
-              <div className="mt-6 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-300">
-                <label className="flex items-start space-x-4 cursor-pointer">
+              <div className="p-6 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 rounded-2xl border-2 border-green-400 shadow-lg">
+                <label className="flex items-start gap-4 cursor-pointer group">
                   <input
                     type="checkbox"
                     checked={formData.paymentVerified}
                     onChange={(e) => setFormData({...formData, paymentVerified: e.target.checked})}
-                    className="w-7 h-7 text-green-600 focus:ring-green-500 rounded border-gray-300 mt-1"
+                    className="w-7 h-7 text-green-600 focus:ring-4 focus:ring-green-300 rounded-lg border-2 border-gray-400 transition-all mt-1 cursor-pointer"
                   />
                   <div className="flex-1">
-                    <span className="text-lg font-bold text-gray-900 block mb-2">✓ Confirmar Verificación de Pago</span>
-                    <span className="text-sm text-gray-700">
+                    <span className="text-xl font-bold text-gray-900 block mb-2 group-hover:text-green-700 transition-colors">
+                      ✓ Confirmar Verificación de Pago
+                    </span>
+                    <span className="text-sm text-gray-700 leading-relaxed">
                       He verificado que el pago ha sido recibido correctamente. 
-                      <span className="block mt-2 text-green-700 font-medium">
-                        Al confirmar, el estudiante será <strong>matriculado automáticamente</strong> en el sistema.
+                      <span className="block mt-3 text-green-900 font-semibold bg-green-100 p-3 rounded-lg border-l-4 border-green-600">
+                        💡 Al confirmar, el estudiante será <strong>matriculado automáticamente</strong> en el sistema.
                       </span>
                     </span>
                   </div>
                   {formData.paymentVerified && (
-                    <div className="flex-shrink-0">
-                      <svg className="w-10 h-10 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="flex-shrink-0 animate-bounce">
+                      <svg className="w-12 h-12 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
                     </div>
@@ -486,13 +555,13 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
               {/* Mensaje informativo sobre matrícula */}
               {formData.paymentVerified && (
-                <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
-                  <div className="flex items-start">
-                    <svg className="w-6 h-6 text-green-600 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <div className="p-5 bg-green-50 rounded-2xl border-l-4 border-green-500 shadow-sm animate-fade-in">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-6 h-6 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
                     <div>
-                      <p className="text-sm font-medium text-green-900">Pago verificado - Listo para matricular</p>
+                      <p className="text-sm font-bold text-green-900">✅ Pago verificado - Listo para matricular</p>
                       <p className="text-sm text-green-700 mt-1">
                         Al guardar, el estudiante será matriculado automáticamente y pasará al estado "Matriculado".
                       </p>
@@ -503,16 +572,21 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
               {/* Información de verificación de pago */}
               {student?.verifiedPaymentBy && (
-                <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
-                  <h5 className="text-sm font-semibold text-green-900 mb-2">✓ Pago Verificado</h5>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-gray-600">Verificado por:</p>
-                      <p className="font-medium text-gray-900">{student.verifiedPaymentBy.name}</p>
+                <div className="p-5 bg-green-50 rounded-xl border border-green-200 shadow-sm">
+                  <h5 className="text-sm font-bold text-green-900 mb-3 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Pago Verificado
+                  </h5>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="bg-white p-3 rounded-lg">
+                      <p className="text-gray-600 mb-1">Verificado por:</p>
+                      <p className="font-bold text-gray-900">{student.verifiedPaymentBy.name}</p>
                     </div>
-                    <div>
-                      <p className="text-gray-600">Fecha de verificación:</p>
-                      <p className="font-medium text-gray-900">
+                    <div className="bg-white p-3 rounded-lg">
+                      <p className="text-gray-600 mb-1">Fecha de verificación:</p>
+                      <p className="font-bold text-gray-900">
                         {student.paymentVerifiedAt ? new Date(student.paymentVerifiedAt).toLocaleString('es-PE') : '-'}
                       </p>
                     </div>
@@ -1018,33 +1092,37 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
           </div>
           </>
           )}
-
-          {/* Botones de Acción */}
-          <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isCashierEditing && !formData.paymentVerified}
-              className={`px-6 py-3 rounded-lg font-medium transition-all shadow-md hover:shadow-lg ${
-                isCashierEditing && !formData.paymentVerified
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white'
-              }`}
-            >
-              {isCashierEditing 
-                ? (formData.paymentVerified ? '✓ Verificar Pago y Matricular' : 'Confirma la verificación primero')
-                : student 
-                ? 'Actualizar Prospecto' 
-                : 'Registrar Prospecto'}
-            </button>
+            </form>
           </div>
-        </form>
+
+          {/* Footer con Botones */}
+          <div className="bg-gray-50 px-8 py-6 rounded-b-3xl border-t-2 border-gray-200 flex-shrink-0">
+            <div className="flex justify-end gap-4">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="px-6 py-3 text-gray-700 bg-white hover:bg-gray-100 border-2 border-gray-300 rounded-xl font-semibold transition-all duration-200"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={isCashierEditing && !formData.paymentVerified}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm flex items-center gap-2 ${
+                  isCashierEditing && !formData.paymentVerified
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                {isCashierEditing 
+                  ? (formData.paymentVerified ? 'Verificar y Matricular' : 'Marcar la verificación')
+                  : student 
+                  ? 'Actualizar' 
+                  : 'Registrar'}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
