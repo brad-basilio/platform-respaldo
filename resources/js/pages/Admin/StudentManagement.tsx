@@ -87,7 +87,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         // Actualizar estado local
         setStudents(students.map(student =>
           student.id === studentId
-            ? { ...student, prospectStatus: newStatus as 'registrado' | 'propuesta_enviada' | 'verificacion_pago' | 'matriculado' }
+            ? { ...student, prospectStatus: newStatus as 'registrado' | 'propuesta_enviada' | 'pago_reportado' | 'verificacion_pago' | 'matriculado' }
             : student
         ));
       }
@@ -116,7 +116,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = (e: React.DragEvent, newStatus: 'registrado' | 'propuesta_enviada' | 'verificacion_pago' | 'matriculado') => {
+  const handleDrop = (e: React.DragEvent, newStatus: 'registrado' | 'propuesta_enviada' | 'pago_reportado' | 'verificacion_pago' | 'matriculado') => {
     e.preventDefault();
     if (draggedStudent) {
       // Validar transiciones según el rol
@@ -193,37 +193,53 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
   const handleUpdateStudent = (formData: any) => {
     if (!editingStudent) return;
 
-    router.put(`/admin/students/${editingStudent.id}`, {
-      first_name: formData.firstName,
-      paternal_last_name: formData.paternalLastName,
-      maternal_last_name: formData.maternalLastName,
-      phone_number: formData.phoneNumber,
-      gender: formData.gender,
-      birth_date: formData.birthDate,
-      document_type: formData.documentType,
-      document_number: formData.documentNumber,
-      education_level: formData.educationLevel,
-      email: formData.email,
-      payment_date: formData.paymentDate,
-      enrollment_date: formData.enrollmentDate,
-      enrollment_code: formData.enrollmentCode,
-      level: formData.academicLevel,
-      contracted_plan: formData.contractedPlan,
-      payment_verified: formData.paymentVerified,
-      has_placement_test: formData.hasPlacementTest,
-      test_date: formData.testDate,
-      test_score: formData.testScore,
-      guardian_name: formData.guardianName,
-      guardian_document_number: formData.guardianDocumentNumber,
-      guardian_email: formData.guardianEmail,
-      guardian_birth_date: formData.guardianBirthDate,
-      guardian_phone: formData.guardianPhone,
-      guardian_address: formData.guardianAddress,
-      status: formData.status,
-    }, {
+    // Determinar qué campos enviar según el rol
+    const updateData = userRole === 'cashier' 
+      ? {
+          // Cajero: solo datos de matrícula
+          payment_date: formData.paymentDate,
+          enrollment_date: formData.enrollmentDate,
+          enrollment_code: formData.enrollmentCode,
+          level: formData.academicLevel,
+          contracted_plan: formData.contractedPlan,
+          payment_verified: formData.paymentVerified,
+        }
+      : {
+          // Admin y Sales Advisor: todos los campos
+          first_name: formData.firstName,
+          paternal_last_name: formData.paternalLastName,
+          maternal_last_name: formData.maternalLastName,
+          phone_number: formData.phoneNumber,
+          gender: formData.gender,
+          birth_date: formData.birthDate,
+          document_type: formData.documentType,
+          document_number: formData.documentNumber,
+          education_level: formData.educationLevel,
+          email: formData.email,
+          payment_date: formData.paymentDate,
+          enrollment_date: formData.enrollmentDate,
+          enrollment_code: formData.enrollmentCode,
+          level: formData.academicLevel,
+          contracted_plan: formData.contractedPlan,
+          payment_verified: formData.paymentVerified,
+          has_placement_test: formData.hasPlacementTest,
+          test_date: formData.testDate,
+          test_score: formData.testScore,
+          guardian_name: formData.guardianName,
+          guardian_document_number: formData.guardianDocumentNumber,
+          guardian_email: formData.guardianEmail,
+          guardian_birth_date: formData.guardianBirthDate,
+          guardian_phone: formData.guardianPhone,
+          guardian_address: formData.guardianAddress,
+          status: formData.status,
+        };
+
+    router.put(`/admin/students/${editingStudent.id}`, updateData, {
       preserveScroll: true,
       onSuccess: () => {
         setEditingStudent(null);
+        // Recargar la página para obtener datos actualizados
+        router.reload({ only: ['students'] });
       }
     });
   };
@@ -249,6 +265,23 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
     { id: 'verificacion_pago', title: 'Verificación de Pago', color: 'border-orange-500 bg-orange-50' },
     { id: 'matriculado', title: 'Matriculado', color: 'border-green-500 bg-green-50' },
   ];
+
+  // Filtrar columnas según el rol
+  const getVisibleKanbanColumns = () => {
+    if (userRole === 'cashier') {
+      // Cajero solo ve: Pago Reportado, Verificación de Pago, Matriculado
+      return kanbanColumns.filter(col => 
+        ['pago_reportado', 'verificacion_pago', 'matriculado'].includes(col.id)
+      );
+    } else if (userRole === 'sales_advisor') {
+      // Asesor de ventas solo ve: Registrado, Propuesta Enviada, Pago Reportado
+      return kanbanColumns.filter(col => 
+        ['registrado', 'propuesta_enviada', 'pago_reportado'].includes(col.id)
+      );
+    }
+    // Admin ve todas las columnas
+    return kanbanColumns;
+  };
 
   const getStudentsByStatus = (status: string) => {
     return filteredStudents.filter(student => student.prospectStatus === status);
@@ -299,6 +332,9 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
       status: student?.status || 'active',
     });
 
+    // Determinar si el cajero está editando
+    const isCashierEditing = userRole === 'cashier' && student;
+
     // Función para generar código de matrícula
     const generateEnrollmentCode = () => {
       const year = new Date().getFullYear();
@@ -341,12 +377,190 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 max-w-6xl mx-auto">
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-6 rounded-t-lg">
           <h3 className="text-2xl font-bold">
-            {student ? 'Editar Prospecto' : 'Ficha de Registro de Prospecto'}
+            {isCashierEditing 
+              ? 'Completar Datos de Matrícula'
+              : student 
+              ? 'Editar Prospecto' 
+              : 'Ficha de Registro de Prospecto'}
           </h3>
-          <p className="text-blue-100 mt-1">Complete todos los campos requeridos</p>
+          <p className="text-blue-100 mt-1">
+            {isCashierEditing 
+              ? 'Complete los datos de pago y matrícula para procesar al estudiante'
+              : 'Complete todos los campos requeridos'}
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-8">
+        <form onSubmit={handleSubmit} className="p-8 space-y-8">{isCashierEditing ? (
+            // VISTA SIMPLIFICADA PARA CAJERO
+            <>
+              {/* Información del Prospecto (Solo lectura) */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h4 className="text-lg font-semibold text-blue-900 mb-4">Información del Prospecto</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Nombre Completo</p>
+                    <p className="text-base font-medium text-gray-900">{student?.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Correo Electrónico</p>
+                    <p className="text-base font-medium text-gray-900">{student?.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Documento</p>
+                    <p className="text-base font-medium text-gray-900">
+                      {student?.documentType?.toUpperCase()}: {student?.documentNumber}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Teléfono</p>
+                    <p className="text-base font-medium text-gray-900">{student?.phoneNumber}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Datos de Matrícula - EDITABLE */}
+              <div>
+                <div className="flex items-center mb-4 pb-2 border-b-2 border-green-600">
+                  <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Datos de Pago y Matrícula</h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fecha de Pago <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.paymentDate}
+                      onChange={(e) => handlePaymentDateChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nivel Académico <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={formData.academicLevel}
+                      onChange={(e) => setFormData({...formData, academicLevel: e.target.value as 'basic' | 'intermediate' | 'advanced'})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="basic">Básico</option>
+                      <option value="intermediate">Intermedio</option>
+                      <option value="advanced">Avanzado</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Plan Contratado <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.contractedPlan}
+                    onChange={(e) => setFormData({...formData, contractedPlan: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="">Seleccionar Plan</option>
+                    <option value="basico">Plan Básico</option>
+                    <option value="estandar">Plan Estándar</option>
+                    <option value="premium">Plan Premium</option>
+                    <option value="intensivo">Plan Intensivo</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fecha de Matrícula
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.enrollmentDate}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                      disabled
+                      readOnly
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Se llena automáticamente al seleccionar la fecha de pago
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Código de Matrícula
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.enrollmentCode}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                      disabled
+                      readOnly
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Se genera automáticamente
+                    </p>
+                  </div>
+                </div>
+
+                {/* Verificación de Pago */}
+                <div className="mt-6 p-4 bg-green-50 rounded-xl border-2 border-green-200">
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.paymentVerified}
+                      onChange={(e) => setFormData({...formData, paymentVerified: e.target.checked})}
+                      className="w-6 h-6 text-green-600 focus:ring-green-500 rounded border-gray-300"
+                    />
+                    <div className="flex-1">
+                      <span className="text-base font-bold text-gray-900 block">Confirmar Verificación de Pago</span>
+                      <span className="text-sm text-gray-600">
+                        Marca esta casilla después de verificar el pago. 
+                        {student?.prospectStatus === 'pago_reportado' && (
+                          <span className="text-green-700 font-medium"> El estado cambiará automáticamente a "Verificación de Pago".</span>
+                        )}
+                      </span>
+                    </div>
+                    {formData.paymentVerified && (
+                      <div className="flex-shrink-0">
+                        <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                  </label>
+                </div>
+
+                {/* Mensaje informativo sobre matrícula */}
+                {formData.paymentVerified && student?.prospectStatus === 'verificacion_pago' && (
+                  <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <div className="flex items-start">
+                      <svg className="w-6 h-6 text-blue-600 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                        <p className="text-sm font-medium text-blue-900">Listo para matricular</p>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Una vez guardados estos datos, podrás cambiar el estado a "Matriculado" desde el Kanban o la tabla.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            // VISTA COMPLETA PARA ADMIN Y ASESOR DE VENTAS
+            <>
           {/* Sección: Datos Personales */}
           <div>
             <div className="flex items-center mb-4 pb-2 border-b-2 border-blue-600">
@@ -552,7 +766,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
                 </label>
                 <select
                   value={formData.academicLevel}
-                  onChange={(e) => setFormData({...formData, academicLevel: e.target.value})}
+                  onChange={(e) => setFormData({...formData, academicLevel: e.target.value as 'basic' | 'intermediate' | 'advanced'})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="basic">Básico</option>
@@ -840,6 +1054,8 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
               </div>
             </div>
           </div>
+          </>
+          )}
 
           {/* Botones de Acción */}
           <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
@@ -854,7 +1070,11 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
               type="submit"
               className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-medium transition-all shadow-md hover:shadow-lg"
             >
-              {student ? 'Actualizar Prospecto' : 'Registrar Prospecto'}
+              {isCashierEditing 
+                ? 'Guardar Datos de Matrícula'
+                : student 
+                ? 'Actualizar Prospecto' 
+                : 'Registrar Prospecto'}
             </button>
           </div>
         </form>
@@ -1009,7 +1229,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="overflow-x-auto overflow-y-hidden">
             <div className="flex gap-4 p-4" style={{ minWidth: 'max-content' }}>
-              {kanbanColumns.map((column) => (
+              {getVisibleKanbanColumns().map((column) => (
                 <div
                   key={column.id}
                   className={`bg-gray-50 rounded-lg shadow-sm border-t-4 ${column.color} min-h-96 w-80 flex-shrink-0`}
@@ -1314,40 +1534,47 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total de Prospectos</p>
-              <p className="text-2xl font-semibold text-gray-900">{students.length}</p>
+              <p className="text-2xl font-semibold text-gray-900">{filteredStudents.length}</p>
             </div>
             <Users className="h-8 w-8 text-blue-600" />
           </div>
         </div>
 
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Registrados</p>
-              <p className="text-2xl font-semibold text-blue-600">
-                {students.filter(s => s.prospectStatus === 'registrado').length}
-              </p>
-            </div>
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-              <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Propuesta Enviada</p>
-              <p className="text-2xl font-semibold text-yellow-600">
-                {students.filter(s => s.prospectStatus === 'propuesta_enviada').length}
-              </p>
-            </div>
-            <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-              <div className="w-3 h-3 bg-yellow-600 rounded-full"></div>
+        {/* Registrados - Solo Admin y Sales Advisor */}
+        {(userRole === 'admin' || userRole === 'sales_advisor') && (
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Registrados</p>
+                <p className="text-2xl font-semibold text-blue-600">
+                  {students.filter(s => s.prospectStatus === 'registrado').length}
+                </p>
+              </div>
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
+        {/* Propuesta Enviada - Solo Admin y Sales Advisor */}
+        {(userRole === 'admin' || userRole === 'sales_advisor') && (
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Propuesta Enviada</p>
+                <p className="text-2xl font-semibold text-yellow-600">
+                  {students.filter(s => s.prospectStatus === 'propuesta_enviada').length}
+                </p>
+              </div>
+              <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                <div className="w-3 h-3 bg-yellow-600 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pago Reportado - Todos */}
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
@@ -1362,6 +1589,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
           </div>
         </div>
 
+        {/* Verificación Pago - Todos */}
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
@@ -1376,6 +1604,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
           </div>
         </div>
 
+        {/* Matriculados - Todos */}
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>

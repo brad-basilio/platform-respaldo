@@ -124,16 +124,43 @@ class StudentController extends Controller
 
     public function update(Request $request, Student $student)
     {
-        // Solo admin y sales_advisor pueden editar
-        // Sales advisor solo puede editar sus propios prospectos
         $user = auth()->user();
+        
+        // Cajero: solo puede editar datos de matrícula/pago
         if ($user->role === 'cashier') {
-            abort(403, 'No tienes permiso para editar prospectos.');
+            // Solo puede editar prospectos en estado pago_reportado o verificacion_pago
+            if (!in_array($student->prospect_status, ['pago_reportado', 'verificacion_pago'])) {
+                abort(403, 'Solo puedes editar prospectos en estado "Pago Reportado" o "Verificación de Pago".');
+            }
+
+            $validated = $request->validate([
+                'payment_date' => 'nullable|date',
+                'enrollment_date' => 'nullable|date',
+                'enrollment_code' => 'nullable|string',
+                'level' => 'required|in:basic,intermediate,advanced',
+                'contracted_plan' => 'nullable|string',
+                'payment_verified' => 'boolean',
+            ]);
+
+            // Si marca payment_verified y está en pago_reportado, cambiar a verificacion_pago
+            if (isset($validated['payment_verified']) && $validated['payment_verified'] === true) {
+                if ($student->prospect_status === 'pago_reportado') {
+                    $validated['prospect_status'] = 'verificacion_pago';
+                }
+            }
+
+            // Update only enrollment/payment fields
+            $student->update($validated);
+
+            return redirect()->back()->with('success', 'Datos de matrícula actualizados exitosamente');
         }
+
+        // Sales advisor solo puede editar sus propios prospectos
         if ($user->role === 'sales_advisor' && $student->registered_by !== $user->id) {
             abort(403, 'Solo puedes editar tus propios prospectos.');
         }
 
+        // Admin y sales_advisor pueden editar todos los campos
         $validated = $request->validate([
             'first_name' => 'required|string',
             'paternal_last_name' => 'required|string',
