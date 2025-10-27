@@ -29,7 +29,7 @@ class DatabaseSeeder extends Seeder
         // Llamar a los seeders adicionales
         $this->call([
             RolesSeeder::class,
-            StudentSeeder::class,
+            StudentSeeder::class, // Crea prospectos con diferentes estados
         ]);
 
         // Create teachers
@@ -127,8 +127,12 @@ class DatabaseSeeder extends Seeder
             'role' => 'student',
         ]);
 
+        // Obtener asesor 1 para asignar estudiantes
+        $asesor1 = User::where('email', 'asesor1@english.com')->first();
+        
         $studentProfile1 = Student::create([
             'user_id' => $student1->id,
+            'registered_by' => $asesor1?->id,
             'first_name' => 'Juan',
             'paternal_last_name' => 'Pérez',
             'maternal_last_name' => 'García',
@@ -136,7 +140,7 @@ class DatabaseSeeder extends Seeder
             'gender' => 'M',
             'birth_date' => '2000-03-10',
             'document_type' => 'dni',
-            'document_number' => '70123456',
+            'document_number' => '60123456', // Cambiado para evitar duplicación
             'education_level' => 'universitario',
             'status' => 'active',
             'class_type' => 'theoretical',
@@ -159,6 +163,7 @@ class DatabaseSeeder extends Seeder
 
         $studentProfile2 = Student::create([
             'user_id' => $student2->id,
+            'registered_by' => $asesor1?->id,
             'first_name' => 'María',
             'paternal_last_name' => 'García',
             'maternal_last_name' => 'López',
@@ -166,7 +171,7 @@ class DatabaseSeeder extends Seeder
             'gender' => 'F',
             'birth_date' => '1998-07-22',
             'document_type' => 'dni',
-            'document_number' => '70123457',
+            'document_number' => '60123457', // Cambiado para evitar duplicación
             'education_level' => 'secundaria',
             'status' => 'active',
             'class_type' => 'practical',
@@ -189,6 +194,7 @@ class DatabaseSeeder extends Seeder
 
         $studentProfile3 = Student::create([
             'user_id' => $student3->id,
+            'registered_by' => $asesor1?->id,
             'first_name' => 'Ahmed',
             'paternal_last_name' => 'Hassan',
             'maternal_last_name' => '',
@@ -196,7 +202,7 @@ class DatabaseSeeder extends Seeder
             'gender' => 'M',
             'birth_date' => '1995-11-05',
             'document_type' => 'ce',
-            'document_number' => 'CE001234',
+            'document_number' => 'CE001235', // Cambiado para evitar duplicación
             'education_level' => 'postgrado',
             'status' => 'inactive',
             'class_type' => 'theoretical',
@@ -204,6 +210,61 @@ class DatabaseSeeder extends Seeder
             'points' => 2100,
             'registration_date' => now(),
             'prospect_status' => 'registrado',
+        ]);
+
+        // Agregar estudiantes con diferentes estados del flujo
+        $student4 = User::create([
+            'name' => 'Camila Silva',
+            'email' => 'camila.silva@english.com',
+            'password' => Hash::make('student123'),
+            'role' => 'student',
+        ]);
+
+        $studentProfile4 = Student::create([
+            'user_id' => $student4->id,
+            'registered_by' => $asesor1?->id,
+            'first_name' => 'Camila',
+            'paternal_last_name' => 'Silva',
+            'maternal_last_name' => 'Morales',
+            'phone_number' => '+51987654324',
+            'gender' => 'F',
+            'birth_date' => '2001-01-12',
+            'document_type' => 'dni',
+            'document_number' => '78567890', // Cambiado para evitar duplicación
+            'education_level' => 'universitario',
+            'status' => 'active',
+            'class_type' => 'theoretical',
+            'level' => 'intermediate',
+            'points' => 0,
+            'registration_date' => now(),
+            'prospect_status' => 'pago_reportado', // Nuevo estado: asesor confirmó que pagó
+        ]);
+
+        $student5 = User::create([
+            'name' => 'Ricardo Paredes',
+            'email' => 'ricardo.paredes@english.com',
+            'password' => Hash::make('student123'),
+            'role' => 'student',
+        ]);
+
+        $studentProfile5 = Student::create([
+            'user_id' => $student5->id,
+            'registered_by' => $asesor1?->id,
+            'first_name' => 'Ricardo',
+            'paternal_last_name' => 'Paredes',
+            'maternal_last_name' => 'Luna',
+            'phone_number' => '+51987654325',
+            'gender' => 'M',
+            'birth_date' => '1999-10-28',
+            'document_type' => 'dni',
+            'document_number' => '76987654', // Cambiado para evitar duplicación
+            'education_level' => 'tecnico',
+            'status' => 'active',
+            'class_type' => 'practical',
+            'level' => 'basic',
+            'points' => 0,
+            'registration_date' => now(),
+            'prospect_status' => 'propuesta_enviada', // Propuesta enviada, esperando pago
         ]);
 
         // Create groups

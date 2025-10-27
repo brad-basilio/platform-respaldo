@@ -34,6 +34,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
     switch (status) {
       case 'registrado': return 'bg-blue-100 text-blue-800';
       case 'propuesta_enviada': return 'bg-yellow-100 text-yellow-800';
+      case 'pago_reportado': return 'bg-cyan-100 text-cyan-800';
       case 'verificacion_pago': return 'bg-orange-100 text-orange-800';
       case 'matriculado': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -44,6 +45,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
     switch (status) {
       case 'registrado': return 'Registrado';
       case 'propuesta_enviada': return 'Propuesta Enviada';
+      case 'pago_reportado': return 'Pago Reportado';
       case 'verificacion_pago': return 'Verificación de Pago';
       case 'matriculado': return 'Matriculado';
       default: return 'Sin Estado';
@@ -57,13 +59,21 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
     // Validar transiciones permitidas según rol
     if (userRole === 'sales_advisor') {
-      if (!(student.prospectStatus === 'registrado' && newStatus === 'propuesta_enviada')) {
-        alert('Como asesor de ventas solo puedes mover prospectos de "Registrado" a "Propuesta Enviada"');
+      const allowedTransitions = [
+        student.prospectStatus === 'registrado' && newStatus === 'propuesta_enviada',
+        student.prospectStatus === 'propuesta_enviada' && newStatus === 'pago_reportado'
+      ];
+      if (!allowedTransitions.some(t => t)) {
+        alert('Como asesor de ventas solo puedes: Registrado → Propuesta Enviada → Pago Reportado');
         return;
       }
     } else if (userRole === 'cashier') {
-      if (!(student.prospectStatus === 'verificacion_pago' && newStatus === 'matriculado')) {
-        alert('Como cajero solo puedes matricular prospectos que estén en "Verificación de Pago"');
+      const allowedTransitions = [
+        student.prospectStatus === 'pago_reportado' && newStatus === 'verificacion_pago',
+        student.prospectStatus === 'verificacion_pago' && newStatus === 'matriculado'
+      ];
+      if (!allowedTransitions.some(t => t)) {
+        alert('Como cajero solo puedes: Pago Reportado → Verificación de Pago → Matriculado');
         return;
       }
     }
@@ -111,14 +121,22 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
     if (draggedStudent) {
       // Validar transiciones según el rol
       if (userRole === 'sales_advisor') {
-        if (!(draggedStudent.prospectStatus === 'registrado' && newStatus === 'propuesta_enviada')) {
-          alert('Como asesor de ventas solo puedes mover prospectos de "Registrado" a "Propuesta Enviada"');
+        const allowedTransitions = [
+          draggedStudent.prospectStatus === 'registrado' && newStatus === 'propuesta_enviada',
+          draggedStudent.prospectStatus === 'propuesta_enviada' && newStatus === 'pago_reportado'
+        ];
+        if (!allowedTransitions.some(t => t)) {
+          alert('Como asesor de ventas solo puedes: Registrado → Propuesta Enviada → Pago Reportado');
           setDraggedStudent(null);
           return;
         }
       } else if (userRole === 'cashier') {
-        if (!(draggedStudent.prospectStatus === 'verificacion_pago' && newStatus === 'matriculado')) {
-          alert('Como cajero solo puedes matricular prospectos que estén en "Verificación de Pago"');
+        const allowedTransitions = [
+          draggedStudent.prospectStatus === 'pago_reportado' && newStatus === 'verificacion_pago',
+          draggedStudent.prospectStatus === 'verificacion_pago' && newStatus === 'matriculado'
+        ];
+        if (!allowedTransitions.some(t => t)) {
+          alert('Como cajero solo puedes: Pago Reportado → Verificación de Pago → Matriculado');
           setDraggedStudent(null);
           return;
         }
@@ -227,6 +245,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
   const kanbanColumns = [
     { id: 'registrado', title: 'Registrado', color: 'border-blue-500 bg-blue-50' },
     { id: 'propuesta_enviada', title: 'Propuesta Enviada', color: 'border-yellow-500 bg-yellow-50' },
+    { id: 'pago_reportado', title: 'Pago Reportado', color: 'border-cyan-500 bg-cyan-50' },
     { id: 'verificacion_pago', title: 'Verificación de Pago', color: 'border-orange-500 bg-orange-50' },
     { id: 'matriculado', title: 'Matriculado', color: 'border-green-500 bg-green-50' },
   ];
@@ -987,30 +1006,32 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
       {/* Kanban View */}
       {viewMode === 'kanban' && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          {kanbanColumns.map((column) => (
-            <div
-              key={column.id}
-              className={`bg-white rounded-lg shadow-sm border-t-4 ${column.color} min-h-96`}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, column.id as any)}
-            >
-              <div className="p-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">{column.title}</h3>
-                  <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-sm font-medium">
-                    {getStudentsByStatus(column.id).length}
-                  </span>
-                </div>
-              </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <div className="inline-flex gap-4 p-4 min-w-full">
+              {kanbanColumns.map((column) => (
+                <div
+                  key={column.id}
+                  className={`bg-gray-50 rounded-lg shadow-sm border-t-4 ${column.color} min-h-96 w-80 flex-shrink-0`}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, column.id as any)}
+                >
+                  <div className="p-4 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">{column.title}</h3>
+                      <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-sm font-medium">
+                        {getStudentsByStatus(column.id).length}
+                      </span>
+                    </div>
+                  </div>
               
               <div className="p-4 space-y-3">
                 {getStudentsByStatus(column.id).map((student) => {
                   // Determinar si el prospecto puede ser arrastrado según el rol
                   const isDraggable = 
                     userRole === 'admin' || 
-                    (userRole === 'sales_advisor' && student.prospectStatus === 'registrado') ||
-                    (userRole === 'cashier' && student.prospectStatus === 'verificacion_pago');
+                    (userRole === 'sales_advisor' && (student.prospectStatus === 'registrado' || student.prospectStatus === 'propuesta_enviada')) ||
+                    (userRole === 'cashier' && (student.prospectStatus === 'pago_reportado' || student.prospectStatus === 'verificacion_pago'));
 
                   return (
                   <div
@@ -1083,6 +1104,8 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
               </div>
             </div>
           ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1164,30 +1187,45 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
                           <>
                             <option value="registrado">Registrado</option>
                             <option value="propuesta_enviada">Propuesta Enviada</option>
+                            <option value="pago_reportado">Pago Reportado</option>
                             <option value="verificacion_pago">Verificación de Pago</option>
                             <option value="matriculado">Matriculado</option>
                           </>
                         )}
                         {userRole === 'sales_advisor' && (
                           <>
-                            <option value="registrado">Registrado</option>
                             {student.prospectStatus === 'registrado' && (
-                              <option value="propuesta_enviada">Propuesta Enviada</option>
+                              <>
+                                <option value="registrado">Registrado</option>
+                                <option value="propuesta_enviada">Propuesta Enviada</option>
+                              </>
                             )}
                             {student.prospectStatus === 'propuesta_enviada' && (
-                              <option value="propuesta_enviada">Propuesta Enviada</option>
+                              <>
+                                <option value="propuesta_enviada">Propuesta Enviada</option>
+                                <option value="pago_reportado">Pago Reportado</option>
+                              </>
+                            )}
+                            {student.prospectStatus === 'pago_reportado' && (
+                              <option value="pago_reportado">Pago Reportado</option>
                             )}
                           </>
                         )}
                         {userRole === 'cashier' && (
                           <>
+                            {student.prospectStatus === 'pago_reportado' && (
+                              <>
+                                <option value="pago_reportado">Pago Reportado</option>
+                                <option value="verificacion_pago">Verificación de Pago</option>
+                              </>
+                            )}
                             {student.prospectStatus === 'verificacion_pago' && (
                               <>
                                 <option value="verificacion_pago">Verificación de Pago</option>
                                 <option value="matriculado">Matriculado</option>
                               </>
                             )}
-                            {student.prospectStatus !== 'verificacion_pago' && (
+                            {student.prospectStatus !== 'pago_reportado' && student.prospectStatus !== 'verificacion_pago' && (
                               <option value={student.prospectStatus}>{getProspectStatusLabel(student.prospectStatus || 'registrado')}</option>
                             )}
                           </>
@@ -1279,7 +1317,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
       )}
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
@@ -1314,6 +1352,20 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
             </div>
             <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
               <div className="w-3 h-3 bg-yellow-600 rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Pago Reportado</p>
+              <p className="text-2xl font-semibold text-cyan-600">
+                {students.filter(s => s.prospectStatus === 'pago_reportado').length}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-cyan-100 rounded-full flex items-center justify-center">
+              <div className="w-3 h-3 bg-cyan-600 rounded-full"></div>
             </div>
           </div>
         </div>

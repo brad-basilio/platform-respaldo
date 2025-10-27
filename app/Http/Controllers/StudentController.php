@@ -199,7 +199,7 @@ class StudentController extends Controller
     public function updateProspectStatus(Request $request, Student $student)
     {
         $validated = $request->validate([
-            'prospect_status' => 'required|in:registrado,propuesta_enviada,verificacion_pago,matriculado',
+            'prospect_status' => 'required|in:registrado,propuesta_enviada,pago_reportado,verificacion_pago,matriculado',
         ]);
 
         $userRole = auth()->user()->role;
@@ -208,19 +208,30 @@ class StudentController extends Controller
 
         // Validaciones según rol
         if ($userRole === 'sales_advisor') {
-            // Asesor de Ventas: solo puede mover de registrado -> propuesta_enviada
-            if (!($currentStatus === 'registrado' && $newStatus === 'propuesta_enviada')) {
-                return redirect()->back()->withErrors(['error' => 'Solo puedes mover prospectos de Registrado a Propuesta Enviada']);
+            // Asesor de Ventas: puede mover registrado -> propuesta_enviada -> pago_reportado
+            $allowedTransitions = [
+                $currentStatus === 'registrado' && $newStatus === 'propuesta_enviada',
+                $currentStatus === 'propuesta_enviada' && $newStatus === 'pago_reportado'
+            ];
+            
+            if (!in_array(true, $allowedTransitions, true)) {
+                return redirect()->back()->withErrors(['error' => 'Solo puedes mover: Registrado → Propuesta Enviada → Pago Reportado']);
             }
-        } elseif ($userRole === 'student') {
-            // Estudiante/Prospecto: solo puede mover de propuesta_enviada -> verificacion_pago
-            if (!($currentStatus === 'propuesta_enviada' && $newStatus === 'verificacion_pago')) {
-                return redirect()->back()->withErrors(['error' => 'Solo puedes confirmar tu pago cuando tienes una propuesta']);
+
+            // Validar que el asesor solo pueda editar sus propios prospectos
+            if ($student->registered_by !== auth()->id()) {
+                return redirect()->back()->withErrors(['error' => 'Solo puedes modificar prospectos que tú registraste']);
             }
+
         } elseif ($userRole === 'cashier') {
-            // Cajero/Tesorero: solo puede mover de verificacion_pago -> matriculado
-            if (!($currentStatus === 'verificacion_pago' && $newStatus === 'matriculado')) {
-                return redirect()->back()->withErrors(['error' => 'Solo puedes matricular prospectos en Verificación de Pago']);
+            // Cajero: puede mover pago_reportado -> verificacion_pago -> matriculado
+            $allowedTransitions = [
+                $currentStatus === 'pago_reportado' && $newStatus === 'verificacion_pago',
+                $currentStatus === 'verificacion_pago' && $newStatus === 'matriculado'
+            ];
+            
+            if (!in_array(true, $allowedTransitions, true)) {
+                return redirect()->back()->withErrors(['error' => 'Solo puedes mover: Pago Reportado → Verificación de Pago → Matriculado']);
             }
             
             // Validar que tenga fecha de pago antes de matricular

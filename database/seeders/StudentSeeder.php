@@ -135,6 +135,37 @@ class StudentSeeder extends Seeder
             'prospect_status' => 'propuesta_enviada',
         ]);
 
+        // Prospectos con Pago Reportado (el asesor confirmó que el cliente pagó)
+        $this->createStudent([
+            'first_name' => 'Camila',
+            'paternal_last_name' => 'Silva',
+            'maternal_last_name' => 'Morales',
+            'email' => 'camila.silva@example.com',
+            'phone_number' => '987654331',
+            'gender' => 'F',
+            'birth_date' => '2001-01-12',
+            'document_type' => 'dni',
+            'document_number' => '73567890',
+            'education_level' => 'universitario',
+            'level' => 'intermediate',
+            'prospect_status' => 'pago_reportado',
+        ]);
+
+        $this->createStudent([
+            'first_name' => 'Ricardo',
+            'paternal_last_name' => 'Paredes',
+            'maternal_last_name' => 'Luna',
+            'email' => 'ricardo.paredes@example.com',
+            'phone_number' => '987654332',
+            'gender' => 'M',
+            'birth_date' => '1999-10-28',
+            'document_type' => 'dni',
+            'document_number' => '71987654',
+            'education_level' => 'tecnico',
+            'level' => 'basic',
+            'prospect_status' => 'pago_reportado',
+        ]);
+
         // Prospectos Registrados (recién ingresados por asesor)
         $this->createStudent([
             'first_name' => 'Ahmed',

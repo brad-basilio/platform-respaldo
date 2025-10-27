@@ -18,7 +18,7 @@ export interface Student extends User {
   points: number;
   badges: Badge[];
   certificates: Certificate[];
-  prospectStatus?: 'registrado' | 'propuesta_enviada' | 'verificacion_pago' | 'matriculado';
+  prospectStatus?: 'registrado' | 'propuesta_enviada' | 'pago_reportado' | 'verificacion_pago' | 'matriculado';
 
   // Datos Personales Extendidos
   firstName?: string;
