@@ -1,150 +1,17 @@
 import React, { useState } from 'react';
-import { Users, Plus, CreditCard as Edit, Trash2, Search, Filter, UserCheck, UserX, BookOpen, Calendar, Eye, List, Columns2 as Columns } from 'lucide-react';
-import { Student, Group } from '../../types';
+import { Users, Plus, CreditCard as Edit, Trash2, Search, UserCheck, UserX, BookOpen, Eye, List, Columns2 as Columns } from 'lucide-react';
+import { Student, Group } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
+import { router } from '@inertiajs/react';
 
-const StudentManagement: React.FC = () => {
-  const [students, setStudents] = useState<Student[]>([
-    {
-      id: '1',
-      name: 'Juan Pérez',
-      email: 'john@example.com',
-      role: 'student',
-      status: 'active',
-      classType: 'theoretical',
-      assignedGroupId: 'group1',
-      attendanceHistory: [],
-      enrolledGroups: ['group1'],
-      level: 'intermediate',
-      points: 1250,
-      badges: [],
-      certificates: [],
-      createdAt: new Date(),
-      prospectStatus: 'matriculado',
-      paymentDate: '2024-01-15',
-      enrollmentDate: '2024-01-15',
-      enrollmentCode: 'MAT-202401-1234',
-    },
-    {
-      id: '2',
-      name: 'María García',
-      email: 'maria@example.com',
-      role: 'student',
-      status: 'active',
-      classType: 'practical',
-      assignedGroupId: 'group2',
-      attendanceHistory: [],
-      enrolledGroups: ['group2'],
-      level: 'basic',
-      points: 850,
-      badges: [],
-      certificates: [],
-      createdAt: new Date(),
-      prospectStatus: 'matriculado',
-      paymentDate: '2024-01-10',
-      enrollmentDate: '2024-01-10',
-      enrollmentCode: 'MAT-202401-5678',
-    },
-    {
-      id: '3',
-      name: 'Ahmed Hassan',
-      email: 'ahmed@example.com',
-      role: 'student',
-      status: 'inactive',
-      classType: 'theoretical',
-      attendanceHistory: [],
-      enrolledGroups: [],
-      level: 'advanced',
-      points: 2100,
-      badges: [],
-      certificates: [],
-      createdAt: new Date(),
-      prospectStatus: 'registrado',
-      // Sin fecha de pago ni matrícula
-    },
-    {
-      id: '4',
-      name: 'Ana López',
-      email: 'ana@example.com',
-      role: 'student',
-      status: 'active',
-      classType: 'practical',
-      attendanceHistory: [],
-      enrolledGroups: [],
-      level: 'basic',
-      points: 0,
-      badges: [],
-      certificates: [],
-      createdAt: new Date(),
-      prospectStatus: 'propuesta_enviada',
-      // Sin fecha de pago ni matrícula
-    },
-    {
-      id: '5',
-      name: 'Carlos Mendoza',
-      email: 'carlos@example.com',
-      role: 'student',
-      status: 'active',
-      classType: 'theoretical',
-      attendanceHistory: [],
-      enrolledGroups: [],
-      level: 'intermediate',
-      points: 0,
-      badges: [],
-      certificates: [],
-      createdAt: new Date(),
-      prospectStatus: 'registrado',
-      // Sin fecha de pago ni matrícula
-    },
-    {
-      id: '6',
-      name: 'Sofia Ramírez',
-      email: 'sofia@example.com',
-      role: 'student',
-      status: 'active',
-      classType: 'practical',
-      attendanceHistory: [],
-      enrolledGroups: [],
-      level: 'advanced',
-      points: 0,
-      badges: [],
-      certificates: [],
-      createdAt: new Date(),
-      prospectStatus: 'propuesta_enviada',
-      // Sin fecha de pago ni matrícula
-    },
-  ]);
+interface Props {
+  students: Student[];
+  groups: Group[];
+  userRole: string;
+}
 
-  const [groups] = useState<Group[]>([
-    {
-      id: 'group1',
-      name: 'Teórico Básico A',
-      type: 'theoretical',
-      teacherId: 'teacher1',
-      teacherName: 'Sarah Johnson',
-      studentIds: ['1'],
-      maxCapacity: 4,
-      schedule: { dayOfWeek: 'Monday', startTime: '09:00', endTime: '10:30', duration: 90 },
-      status: 'active',
-      level: 'basic',
-      startDate: new Date(),
-      endDate: new Date(),
-    },
-    {
-      id: 'group2',
-      name: 'Práctico Intermedio B',
-      type: 'practical',
-      teacherId: 'teacher2',
-      teacherName: 'Mike Wilson',
-      studentIds: ['2'],
-      maxCapacity: 6,
-      schedule: { dayOfWeek: 'Wednesday', startTime: '14:00', endTime: '15:30', duration: 90 },
-      status: 'active',
-      level: 'intermediate',
-      startDate: new Date(),
-      endDate: new Date(),
-    },
-  ]);
+const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups, userRole }) => {
+  const [students, setStudents] = useState<Student[]>(initialStudents);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
@@ -183,13 +50,38 @@ const StudentManagement: React.FC = () => {
     }
   };
 
-  const enrollmentCode = `ENG${new Date().getFullYear()}${String(Date.now()).slice(-3)}`;
   const handleProspectStatusChange = (studentId: string, newStatus: string) => {
-    setStudents(students.map(student =>
-      student.id === studentId
-        ? { ...student, prospectStatus: newStatus as 'registrado' | 'propuesta_enviada' | 'verificacion_pago' | 'matriculado' }
-        : student
-    ));
+    // Validaciones del lado del cliente
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    // Validar transiciones permitidas según rol
+    if (userRole === 'sales_advisor') {
+      if (!(student.prospectStatus === 'registrado' && newStatus === 'propuesta_enviada')) {
+        alert('Como asesor de ventas solo puedes mover prospectos de "Registrado" a "Propuesta Enviada"');
+        return;
+      }
+    } else if (userRole === 'cashier') {
+      if (!(student.prospectStatus === 'verificacion_pago' && newStatus === 'matriculado')) {
+        alert('Como cajero solo puedes matricular prospectos que estén en "Verificación de Pago"');
+        return;
+      }
+    }
+
+    // Enviar actualización al servidor
+    router.put(`/admin/students/${studentId}/prospect-status`, {
+      prospect_status: newStatus
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        // Actualizar estado local
+        setStudents(students.map(student =>
+          student.id === studentId
+            ? { ...student, prospectStatus: newStatus as 'registrado' | 'propuesta_enviada' | 'verificacion_pago' | 'matriculado' }
+            : student
+        ));
+      }
+    });
   };
 
   const handleDragStart = (e: React.DragEvent, student: Student) => {
@@ -217,6 +109,21 @@ const StudentManagement: React.FC = () => {
   const handleDrop = (e: React.DragEvent, newStatus: 'registrado' | 'propuesta_enviada' | 'verificacion_pago' | 'matriculado') => {
     e.preventDefault();
     if (draggedStudent) {
+      // Validar transiciones según el rol
+      if (userRole === 'sales_advisor') {
+        if (!(draggedStudent.prospectStatus === 'registrado' && newStatus === 'propuesta_enviada')) {
+          alert('Como asesor de ventas solo puedes mover prospectos de "Registrado" a "Propuesta Enviada"');
+          setDraggedStudent(null);
+          return;
+        }
+      } else if (userRole === 'cashier') {
+        if (!(draggedStudent.prospectStatus === 'verificacion_pago' && newStatus === 'matriculado')) {
+          alert('Como cajero solo puedes matricular prospectos que estén en "Verificación de Pago"');
+          setDraggedStudent(null);
+          return;
+        }
+      }
+
       // Validar si se intenta mover a "matriculado" sin los requisitos
       if (newStatus === 'matriculado') {
         // Verificar si el prospecto tiene fecha de pago y matrícula
@@ -244,82 +151,70 @@ const StudentManagement: React.FC = () => {
   };
 
   const handleCreateStudent = (formData: any) => {
-    const newStudent: Student = {
-      id: Date.now().toString(),
-      name: formData.name,
+    router.post('/admin/students', {
+      first_name: formData.firstName,
+      paternal_last_name: formData.paternalLastName,
+      maternal_last_name: formData.maternalLastName,
       email: formData.email,
-      role: 'student',
-      status: 'active',
-      classType: formData.classType,
-      assignedGroupId: formData.groupId || undefined,
-      attendanceHistory: [],
-      enrolledGroups: formData.groupId ? [formData.groupId] : [],
-      level: formData.level,
-      points: 0,
-      badges: [],
-      certificates: [],
-      createdAt: new Date(),
-      prospectStatus: 'registrado',
-    };
-
-    setStudents([...students, newStudent]);
-    setShowCreateForm(false);
+      phone_number: formData.phoneNumber,
+      gender: formData.gender,
+      birth_date: formData.birthDate,
+      document_type: formData.documentType,
+      document_number: formData.documentNumber,
+      education_level: formData.educationLevel,
+      level: formData.academicLevel,
+      class_type: 'theoretical', // Por defecto
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setShowCreateForm(false);
+      }
+    });
   };
 
   const handleUpdateStudent = (formData: any) => {
     if (!editingStudent) return;
 
-    const updatedStudent: Student = {
-      ...editingStudent,
-      // Datos Personales
-      firstName: formData.firstName,
-      paternalLastName: formData.paternalLastName,
-      maternalLastName: formData.maternalLastName,
-      name: `${formData.firstName} ${formData.paternalLastName} ${formData.maternalLastName}`,
-      phoneNumber: formData.phoneNumber,
+    router.put(`/admin/students/${editingStudent.id}`, {
+      first_name: formData.firstName,
+      paternal_last_name: formData.paternalLastName,
+      maternal_last_name: formData.maternalLastName,
+      phone_number: formData.phoneNumber,
       gender: formData.gender,
-      birthDate: formData.birthDate,
-      documentType: formData.documentType,
-      documentNumber: formData.documentNumber,
-      educationLevel: formData.educationLevel,
+      birth_date: formData.birthDate,
+      document_type: formData.documentType,
+      document_number: formData.documentNumber,
+      education_level: formData.educationLevel,
       email: formData.email,
-
-      // Datos Académicos
-      paymentDate: formData.paymentDate,
-      enrollmentDate: formData.enrollmentDate,
-      registrationDate: formData.registrationDate,
-      enrollmentCode: formData.enrollmentCode,
+      payment_date: formData.paymentDate,
+      enrollment_date: formData.enrollmentDate,
+      enrollment_code: formData.enrollmentCode,
       level: formData.academicLevel,
-      contractedPlan: formData.contractedPlan,
-      contractFileName: formData.contractFileName,
-      paymentVerified: formData.paymentVerified,
-
-      // Examen de Categorización
-      hasPlacementTest: formData.hasPlacementTest,
-      testDate: formData.testDate,
-      testScore: formData.testScore,
-
-      // Datos del Apoderado/Titular
-      guardianName: formData.guardianName,
-      guardianDocumentNumber: formData.guardianDocumentNumber,
-      guardianEmail: formData.guardianEmail,
-      guardianBirthDate: formData.guardianBirthDate,
-      guardianPhone: formData.guardianPhone,
-      guardianAddress: formData.guardianAddress,
-
+      contracted_plan: formData.contractedPlan,
+      payment_verified: formData.paymentVerified,
+      has_placement_test: formData.hasPlacementTest,
+      test_date: formData.testDate,
+      test_score: formData.testScore,
+      guardian_name: formData.guardianName,
+      guardian_document_number: formData.guardianDocumentNumber,
+      guardian_email: formData.guardianEmail,
+      guardian_birth_date: formData.guardianBirthDate,
+      guardian_phone: formData.guardianPhone,
+      guardian_address: formData.guardianAddress,
       status: formData.status,
-
-      // Actualizar prospectStatus si tiene fecha de matrícula
-      prospectStatus: formData.enrollmentDate ? 'matriculado' : editingStudent.prospectStatus,
-    };
-
-    setStudents(students.map(s => s.id === editingStudent.id ? updatedStudent : s));
-    setEditingStudent(null);
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setEditingStudent(null);
+      }
+    });
   };
 
   const handleDeleteStudent = (studentId: string) => {
     if (confirm('¿Estás seguro de que quieres eliminar este prospecto?')) {
-      setStudents(students.filter(s => s.id !== studentId));
+      router.delete(`/admin/students/${studentId}`, {
+        preserveScroll: true
+      });
     }
   };
 
@@ -417,6 +312,7 @@ const StudentManagement: React.FC = () => {
         }));
       }
     };
+
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       onSubmit(formData);
@@ -988,7 +884,13 @@ const StudentManagement: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Gestión de Prospectos</h1>
-          <p className="text-gray-600">Gestiona la inscripción de prospectos y seguimiento del proceso comercial</p>
+          <p className="text-gray-600">
+            {userRole === 'sales_advisor' 
+              ? 'Gestiona tus prospectos y envía propuestas comerciales'
+              : userRole === 'cashier'
+              ? 'Verifica pagos y matricula estudiantes'
+              : 'Gestiona la inscripción de prospectos y seguimiento del proceso comercial'}
+          </p>
         </div>
         <div className="flex items-center space-x-4">
           {/* View Mode Toggle */}
@@ -1017,13 +919,15 @@ const StudentManagement: React.FC = () => {
             </button>
           </div>
           
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Agregar Prospecto</span>
-          </button>
+          {(userRole === 'admin' || userRole === 'sales_advisor') && (
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Agregar Prospecto</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1101,12 +1005,21 @@ const StudentManagement: React.FC = () => {
               </div>
               
               <div className="p-4 space-y-3">
-                {getStudentsByStatus(column.id).map((student) => (
+                {getStudentsByStatus(column.id).map((student) => {
+                  // Determinar si el prospecto puede ser arrastrado según el rol
+                  const isDraggable = 
+                    userRole === 'admin' || 
+                    (userRole === 'sales_advisor' && student.prospectStatus === 'registrado') ||
+                    (userRole === 'cashier' && student.prospectStatus === 'verificacion_pago');
+
+                  return (
                   <div
                     key={student.id}
-                    draggable
+                    draggable={isDraggable}
                     onDragStart={(e) => handleDragStart(e, student)}
-                    className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-all cursor-move"
+                    className={`bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-all ${
+                      isDraggable ? 'cursor-move' : 'cursor-default opacity-75'
+                    }`}
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-3">
@@ -1121,29 +1034,45 @@ const StudentManagement: React.FC = () => {
                         </div>
                       </div>
                       <div className="flex items-center space-x-1">
-                        <button
-                          onClick={() => setEditingStudent(student)}
-                          className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteStudent(student.id)}
-                          className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {(userRole === 'admin' || userRole === 'sales_advisor') && (
+                          <>
+                            <button
+                              onClick={() => setEditingStudent(student)}
+                              className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+                              title="Editar prospecto"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteStudent(student.id)}
+                              className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
+                              title="Eliminar prospecto"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
+                        {userRole === 'cashier' && (
+                          <button
+                            onClick={() => setEditingStudent(student)}
+                            className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+                            title="Ver detalles"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                     
                     <div className="mt-2 pt-2 border-t border-gray-200">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">Registro:</span>
-                        <span className="text-gray-900">{student.createdAt.toLocaleDateString()}</span>
+                        <span className="text-gray-900">{new Date(student.createdAt).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 
                 {getStudentsByStatus(column.id).length === 0 && (
                   <div className="text-center py-8 text-gray-500">
@@ -1173,6 +1102,11 @@ const StudentManagement: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Estado Prospecto
                   </th>
+                  {userRole === 'admin' && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Registrado Por
+                    </th>
+                  )}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Tipo de Clase
                   </th>
@@ -1221,13 +1155,64 @@ const StudentManagement: React.FC = () => {
                         value={student.prospectStatus || 'registrado'}
                         onChange={(e) => handleProspectStatusChange(student.id, e.target.value)}
                         className={`text-xs font-medium px-2.5 py-0.5 rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getProspectStatusColor(student.prospectStatus || 'registrado')}`}
+                        disabled={
+                          (userRole === 'sales_advisor' && student.prospectStatus !== 'registrado') ||
+                          (userRole === 'cashier' && student.prospectStatus !== 'verificacion_pago')
+                        }
                       >
-                        <option value="registrado">Registrado</option>
-                        <option value="propuesta_enviada">Propuesta Enviada</option>
-                        <option value="verificacion_pago">Verificación de Pago</option>
-                        <option value="matriculado">Matriculado</option>
+                        {userRole === 'admin' && (
+                          <>
+                            <option value="registrado">Registrado</option>
+                            <option value="propuesta_enviada">Propuesta Enviada</option>
+                            <option value="verificacion_pago">Verificación de Pago</option>
+                            <option value="matriculado">Matriculado</option>
+                          </>
+                        )}
+                        {userRole === 'sales_advisor' && (
+                          <>
+                            <option value="registrado">Registrado</option>
+                            {student.prospectStatus === 'registrado' && (
+                              <option value="propuesta_enviada">Propuesta Enviada</option>
+                            )}
+                            {student.prospectStatus === 'propuesta_enviada' && (
+                              <option value="propuesta_enviada">Propuesta Enviada</option>
+                            )}
+                          </>
+                        )}
+                        {userRole === 'cashier' && (
+                          <>
+                            {student.prospectStatus === 'verificacion_pago' && (
+                              <>
+                                <option value="verificacion_pago">Verificación de Pago</option>
+                                <option value="matriculado">Matriculado</option>
+                              </>
+                            )}
+                            {student.prospectStatus !== 'verificacion_pago' && (
+                              <option value={student.prospectStatus}>{getProspectStatusLabel(student.prospectStatus || 'registrado')}</option>
+                            )}
+                          </>
+                        )}
                       </select>
                     </td>
+                    {userRole === 'admin' && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {student.registeredBy ? (
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full flex items-center justify-center mr-2">
+                              <span className="text-white text-xs font-semibold">
+                                {student.registeredBy.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                              </span>
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{student.registeredBy.name}</div>
+                              <div className="text-xs text-gray-500">{student.registeredBy.email}</div>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-400">Sin asignar</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         student.classType === 'theoretical' 
@@ -1249,18 +1234,33 @@ const StudentManagement: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => setEditingStudent(student)}
-                          className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteStudent(student.id)}
-                          className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {(userRole === 'admin' || userRole === 'sales_advisor') && (
+                          <>
+                            <button
+                              onClick={() => setEditingStudent(student)}
+                              className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+                              title="Editar prospecto"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteStudent(student.id)}
+                              className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
+                              title="Eliminar prospecto"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
+                        {userRole === 'cashier' && (
+                          <button
+                            onClick={() => setEditingStudent(student)}
+                            className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+                            title="Ver detalles"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

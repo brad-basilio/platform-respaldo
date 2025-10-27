@@ -14,6 +14,7 @@ class Student extends Model
 
     protected $fillable = [
         'user_id',
+        'registered_by',
         // Datos Personales
         'first_name',
         'paternal_last_name',
@@ -70,6 +71,11 @@ class Student extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function registeredBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'registered_by');
     }
 
     public function groups(): BelongsToMany

@@ -26,6 +26,12 @@ class DatabaseSeeder extends Seeder
             'role' => 'admin',
         ]);
 
+        // Llamar a los seeders adicionales
+        $this->call([
+            RolesSeeder::class,
+            StudentSeeder::class,
+        ]);
+
         // Create teachers
         $teacher1 = User::create([
             'name' => 'Sarah Johnson',

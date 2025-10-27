@@ -73,6 +73,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
           { id: 'progress', label: 'Progreso', icon: BarChart3 },
           { id: 'certificates', label: 'Certificados', icon: Award },
         ];
+      case 'sales_advisor':
+        return [
+          ...baseItems,
+          { id: 'students', label: 'Mis Prospectos', icon: Users },
+        ];
+      case 'cashier':
+        return [
+          ...baseItems,
+          { id: 'students', label: 'Verificación de Pagos', icon: FileText },
+          { id: 'payments', label: 'Control de Pagos', icon: PieChart },
+        ];
       default:
         return baseItems;
     }

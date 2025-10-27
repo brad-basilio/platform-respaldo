@@ -19,15 +19,17 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
-    // Admin routes
-    Route::middleware('can:admin')->group(function () {
-        // Student Management
+    // Student/Prospect Management (accessible by admin, sales_advisor, cashier)
+    Route::middleware('prospect.access')->group(function () {
         Route::get('/admin/students', [StudentController::class, 'index'])->name('admin.students');
         Route::post('/admin/students', [StudentController::class, 'store'])->name('admin.students.store');
         Route::put('/admin/students/{student}', [StudentController::class, 'update'])->name('admin.students.update');
         Route::delete('/admin/students/{student}', [StudentController::class, 'destroy'])->name('admin.students.destroy');
         Route::put('/admin/students/{student}/prospect-status', [StudentController::class, 'updateProspectStatus'])->name('admin.students.prospect-status');
-        
+    });
+    
+    // Admin-only routes
+    Route::middleware('can:admin')->group(function () {
         // Enrolled Students
         Route::get('/admin/enrolled-students', function () {
             return inertia('Admin/EnrolledStudents');

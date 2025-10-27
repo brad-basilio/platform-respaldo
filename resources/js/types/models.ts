@@ -2,7 +2,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'teacher' | 'student';
+  role: 'admin' | 'teacher' | 'student' | 'sales_advisor' | 'cashier';
   avatar?: string;
   createdAt: Date;
 }
@@ -53,6 +53,13 @@ export interface Student extends User {
   guardianBirthDate?: string;
   guardianPhone?: string;
   guardianAddress?: string;
+
+  // Datos de Registro
+  registeredBy?: {
+    id: string;
+    name: string;
+    email: string;
+  };
 }
 
 export interface Teacher extends User {
