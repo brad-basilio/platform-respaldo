@@ -38,9 +38,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('can:admin')->group(function () {
       
         // Enrolled Students
-        Route::get('/admin/enrolled-students', function () {
-            return inertia('Admin/EnrolledStudents');
-        })->name('admin.enrolled-students');
+        Route::get('/admin/enrolled-students', [StudentController::class, 'enrolledStudents'])->name('admin.enrolled-students');
         
         // Teacher Management
         Route::get('/admin/teachers', [TeacherController::class, 'index'])->name('admin.teachers');
