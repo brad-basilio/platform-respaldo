@@ -199,6 +199,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [quickFilterText, setQuickFilterText] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'pending' | 'verified' | 'all'>('pending');
 
   const handleVerifyEnrollment = async (studentId: string) => {
     const result = await Swal.fire({
@@ -375,6 +376,19 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     const group = groups.find(g => g.id === groupId);
     return group ? group.name : 'Grupo desconocido';
   }, [groups]);
+
+  // Filtrar estudiantes según el tab activo
+  const filteredStudents = useMemo(() => {
+    let filtered = students;
+    
+    if (activeTab === 'pending') {
+      filtered = students.filter(s => !s.enrollmentVerified);
+    } else if (activeTab === 'verified') {
+      filtered = students.filter(s => s.enrollmentVerified);
+    }
+    
+    return filtered;
+  }, [students, activeTab]);
 
   const handleViewStudent = (student: Student) => {
     setSelectedStudent(student);
@@ -556,7 +570,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
         </div>
 
           {/* Barra de búsqueda global */}
-    
+          <div className="relative">
               <Input
                 type="text"
                 label="Buscar por nombre, email, código, teléfono, nivel, plan..."
@@ -573,13 +587,69 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                   <XCircle className="h-5 w-5" />
                 </button>
               )}
-          
+          </div>
+
+          {/* Tabs de filtrado */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1 inline-flex">
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setActiveTab('pending')}
+                className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                  activeTab === 'pending'
+                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-md'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center justify-center space-x-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>No Verificados</span>
+                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                    {students.filter(s => !s.enrollmentVerified).length}
+                  </span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('verified')}
+                className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                  activeTab === 'verified'
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center justify-center space-x-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span>Verificados</span>
+                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                    {students.filter(s => s.enrollmentVerified).length}
+                  </span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('all')}
+                className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                  activeTab === 'all'
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center justify-center space-x-2">
+                  <Users className="h-4 w-4" />
+                  <span>Todos</span>
+                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                    {students.length}
+                  </span>
+                </div>
+              </button>
+            </div>
+          </div>
         
 
           <div className="ag-theme-quartz" style={{ height: '600px', width: '100%' }}>
             <AgGridReact<Student>
               theme={themeQuartz}
-              rowData={students}
+              rowData={filteredStudents}
               columnDefs={columnDefs}
               quickFilterText={quickFilterText}
               defaultColDef={{
