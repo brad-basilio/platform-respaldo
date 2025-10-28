@@ -3,11 +3,13 @@ import { Users, Plus, CreditCard as Edit, Trash2, Search, UserCheck, UserX, Book
 import { Student, Group } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import { router } from '@inertiajs/react';
+import axios from 'axios';
 import { Input } from '@/components/ui/Input';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { Select2, SelectOption } from '@/components/ui/Select2';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { useToast } from '@/components/ui/Toast';
+import { toast } from 'sonner';
 
 interface Props {
   students: Student[];
@@ -177,29 +179,58 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
     setTimeout(() => setShowAlert(false), 4000); // Auto-hide después de 4 segundos
   };
 
-  const handleCreateStudent = (formData: any) => {
-    router.post('/admin/students', {
-      first_name: formData.firstName,
-      paternal_last_name: formData.paternalLastName,
-      maternal_last_name: formData.maternalLastName,
-      email: formData.email,
-      phone_number: formData.phoneNumber,
-      gender: formData.gender,
-      birth_date: formData.birthDate,
-      document_type: formData.documentType,
-      document_number: formData.documentNumber,
-      education_level: formData.educationLevel,
-      level: formData.academicLevel,
-      class_type: 'theoretical', // Por defecto
-    }, {
-      preserveScroll: true,
-      onSuccess: () => {
-        setShowCreateForm(false);
+  const handleCreateStudent = async (formData: any) => {
+    try {
+      const response = await axios.post('/admin/students', {
+        first_name: formData.firstName,
+        paternal_last_name: formData.paternalLastName,
+        maternal_last_name: formData.maternalLastName,
+        email: formData.email,
+        phone_number: formData.phoneNumber,
+        gender: formData.gender,
+        birth_date: formData.birthDate,
+        document_type: formData.documentType,
+        document_number: formData.documentNumber,
+        education_level: formData.educationLevel,
+        level: formData.academicLevel,
+        class_type: 'theoretical', // Por defecto
+      });
+
+      // Éxito: cerrar modal y mostrar toast
+      setShowCreateForm(false);
+      toast.success('Prospecto registrado exitosamente', {
+        description: 'El nuevo prospecto ha sido agregado al sistema.',
+        duration: 4000,
+      });
+      
+      // Recargar solo la lista de estudiantes usando Inertia
+      router.reload({ only: ['students'] });
+      
+    } catch (error: any) {
+      console.error('❌ Errores de validación:', error);
+      
+      // Manejar errores de validación (422)
+      if (error.response && error.response.status === 422) {
+        const errors = error.response.data.errors;
+        
+        // Mostrar cada error como un toast
+        Object.entries(errors).forEach(([, message]) => {
+          toast.error('Error de validación', {
+            description: Array.isArray(message) ? message[0] : message,
+            duration: 5000,
+          });
+        });
+      } else {
+        // Error genérico
+        toast.error('Error al registrar prospecto', {
+          description: 'Ocurrió un error inesperado. Por favor, intenta nuevamente.',
+          duration: 5000,
+        });
       }
-    });
+    }
   };
 
-  const handleUpdateStudent = (formData: any) => {
+  const handleUpdateStudent = async (formData: any) => {
     if (!editingStudent) return;
 
     // Determinar qué campos enviar según el rol
@@ -245,14 +276,41 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
     console.log('Datos que se enviarán al backend:', updateData);
 
-    router.put(`/admin/students/${editingStudent.id}`, updateData, {
-      preserveScroll: true,
-      onSuccess: () => {
-        setEditingStudent(null);
-        // Recargar la página para obtener datos actualizados
-        router.reload({ only: ['students'] });
+    try {
+      await axios.put(`/admin/students/${editingStudent.id}`, updateData);
+
+      // Éxito: cerrar modal y mostrar toast
+      setEditingStudent(null);
+      toast.success('Prospecto actualizado exitosamente', {
+        description: 'Los datos del prospecto han sido actualizados.',
+        duration: 4000,
+      });
+      
+      // Recargar solo la lista de estudiantes
+      router.reload({ only: ['students'] });
+      
+    } catch (error: any) {
+      console.error('❌ Errores de validación:', error);
+      
+      // Manejar errores de validación (422)
+      if (error.response && error.response.status === 422) {
+        const errors = error.response.data.errors;
+        
+        // Mostrar cada error como un toast
+        Object.entries(errors).forEach(([, message]) => {
+          toast.error('Error de validación', {
+            description: Array.isArray(message) ? message[0] : message,
+            duration: 5000,
+          });
+        });
+      } else {
+        // Error genérico
+        toast.error('Error al actualizar prospecto', {
+          description: 'Ocurrió un error inesperado. Por favor, intenta nuevamente.',
+          duration: 5000,
+        });
       }
-    });
+    }
   };
 
   const handleDeleteStudent = (studentId: string) => {

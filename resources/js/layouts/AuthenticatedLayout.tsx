@@ -1,6 +1,7 @@
 import React, { ReactNode, useState } from 'react';
 import Header from '@/components/Layout/Header';
 import Sidebar from '@/components/Layout/Sidebar';
+import { Toaster } from 'sonner';
 
 interface AuthenticatedLayoutProps {
     children: ReactNode;
@@ -20,6 +21,16 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 overflow-x-hidden">
+            <Toaster 
+                position="top-right" 
+                richColors 
+                closeButton 
+                toastOptions={{
+                    style: {
+                        fontSize: '14px',
+                    },
+                }}
+            />
             <Header />
             <div className="flex overflow-x-hidden">
                 <Sidebar activeView={activeView} onViewChange={setActiveView} />
