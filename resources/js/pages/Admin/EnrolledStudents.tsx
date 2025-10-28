@@ -199,7 +199,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [quickFilterText, setQuickFilterText] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'pending' | 'verified' | 'all'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'verified' | 'all'>('verified');
 
   const handleVerifyEnrollment = async (studentId: string) => {
     const result = await Swal.fire({
@@ -529,20 +529,23 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
               <Eye className="h-4 w-4" />
             </button>
             {student.enrollmentVerified ? (
-              <button
+               <button
                 onClick={() => handleUnverifyEnrollment(student.id)}
-                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                title="Remover verificación"
-              >
-                <XCircle className="h-4 w-4" />
-              </button>
-            ) : (
-              <button
-                onClick={() => handleVerifyEnrollment(student.id)}
                 className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                title="Verificar matrícula"
+                 title="Remover verificación"
+              
               >
                 <CheckCircle className="h-4 w-4" />
+              </button>
+             
+            ) : (
+           
+               <button
+                onClick={() => handleVerifyEnrollment(student.id)}
+                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Verificar matrícula"
+              >
+                <XCircle className="h-4 w-4" />
               </button>
             )}
           </div>
@@ -592,22 +595,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
           {/* Tabs de filtrado */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1 inline-flex">
             <div className="flex space-x-2">
-              <button
-                onClick={() => setActiveTab('pending')}
-                className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                  activeTab === 'pending'
-                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-md'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex items-center justify-center space-x-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>No Verificados</span>
-                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
-                    {students.filter(s => !s.enrollmentVerified).length}
-                  </span>
-                </div>
-              </button>
+           
               
               <button
                 onClick={() => setActiveTab('verified')}
@@ -626,6 +614,22 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                 </div>
               </button>
               
+                 <button
+                onClick={() => setActiveTab('pending')}
+                className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                  activeTab === 'pending'
+                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-md'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center justify-center space-x-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>No Verificados</span>
+                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                    {students.filter(s => !s.enrollmentVerified).length}
+                  </span>
+                </div>
+              </button>
               <button
                 onClick={() => setActiveTab('all')}
                 className={`px-6 py-3 rounded-lg font-medium transition-all ${
