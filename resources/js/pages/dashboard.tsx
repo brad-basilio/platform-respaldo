@@ -1,6 +1,6 @@
 import React from 'react';
 import AuthenticatedLayout from '../layouts/AuthenticatedLayout';
-import { Users, DollarSign, BookOpen, TrendingUp, Calendar, Award } from 'lucide-react';
+import { Users, DollarSign, BookOpen, Award } from 'lucide-react';
 import { usePage } from '@inertiajs/react';
 
 interface Props {
@@ -11,10 +11,22 @@ interface Props {
       role: string;
     };
   };
+  stats?: {
+    // Stats para Sales Advisor
+    totalProspects?: number;
+    registrados?: number;
+    propuestasEnviadas?: number;
+    pagosPorVerificar?: number;
+    matriculados?: number;
+    // Stats para Cashier
+    pagosPendientes?: number;
+    verificadosHoy?: number;
+    matriculasDelMes?: number;
+  };
 }
 
 const Dashboard: React.FC<Props> = () => {
-  const { auth } = usePage().props as Props;
+  const { auth, stats } = usePage().props as Props;
   const user = auth?.user;
 
   // Determinar el título según el rol
@@ -64,64 +76,72 @@ const Dashboard: React.FC<Props> = () => {
 
         {/* Stats Cards - Específicos por rol */}
         {user?.role === 'sales_advisor' && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Prospectos Registrados</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">--</p>
+                  <p className="text-sm text-gray-600">Total de Prospectos</p>
+                  <p className="text-2xl font-semibold text-gray-900">{stats?.totalProspects || 0}</p>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Users className="h-6 w-6 text-blue-600" />
+                <Users className="h-8 w-8 text-blue-600" />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Registrados</p>
+                  <p className="text-2xl font-semibold text-blue-600">{stats?.registrados || 0}</p>
+                </div>
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Propuestas Enviadas</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">--</p>
+                  <p className="text-sm text-gray-600">Propuesta Enviada</p>
+                  <p className="text-2xl font-semibold text-yellow-600">{stats?.propuestasEnviadas || 0}</p>
                 </div>
-                <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <BookOpen className="h-6 w-6 text-yellow-600" />
+                <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <div className="w-3 h-3 bg-yellow-600 rounded-full"></div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">En Verificación</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">--</p>
+                  <p className="text-sm text-gray-600">Pago Por Verificar</p>
+                  <p className="text-2xl font-semibold text-orange-600">{stats?.pagosPorVerificar || 0}</p>
                 </div>
-                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                  <Calendar className="h-6 w-6 text-orange-600" />
+                <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                  <div className="w-3 h-3 bg-orange-600 rounded-full"></div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Matriculados</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">--</p>
+                  <p className="text-2xl font-semibold text-green-600">{stats?.matriculados || 0}</p>
                 </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <Award className="h-6 w-6 text-green-600" />
-                </div>
+                <Award className="h-8 w-8 text-green-600" />
               </div>
             </div>
           </div>
         )}
 
         {user?.role === 'cashier' && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Pagos Pendientes</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">--</p>
+                  <p className="text-2xl font-bold text-orange-600 mt-1">{stats?.pagosPendientes || 0}</p>
                 </div>
                 <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
                   <DollarSign className="h-6 w-6 text-orange-600" />
@@ -133,7 +153,7 @@ const Dashboard: React.FC<Props> = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Verificados Hoy</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">--</p>
+                  <p className="text-2xl font-bold text-green-600 mt-1">{stats?.verificadosHoy || 0}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                   <Award className="h-6 w-6 text-green-600" />
@@ -144,20 +164,8 @@ const Dashboard: React.FC<Props> = () => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Total del Mes</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">S/ --</p>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <TrendingUp className="h-6 w-6 text-blue-600" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
                   <p className="text-sm text-gray-600">Matrículas del Mes</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">--</p>
+                  <p className="text-2xl font-bold text-purple-600 mt-1">{stats?.matriculasDelMes || 0}</p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
                   <Users className="h-6 w-6 text-purple-600" />

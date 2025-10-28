@@ -22,6 +22,10 @@ class DashboardController extends Controller
             return $this->teacherDashboard($user);
         } elseif ($user->role === 'admin') {
             return $this->adminDashboard($user);
+        } elseif ($user->role === 'sales_advisor') {
+            return $this->salesAdvisorDashboard($user);
+        } elseif ($user->role === 'cashier') {
+            return $this->cashierDashboard($user);
         }
 
         return Inertia::render('Dashboard');
@@ -87,6 +91,44 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard/Admin', [
             'admin' => $adminData,
+            'stats' => $stats,
+        ]);
+    }
+
+    protected function salesAdvisorDashboard($user): Response
+    {
+        // Filtrar solo los prospectos registrados por este asesor de ventas
+        $stats = [
+            'totalProspects' => Student::where('registered_by', $user->id)->count(),
+            'registrados' => Student::where('registered_by', $user->id)
+                ->where('prospect_status', 'registrado')->count(),
+            'propuestasEnviadas' => Student::where('registered_by', $user->id)
+                ->where('prospect_status', 'propuesta_enviada')->count(),
+            'pagosPorVerificar' => Student::where('registered_by', $user->id)
+                ->where('prospect_status', 'pago_por_verificar')->count(),
+            'matriculados' => Student::where('registered_by', $user->id)
+                ->where('prospect_status', 'matriculado')->count(),
+        ];
+
+        return Inertia::render('Dashboard', [
+            'stats' => $stats,
+        ]);
+    }
+
+    protected function cashierDashboard($user): Response
+    {
+        $stats = [
+            'pagosPendientes' => Student::where('prospect_status', 'pago_por_verificar')->count(),
+            'verificadosHoy' => Student::where('prospect_status', 'matriculado')
+                ->whereDate('updated_at', today())
+                ->count(),
+            'matriculasDelMes' => Student::where('prospect_status', 'matriculado')
+                ->whereYear('updated_at', now()->year)
+                ->whereMonth('updated_at', now()->month)
+                ->count(),
+        ];
+
+        return Inertia::render('Dashboard', [
             'stats' => $stats,
         ]);
     }
