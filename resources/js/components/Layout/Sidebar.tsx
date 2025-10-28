@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   Home, Users, BookOpen, Video, MessageSquare, 
   BarChart3, Award, FileText, Settings,
-  GraduationCap, UserCheck, PieChart
+  GraduationCap, UserCheck, PieChart, CreditCard
 } from 'lucide-react';
 import { usePage, router } from '@inertiajs/react';
 import { User } from '@/types/models';
@@ -26,6 +26,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
       'enrolled-students': '/admin/enrolled-students',
       'teachers': '/admin/teachers',
       'groups': '/admin/groups',
+      'academic-levels': '/admin/academic-levels',
+      'payment-plans': '/admin/payment-plans',
       'payments': '/admin/payments',
       'analytics': '/admin/analytics',
       'settings': '/settings',
@@ -50,6 +52,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
           { id: 'enrolled-students', label: 'Alumnos Matriculados', icon: GraduationCap },
           { id: 'teachers', label: 'Docentes', icon: UserCheck },
           { id: 'groups', label: 'Creacion de grupos', icon: Users },
+          { id: 'academic-levels', label: 'Niveles Académicos', icon: GraduationCap },
+          { id: 'payment-plans', label: 'Planes de Pago', icon: CreditCard },
           { id: 'payments', label: 'Control de pagos', icon: FileText },
           { id: 'analytics', label: 'Estadísticas', icon: PieChart },
           { id: 'settings', label: 'Configuración', icon: Settings },

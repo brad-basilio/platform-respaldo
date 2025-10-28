@@ -8,6 +8,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\GroupController;
+use App\Http\Controllers\AcademicLevelController;
+use App\Http\Controllers\PaymentPlanController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -42,6 +44,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/admin/enrolled-students', [StudentController::class, 'enrolledStudents'])->name('admin.enrolled-students');
         Route::post('/admin/students/{student}/verify-enrollment', [StudentController::class, 'verifyEnrollment'])->name('admin.students.verify-enrollment');
         Route::post('/admin/students/{student}/unverify-enrollment', [StudentController::class, 'unverifyEnrollment'])->name('admin.students.unverify-enrollment');
+        
+        // Academic Levels Management
+        Route::resource('admin/academic-levels', AcademicLevelController::class)
+            ->except(['show', 'create', 'edit'])
+            ->names([
+                'index' => 'admin.academic-levels.index',
+                'store' => 'admin.academic-levels.store',
+                'update' => 'admin.academic-levels.update',
+                'destroy' => 'admin.academic-levels.destroy',
+            ]);
+        Route::get('/api/admin/academic-levels', [AcademicLevelController::class, 'getAcademicLevelsJson'])->name('api.admin.academic-levels');
+        
+        // Payment Plans Management
+        Route::resource('admin/payment-plans', PaymentPlanController::class)
+            ->except(['show', 'create', 'edit'])
+            ->names([
+                'index' => 'admin.payment-plans.index',
+                'store' => 'admin.payment-plans.store',
+                'update' => 'admin.payment-plans.update',
+                'destroy' => 'admin.payment-plans.destroy',
+            ]);
         
         // Teacher Management
         Route::get('/admin/teachers', [TeacherController::class, 'index'])->name('admin.teachers');

@@ -28,9 +28,9 @@ class Installment extends Model
 
     protected $casts = [
         'due_date' => 'date',
-        'amount' => 'decimal:2',
-        'late_fee' => 'decimal:2',
-        'paid_amount' => 'decimal:2',
+        'amount' => 'float',
+        'late_fee' => 'float',
+        'paid_amount' => 'float',
         'paid_date' => 'date',
         'verified_at' => 'datetime',
     ];

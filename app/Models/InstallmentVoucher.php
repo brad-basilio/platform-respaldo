@@ -26,7 +26,7 @@ class InstallmentVoucher extends Model
     ];
 
     protected $casts = [
-        'declared_amount' => 'decimal:2',
+        'declared_amount' => 'float',
         'payment_date' => 'date',
         'reviewed_at' => 'datetime',
     ];

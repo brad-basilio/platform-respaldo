@@ -26,10 +26,13 @@ class PaymentPlan extends Model
     ];
 
     protected $casts = [
-        'monthly_amount' => 'decimal:2',
-        'total_amount' => 'decimal:2',
-        'discount_percentage' => 'decimal:2',
-        'late_fee_percentage' => 'decimal:2',
+        'installments_count' => 'integer',
+        'monthly_amount' => 'float',
+        'total_amount' => 'float',
+        'discount_percentage' => 'float',
+        'duration_months' => 'integer',
+        'late_fee_percentage' => 'float',
+        'grace_period_days' => 'integer',
         'is_active' => 'boolean',
         'academic_level_id' => 'integer',
     ];

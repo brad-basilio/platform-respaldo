@@ -17,6 +17,8 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
         else if (path.includes('/admin/students')) setActiveView('students');
         else if (path.includes('/admin/teachers')) setActiveView('teachers');
         else if (path.includes('/admin/groups')) setActiveView('groups');
+        else if (path.includes('/admin/academic-levels')) setActiveView('academic-levels');
+        else if (path.includes('/admin/payment-plans')) setActiveView('payment-plans');
         else if (path === '/dashboard') setActiveView('dashboard');
     }, []);
 

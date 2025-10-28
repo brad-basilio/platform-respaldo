@@ -26,7 +26,7 @@ class Enrollment extends Model
     ];
 
     protected $casts = [
-        'enrollment_fee' => 'decimal:2',
+        'enrollment_fee' => 'float',
         'enrollment_date' => 'date',
         'enrollment_fee_verified' => 'boolean',
         'verified_at' => 'datetime',
