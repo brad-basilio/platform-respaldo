@@ -1,4 +1,3 @@
-import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -8,8 +7,8 @@ import { Spinner } from '@/components/ui/spinner';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
-import { Form, Head, router } from '@inertiajs/react';
-import { GraduationCap } from 'lucide-react';
+import { Form, Head } from '@inertiajs/react';
+import { GraduationCap, Mail, Lock } from 'lucide-react';
 
 interface LoginProps {
     status?: string;
@@ -22,36 +21,32 @@ export default function Login({
     canResetPassword,
     canRegister,
 }: LoginProps) {
-    const demoAccounts = [
-        { email: 'admin@english.com', password: 'admin123', role: 'Administrador' },
-        { email: 'teacher@english.com', password: 'teacher123', role: 'Profesor' },
-        { email: 'student@english.com', password: 'student123', role: 'Estudiante' },
-    ];
-
-    const handleDemoLogin = (email: string, password: string) => {
-        router.post('/login', {
-            email,
-            password,
-            remember: false,
-        });
-    };
-
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4 relative overflow-hidden">
             <Head title="Iniciar Sesión" />
             
-            <div className="max-w-md w-full">
-                <div className="bg-white rounded-3xl shadow-2xl p-8 border border-slate-100">
-                    <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl mb-6 shadow-lg shadow-blue-600/25">
+            {/* Decorative Background Elements */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400/20 rounded-full blur-3xl"></div>
+                <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-400/20 rounded-full blur-3xl"></div>
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-400/10 rounded-full blur-3xl"></div>
+            </div>
+
+            <div className="max-w-md w-full relative z-10">
+                <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-10 border border-white/20">
+                    {/* Header */}
+                    <div className="text-center mb-10">
+                        <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-2xl mb-6 shadow-lg shadow-blue-600/30">
                             <GraduationCap className="h-10 w-10 text-white" />
                         </div>
-                        <h1 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight">InglésProf</h1>
-                        <p className="text-slate-600">Inicia sesión para continuar tu viaje de aprendizaje</p>
+                        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3 tracking-tight">
+                            Bienvenido
+                        </h1>
+                        <p className="text-slate-600 text-sm">Inicia sesión para acceder a tu cuenta</p>
                     </div>
 
                     {status && (
-                        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm text-center">
+                        <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded-xl text-green-700 text-sm">
                             {status}
                         </div>
                     )}
@@ -59,34 +54,32 @@ export default function Login({
                     <Form
                         {...store.form()}
                         resetOnSuccess={['password']}
-                        className="flex flex-col gap-6"
+                        className="space-y-6"
                     >
                         {({ processing, errors }) => (
                             <>
-                                <div className="grid gap-6">
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="email">Correo Electrónico</Label>
-                                        <Input
-                                            id="email"
-                                            type="email"
-                                            name="email"
-                                            required
-                                            autoFocus
-                                            tabIndex={1}
-                                            autoComplete="email"
-                                            placeholder="email@ejemplo.com"
-                                            className="bg-slate-50 focus:bg-white"
-                                        />
-                                        <InputError message={errors.email} />
-                                    </div>
+                                <div className="space-y-5">
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        name="email"
+                                        label="Correo Electrónico"
+                                        icon={<Mail className="w-5 h-5" />}
+                                        required
+                                        autoFocus
+                                        tabIndex={1}
+                                        autoComplete="email"
+                                        placeholder="correo@ejemplo.com"
+                                        error={errors.email}
+                                    />
 
-                                    <div className="grid gap-2">
-                                        <div className="flex items-center">
-                                            <Label htmlFor="password">Contraseña</Label>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-end mb-1">
+                                           
                                             {canResetPassword && (
                                                 <TextLink
                                                     href={request()}
-                                                    className="ml-auto text-sm"
+                                                    className="text-sm font-medium text-blue-600 hover:text-blue-700"
                                                     tabIndex={5}
                                                 >
                                                     ¿Olvidaste tu contraseña?
@@ -97,70 +90,61 @@ export default function Login({
                                             id="password"
                                             type="password"
                                             name="password"
+                                            label="Contraseña"
+                                            icon={<Lock className="w-5 h-5" />}
                                             required
                                             tabIndex={2}
                                             autoComplete="current-password"
-                                            placeholder="Contraseña"
-                                            className="bg-slate-50 focus:bg-white"
+                                            placeholder="••••••••"
+                                            error={errors.password}
                                         />
-                                        <InputError message={errors.password} />
                                     </div>
 
-                                    <div className="flex items-center space-x-3">
+                                    <div className="flex items-center space-x-2 pt-2">
                                         <Checkbox
                                             id="remember"
                                             name="remember"
                                             tabIndex={3}
                                         />
-                                        <Label htmlFor="remember">Recordarme</Label>
+                                        <Label htmlFor="remember" className="text-sm text-gray-600 font-medium cursor-pointer">
+                                            Recordarme en este dispositivo
+                                        </Label>
                                     </div>
-
-                                    <Button
-                                        type="submit"
-                                        className="mt-4 w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-600/25"
-                                        tabIndex={4}
-                                        disabled={processing}
-                                        data-test="login-button"
-                                    >
-                                        {processing && <Spinner />}
-                                        Iniciar Sesión
-                                    </Button>
                                 </div>
 
+                                <Button
+                                    type="submit"
+                                    className="mt-8 w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white py-6 text-base font-bold shadow-lg shadow-blue-600/30 hover:shadow-xl hover:shadow-blue-600/40 transition-all duration-200"
+                                    tabIndex={4}
+                                    disabled={processing}
+                                    data-test="login-button"
+                                >
+                                    {processing && <Spinner />}
+                                    {processing ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+                                </Button>
+
                                 {canRegister && (
-                                    <div className="text-center text-sm text-muted-foreground">
+                                    <div className="text-center text-sm text-slate-600 pt-6 border-t border-gray-200">
                                         ¿No tienes una cuenta?{' '}
-                                        <TextLink href={register()} tabIndex={5}>
-                                            Regístrate
+                                        <TextLink 
+                                            href={register()} 
+                                            tabIndex={5}
+                                            className="font-bold text-transparent bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text hover:from-blue-700 hover:to-purple-700"
+                                        >
+                                            Regístrate aquí
                                         </TextLink>
                                     </div>
                                 )}
                             </>
                         )}
                     </Form>
+                </div>
 
-                    <div className="mt-6">
-                        <div className="text-center text-sm text-slate-600 mb-4 font-medium">
-                            Cuentas de Demostración:
-                        </div>
-                        <div className="space-y-2">
-                            {demoAccounts.map((account) => (
-                                <button
-                                    key={account.role}
-                                    type="button"
-                                    onClick={() => handleDemoLogin(account.email, account.password)}
-                                    className="w-full text-xs bg-slate-50 hover:bg-slate-100 text-slate-700 py-2.5 px-4 rounded-xl transition-all border border-slate-200 hover:border-slate-300 font-medium"
-                                >
-                                    {account.role}: {account.email}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="mt-4 text-center">
-                            <p className="text-sm text-slate-600">
-                                Admin: <span className="font-semibold text-blue-600">admin123</span> | Profesor: <span className="font-semibold text-green-600">teacher123</span> | Estudiante: <span className="font-semibold text-purple-600">student123</span>
-                            </p>
-                        </div>
-                    </div>
+                {/* Footer */}
+                <div className="mt-8 text-center">
+                    <p className="text-xs text-gray-500">
+                        © 2025 InglésProf. Todos los derechos reservados.
+                    </p>
                 </div>
             </div>
         </div>
