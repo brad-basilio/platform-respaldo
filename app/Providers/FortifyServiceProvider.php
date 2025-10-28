@@ -14,6 +14,8 @@ use Laravel\Fortify\Contracts\LoginResponse;
 use Laravel\Fortify\Contracts\LogoutResponse;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Session;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -34,6 +36,12 @@ class FortifyServiceProvider extends ServiceProvider
         $this->app->instance(LogoutResponse::class, new class implements LogoutResponse {
             public function toResponse($request)
             {
+                // Invalidate session completely
+                $request->session()->invalidate();
+                
+                // Regenerate CSRF token
+                $request->session()->regenerateToken();
+                
                 return redirect()->route('login');
             }
         });
