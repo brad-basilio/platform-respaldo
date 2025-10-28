@@ -128,6 +128,22 @@ class Student extends Model
             ->withTimestamps();
     }
 
+    /**
+     * Relación con matrículas (nuevo sistema de pagos)
+     */
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(Enrollment::class);
+    }
+
+    /**
+     * Matrícula activa actual
+     */
+    public function activeEnrollment()
+    {
+        return $this->hasOne(Enrollment::class)->where('status', 'active')->latest();
+    }
+
     // Accessor for full name
     public function getFullNameAttribute(): string
     {
