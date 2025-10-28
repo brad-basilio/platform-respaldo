@@ -1,0 +1,338 @@
+/* AG Grid Custom Styles - Tema Moderno Premium */
+
+/* Contenedor principal - Sin bordes externos toscos */
+.ag-theme-alpine {
+  border: none !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+}
+
+/* Headers */
+.ag-theme-alpine .ag-header {
+  background: linear-gradient(to bottom, #f9fafb 0%, #f3f4f6 100%);
+  border-bottom: 1px solid #e5e7eb;
+  font-weight: 600;
+  color: #1f2937;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+.ag-theme-alpine .ag-header-cell {
+  padding: 14px 16px;
+  border-right: none;
+}
+
+.ag-theme-alpine .ag-header-cell:hover {
+  background-color: rgba(229, 231, 235, 0.5);
+}
+
+.ag-theme-alpine .ag-header-cell-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #374151;
+}
+
+/* Rows */
+.ag-theme-alpine .ag-row {
+  border-bottom: 1px solid #f3f4f6;
+  transition: all 0.2s ease;
+}
+
+.ag-theme-alpine .ag-row:hover {
+  background-color: #f9fafb !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.ag-theme-alpine .ag-row-even {
+  background-color: #ffffff;
+}
+
+.ag-theme-alpine .ag-row-odd {
+  background-color: #fafbfc;
+}
+
+.ag-theme-alpine .ag-cell {
+  padding: 14px 16px;
+  border-right: none;
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+}
+
+/* Eliminar líneas verticales */
+.ag-theme-alpine .ag-cell-inline-editing {
+  border: 2px solid #2563eb;
+  border-radius: 6px;
+}
+
+/* ROOT - Eliminar borde del contenedor */
+.ag-theme-alpine .ag-root-wrapper {
+  border: none;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Body wrapper */
+.ag-theme-alpine .ag-body-viewport {
+  border: none;
+}
+
+/* Paginación moderna y elegante */
+.ag-theme-alpine .ag-paging-panel {
+  border-top: 1px solid #e5e7eb;
+  background: linear-gradient(to top, #f9fafb 0%, #ffffff 100%);
+  padding: 16px 20px;
+  font-size: 13px;
+  color: #6b7280;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Botones de navegación de paginación */
+.ag-theme-alpine .ag-paging-button {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 14px;
+  margin: 0 3px;
+  color: #374151;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  min-width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.ag-theme-alpine .ag-paging-button:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.ag-theme-alpine .ag-paging-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.ag-theme-alpine .ag-paging-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background-color: #f9fafb;
+  border-color: #f3f4f6;
+}
+
+/* Resaltar página actual */
+.ag-theme-alpine .ag-paging-number.ag-paging-button {
+  font-weight: 600;
+}
+
+/* Información de página (ej: "Página 1 de 10") */
+.ag-theme-alpine .ag-paging-page-summary-panel {
+  font-weight: 600;
+  color: #374151;
+  font-size: 13px;
+  margin: 0 12px;
+}
+
+/* Selector de tamaño de página */
+.ag-theme-alpine .ag-paging-page-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Dropdown de tamaño de página */
+.ag-theme-alpine .ag-select {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 6px 32px 6px 12px;
+  color: #374151;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.ag-theme-alpine .ag-select:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+}
+
+.ag-theme-alpine .ag-select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Filtros */
+.ag-theme-alpine .ag-filter {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  padding: 4px;
+}
+
+.ag-theme-alpine .ag-filter-apply-panel {
+  border-top: 1px solid #e5e7eb;
+  padding: 12px;
+}
+
+/* Iconos de ordenamiento */
+.ag-theme-alpine .ag-icon-asc,
+.ag-theme-alpine .ag-icon-desc {
+  color: #2563eb;
+  opacity: 1;
+}
+
+.ag-theme-alpine .ag-header-cell-sorted-asc,
+.ag-theme-alpine .ag-header-cell-sorted-desc {
+  background-color: rgba(37, 99, 235, 0.05);
+}
+
+/* Loading Overlay */
+.ag-theme-alpine .ag-overlay-loading-wrapper {
+  background-color: rgba(255, 255, 255, 0.95);
+}
+
+.ag-theme-alpine .ag-overlay-loading-center {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Menú contextual */
+.ag-theme-alpine .ag-menu {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+}
+
+.ag-theme-alpine .ag-menu-option-active {
+  background-color: #eff6ff;
+  border-radius: 6px;
+}
+
+/* Checkbox */
+.ag-theme-alpine .ag-checkbox-input-wrapper {
+  border-radius: 5px;
+  border: 2px solid #d1d5db;
+  transition: all 0.2s ease;
+}
+
+.ag-theme-alpine .ag-checkbox-input-wrapper:hover {
+  border-color: #2563eb;
+}
+
+.ag-theme-alpine .ag-checkbox-input-wrapper.ag-checked {
+  background-color: #2563eb;
+  border-color: #2563eb;
+}
+
+/* Scroll personalizado más delgado y elegante */
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar,
+.ag-theme-alpine .ag-body-vertical-scroll-viewport::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-track,
+.ag-theme-alpine .ag-body-vertical-scroll-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb,
+.ag-theme-alpine .ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
+}
+
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb:hover,
+.ag-theme-alpine .ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Sin focus visual molesto */
+.ag-theme-alpine .ag-cell:focus {
+  outline: none;
+  border: none;
+}
+
+.ag-theme-alpine .ag-cell:focus-within {
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.3);
+}
+
+/* Input de filtro */
+.ag-theme-alpine .ag-input-field-input {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.ag-theme-alpine .ag-input-field-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Panel de columnas */
+.ag-theme-alpine .ag-column-select-panel {
+  border-radius: 12px;
+}
+
+/* Texto "no hay filas" */
+.ag-theme-alpine .ag-overlay-no-rows-wrapper {
+  padding: 40px;
+}
+
+.ag-theme-alpine .ag-overlay-no-rows-center {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+/* Animación suave en cambios */
+.ag-theme-alpine .ag-row {
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Mejorar apariencia de labels en paginación */
+.ag-theme-alpine .ag-paging-panel label {
+  font-weight: 600;
+  color: #374151;
+  margin-right: 8px;
+  font-size: 13px;
+}
+
+/* Espaciado entre elementos de paginación */
+.ag-theme-alpine .ag-paging-row-summary-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+/* Centro de paginación */
+.ag-theme-alpine .ag-paging-page-summary-panel {
+  flex: 1;
+  text-align: center;
+}
+

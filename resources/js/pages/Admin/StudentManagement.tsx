@@ -1,15 +1,21 @@
-import React, { useState } from 'react';
-import { Users, Plus, CreditCard as Edit, Trash2, Search, UserCheck, UserX, BookOpen, Eye, List, Columns2 as Columns } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Users, Plus, CreditCard as Edit, Trash2, UserCheck, UserX, Eye, List, Columns2 as Columns } from 'lucide-react';
 import { Student, Group } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
-import { router } from '@inertiajs/react';
 import axios from 'axios';
-import { Input } from '@/components/ui/Input';
+import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/DatePicker';
-import { Select2, SelectOption } from '@/components/ui/Select2';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
-import { useToast } from '@/components/ui/Toast';
+import { Select2 } from '@/components/ui/Select2';
 import { toast } from 'sonner';
+import { AgGridReact } from 'ag-grid-react';
+import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+import type { ColDef } from 'ag-grid-community';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
+import '../../../css/ag-grid-custom.css';
+
+// Registrar módulos de AG Grid Community
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 interface Props {
   students: Student[];
@@ -19,23 +25,13 @@ interface Props {
 
 const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups, userRole }) => {
   const [students, setStudents] = useState<Student[]>(initialStudents);
-
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [classTypeFilter, setClassTypeFilter] = useState<'all' | 'theoretical' | 'practical'>('all');
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
   const [draggedStudent, setDraggedStudent] = useState<Student | null>(null);
 
-  const filteredStudents = students.filter(student => {
-    const matchesSearch = student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
-    const matchesClassType = classTypeFilter === 'all' || student.classType === classTypeFilter;
-
-    return matchesSearch && matchesStatus && matchesClassType;
-  });
+  // Filtrar estudiantes basado en filtros para Kanban
+  const filteredStudents = students;
 
   const getProspectStatusColor = (status: string) => {
     switch (status) {
@@ -69,7 +65,10 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         student.prospectStatus === 'propuesta_enviada' && newStatus === 'pago_por_verificar'
       ];
       if (!allowedTransitions.some(t => t)) {
-        alert('Como asesor de ventas solo puedes: Registrado → Propuesta Enviada → Pago Por Verificar');
+        toast.error('Transición no permitida', {
+          description: 'Como asesor de ventas solo puedes: Registrado → Propuesta Enviada → Pago Por Verificar',
+          duration: 5000,
+        });
         return;
       }
     } else if (userRole === 'cashier') {
@@ -77,25 +76,37 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         student.prospectStatus === 'pago_por_verificar' && newStatus === 'matriculado'
       ];
       if (!allowedTransitions.some(t => t)) {
-        alert('Como cajero solo puedes verificar pagos en estado "Pago Por Verificar"');
+        toast.error('Transición no permitida', {
+          description: 'Como cajero solo puedes verificar pagos en estado "Pago Por Verificar"',
+          duration: 5000,
+        });
         return;
       }
     }
 
-    // Enviar actualización al servidor
-    router.put(`/admin/students/${studentId}/prospect-status`, {
+    // Enviar actualización al servidor usando axios
+    axios.put(`/admin/students/${studentId}/prospect-status`, {
       prospect_status: newStatus
-    }, {
-      preserveScroll: true,
-      onSuccess: () => {
-        // Actualizar estado local
-        setStudents(students.map(student =>
-          student.id === studentId
-            ? { ...student, prospectStatus: newStatus as 'registrado' | 'propuesta_enviada' | 'pago_por_verificar' | 'matriculado' }
-            : student
-        ));
-      }
-    });
+    })
+      .then((response) => {
+        // Actualizar estado local inmediatamente
+        const updatedStudent = response.data.student;
+        setStudents(prevStudents =>
+          prevStudents.map(s => s.id === studentId ? updatedStudent : s)
+        );
+        
+        toast.success('Estado actualizado', {
+          description: `El prospecto ahora está en estado: ${getProspectStatusLabel(newStatus)}`,
+          duration: 4000,
+        });
+      })
+      .catch((error) => {
+        toast.error('Error al actualizar estado', {
+          description: 'No se pudo cambiar el estado. Intenta nuevamente.',
+          duration: 5000,
+        });
+        console.error('Error:', error);
+      });
   };
 
   const handleDragStart = (e: React.DragEvent, student: Student) => {
@@ -196,15 +207,16 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         class_type: 'theoretical', // Por defecto
       });
 
+      // Agregar el nuevo estudiante al estado local inmediatamente
+      const newStudent = response.data.student;
+      setStudents(prevStudents => [...prevStudents, newStudent]);
+
       // Éxito: cerrar modal y mostrar toast
       setShowCreateForm(false);
       toast.success('Prospecto registrado exitosamente', {
         description: 'El nuevo prospecto ha sido agregado al sistema.',
         duration: 4000,
       });
-      
-      // Recargar solo la lista de estudiantes usando Inertia
-      router.reload({ only: ['students'] });
       
     } catch (error: any) {
       console.error('❌ Errores de validación:', error);
@@ -277,7 +289,13 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
     console.log('Datos que se enviarán al backend:', updateData);
 
     try {
-      await axios.put(`/admin/students/${editingStudent.id}`, updateData);
+      const response = await axios.put(`/admin/students/${editingStudent.id}`, updateData);
+
+      // Actualizar el estudiante en el estado local inmediatamente
+      const updatedStudent = response.data.student;
+      setStudents(prevStudents => 
+        prevStudents.map(s => s.id === editingStudent.id ? updatedStudent : s)
+      );
 
       // Éxito: cerrar modal y mostrar toast
       setEditingStudent(null);
@@ -285,9 +303,6 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         description: 'Los datos del prospecto han sido actualizados.',
         duration: 4000,
       });
-      
-      // Recargar solo la lista de estudiantes
-      router.reload({ only: ['students'] });
       
     } catch (error: any) {
       console.error('❌ Errores de validación:', error);
@@ -315,9 +330,23 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
   const handleDeleteStudent = (studentId: string) => {
     if (confirm('¿Estás seguro de que quieres eliminar este prospecto?')) {
-      router.delete(`/admin/students/${studentId}`, {
-        preserveScroll: true
-      });
+      axios.delete(`/admin/students/${studentId}`)
+        .then(() => {
+          // Eliminar del estado local inmediatamente
+          setStudents(prevStudents => prevStudents.filter(s => s.id !== studentId));
+          
+          toast.success('Prospecto eliminado', {
+            description: 'El prospecto ha sido eliminado exitosamente.',
+            duration: 4000,
+          });
+        })
+        .catch((error) => {
+          toast.error('Error al eliminar', {
+            description: 'No se pudo eliminar el prospecto. Intenta nuevamente.',
+            duration: 5000,
+          });
+          console.error('Error al eliminar:', error);
+        });
     }
   };
 
@@ -326,6 +355,211 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
     const group = groups.find(g => g.id === groupId);
     return group ? group.name : 'Grupo desconocido';
   };
+
+  // Definición de columnas para AG Grid
+  const columnDefs = useMemo<ColDef<Student>[]>(() => {
+    const columns: ColDef<Student>[] = [
+      {
+        headerName: 'Prospecto',
+        field: 'name',
+        minWidth: 250,
+        filter: 'agTextColumnFilter',
+        cellRenderer: (params: any) => {
+          const student = params.data;
+          return (
+            <div className="flex items-center py-2">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-sm font-semibold">
+                  {student.name.split(' ').map((n: string) => n[0]).join('')}
+                </span>
+              </div>
+              <div className="ml-3">
+                <div className="text-sm font-medium text-gray-900">{student.name}</div>
+                <div className="text-xs text-gray-500">{student.email}</div>
+              </div>
+            </div>
+          );
+        }
+      },
+      {
+        headerName: 'Estado',
+        field: 'status',
+        width: 120,
+        filter: 'agSetColumnFilter',
+        cellRenderer: (params: any) => {
+          const status = params.value;
+          return (
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+              status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}>
+              {status === 'active' ? <UserCheck className="w-3 h-3 mr-1" /> : <UserX className="w-3 h-3 mr-1" />}
+              {status === 'active' ? 'Activo' : 'Inactivo'}
+            </span>
+          );
+        }
+      },
+      {
+        headerName: 'Estado Prospecto',
+        field: 'prospectStatus',
+        width: 180,
+        filter: 'agSetColumnFilter',
+        cellRenderer: (params: any) => {
+          const student = params.data;
+          return (
+            <select
+              value={student.prospectStatus || 'registrado'}
+              onChange={(e) => {
+                handleProspectStatusChange(student.id, e.target.value);
+              }}
+              className={`text-xs font-medium px-2.5 py-1 rounded-full border-0 focus:ring-2 focus:ring-blue-500 cursor-pointer w-full ${getProspectStatusColor(student.prospectStatus || 'registrado')}`}
+              disabled={
+                (userRole === 'sales_advisor' && (student.prospectStatus !== 'registrado' && student.prospectStatus !== 'propuesta_enviada')) ||
+                (userRole === 'cashier' && student.prospectStatus !== 'pago_por_verificar')
+              }
+            >
+              {userRole === 'admin' && (
+                <>
+                  <option value="registrado">Registrado</option>
+                  <option value="propuesta_enviada">Propuesta Enviada</option>
+                  <option value="pago_por_verificar">Pago Por Verificar</option>
+                  <option value="matriculado">Matriculado</option>
+                </>
+              )}
+              {userRole === 'sales_advisor' && (
+                <>
+                  {(student.prospectStatus === 'registrado' || student.prospectStatus === 'propuesta_enviada') ? (
+                    <>
+                      <option value="registrado">Registrado</option>
+                      <option value="propuesta_enviada">Propuesta Enviada</option>
+                      <option value="pago_por_verificar">Pago Por Verificar</option>
+                    </>
+                  ) : (
+                    <option value={student.prospectStatus}>{getProspectStatusLabel(student.prospectStatus || 'registrado')}</option>
+                  )}
+                </>
+              )}
+              {userRole === 'cashier' && (
+                <>
+                  {student.prospectStatus === 'pago_por_verificar' ? (
+                    <>
+                      <option value="pago_por_verificar">Pago Por Verificar</option>
+                      <option value="matriculado">Matriculado</option>
+                    </>
+                  ) : (
+                    <option value={student.prospectStatus}>{getProspectStatusLabel(student.prospectStatus || 'registrado')}</option>
+                  )}
+                </>
+              )}
+            </select>
+          );
+        }
+      },
+      {
+        headerName: 'Nivel',
+        field: 'level',
+        width: 120,
+        filter: 'agSetColumnFilter',
+        cellRenderer: (params: any) => {
+          const level = params.value;
+          return (
+            <span className="text-sm text-gray-900 capitalize">
+              {level === 'basic' ? 'Básico' : level === 'intermediate' ? 'Intermedio' : 'Avanzado'}
+            </span>
+          );
+        }
+      },
+      {
+        headerName: 'Grupo',
+        field: 'assignedGroupId',
+        width: 150,
+        filter: 'agTextColumnFilter',
+        cellRenderer: (params: any) => {
+          return <span className="text-sm text-gray-900">{getGroupName(params.value)}</span>;
+        }
+      },
+      {
+        headerName: 'Puntos',
+        field: 'points',
+        width: 100,
+        filter: 'agNumberColumnFilter',
+        cellRenderer: (params: any) => {
+          return <span className="text-sm font-medium text-gray-900">{params.value.toLocaleString()}</span>;
+        },
+        type: 'rightAligned'
+      },
+      {
+        headerName: 'Acciones',
+        width: 120,
+        sortable: false,
+        filter: false,
+        cellRenderer: (params: any) => {
+          const student = params.data;
+          return (
+            <div className="flex items-center space-x-2">
+              {(userRole === 'admin' || userRole === 'sales_advisor') && (
+                <>
+                  <button
+                    onClick={() => setEditingStudent(student)}
+                    className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+                    title="Editar prospecto"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteStudent(student.id)}
+                    className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
+                    title="Eliminar prospecto"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </>
+              )}
+              {userRole === 'cashier' && (
+                <button
+                  onClick={() => setEditingStudent(student)}
+                  className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+                  title="Ver detalles"
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          );
+        }
+      }
+    ];
+
+    // Agregar columna "Registrado Por" solo para admin
+    if (userRole === 'admin') {
+      columns.splice(3, 0, {
+        headerName: 'Registrado Por',
+        field: 'registeredBy.name',
+        width: 220,
+        filter: 'agTextColumnFilter',
+        cellRenderer: (params: any) => {
+          const student = params.data;
+          if (student.registeredBy) {
+            return (
+              <div className="flex items-center">
+                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full flex items-center justify-center mr-2 flex-shrink-0">
+                  <span className="text-white text-xs font-semibold">
+                    {student.registeredBy.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                  </span>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{student.registeredBy.name}</div>
+                  <div className="text-xs text-gray-500">{student.registeredBy.email}</div>
+                </div>
+              </div>
+            );
+          }
+          return <span className="text-sm text-gray-400">Sin asignar</span>;
+        }
+      });
+    }
+
+    return columns;
+  }, [userRole]);
 
   const kanbanColumns = [
     { id: 'registrado', title: 'Registrado', color: 'border-blue-500 bg-blue-50' },
@@ -1163,44 +1397,6 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         />
       )}
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-        <div className="flex flex-wrap gap-4">
-          <div className="flex-1 min-w-64">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar prospectos..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-          
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Todos los Estados</option>
-            <option value="active">Activo</option>
-            <option value="inactive">Inactivo</option>
-          </select>
-          
-          <select
-            value={classTypeFilter}
-            onChange={(e) => setClassTypeFilter(e.target.value as any)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Todos los Tipos</option>
-            <option value="theoretical">Teórico</option>
-            <option value="practical">Práctico</option>
-          </select>
-        </div>
-      </div>
-
       {/* Kanban View */}
       {viewMode === 'kanban' && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -1306,200 +1502,32 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         </div>
       )}
 
-      {/* List View */}
+      {/* List View con AG Grid */}
       {viewMode === 'list' && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Prospecto
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Estado Prospecto
-                  </th>
-                  {userRole === 'admin' && (
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Registrado Por
-                    </th>
-                  )}
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tipo de Clase
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Nivel
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Grupo Asignado
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Puntos
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredStudents.map((student) => (
-                  <tr key={student.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                          <span className="text-white text-sm font-semibold">
-                            {student.name.split(' ').map(n => n[0]).join('')}
-                          </span>
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{student.name}</div>
-                          <div className="text-sm text-gray-500">{student.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        student.status === 'active' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {student.status === 'active' ? <UserCheck className="w-3 h-3 mr-1" /> : <UserX className="w-3 h-3 mr-1" />}
-                        {student.status === 'active' ? 'activo' : 'inactivo'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <select
-                        value={student.prospectStatus || 'registrado'}
-                        onChange={(e) => handleProspectStatusChange(student.id, e.target.value)}
-                        className={`text-xs font-medium px-2.5 py-0.5 rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getProspectStatusColor(student.prospectStatus || 'registrado')}`}
-                        disabled={
-                          (userRole === 'sales_advisor' && (student.prospectStatus !== 'registrado' && student.prospectStatus !== 'propuesta_enviada')) ||
-                          (userRole === 'cashier' && student.prospectStatus !== 'pago_por_verificar')
-                        }
-                      >
-                        {userRole === 'admin' && (
-                          <>
-                            <option value="registrado">Registrado</option>
-                            <option value="propuesta_enviada">Propuesta Enviada</option>
-                            <option value="pago_por_verificar">Pago Por Verificar</option>
-                            <option value="matriculado">Matriculado</option>
-                          </>
-                        )}
-                        {userRole === 'sales_advisor' && (
-                          <>
-                            {(student.prospectStatus === 'registrado' || student.prospectStatus === 'propuesta_enviada') ? (
-                              <>
-                                <option value="registrado">Registrado</option>
-                                <option value="propuesta_enviada">Propuesta Enviada</option>
-                                <option value="pago_por_verificar">Pago Por Verificar</option>
-                              </>
-                            ) : (
-                              <>
-                                <option value={student.prospectStatus}>{getProspectStatusLabel(student.prospectStatus || 'registrado')}</option>
-                              </>
-                            )}
-                          </>
-                        )}
-                        {userRole === 'cashier' && (
-                          <>
-                            {student.prospectStatus === 'pago_por_verificar' ? (
-                              <>
-                                <option value="pago_por_verificar">Pago Por Verificar</option>
-                                <option value="matriculado">Matriculado</option>
-                              </>
-                            ) : (
-                              <>
-                                <option value={student.prospectStatus}>{getProspectStatusLabel(student.prospectStatus || 'registrado')}</option>
-                              </>
-                            )}
-                          </>
-                        )}
-                      </select>
-                    </td>
-                    {userRole === 'admin' && (
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {student.registeredBy ? (
-                          <div className="flex items-center">
-                            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full flex items-center justify-center mr-2">
-                              <span className="text-white text-xs font-semibold">
-                                {student.registeredBy.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                              </span>
-                            </div>
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">{student.registeredBy.name}</div>
-                              <div className="text-xs text-gray-500">{student.registeredBy.email}</div>
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-gray-400">Sin asignar</span>
-                        )}
-                      </td>
-                    )}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        student.classType === 'theoretical' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-purple-100 text-purple-800'
-                      }`}>
-                        <BookOpen className="w-3 h-3 mr-1" />
-                        {student.classType === 'theoretical' ? 'teórico' : 'práctico'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
-                      {student.level === 'basic' ? 'básico' : student.level === 'intermediate' ? 'intermedio' : 'avanzado'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {getGroupName(student.assignedGroupId)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {student.points.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
-                        {(userRole === 'admin' || userRole === 'sales_advisor') && (
-                          <>
-                            <button
-                              onClick={() => setEditingStudent(student)}
-                              className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
-                              title="Editar prospecto"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteStudent(student.id)}
-                              className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
-                              title="Eliminar prospecto"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </>
-                        )}
-                        {userRole === 'cashier' && (
-                          <button
-                            onClick={() => setEditingStudent(student)}
-                            className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
-                            title="Ver detalles"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
+            <AgGridReact<Student>
+              rowData={filteredStudents}
+              columnDefs={columnDefs}
+              defaultColDef={{
+                sortable: true,
+                filter: true,
+                resizable: true,
+                flex: 1,
+                minWidth: 100,
+              }}
+              pagination={true}
+              paginationPageSize={10}
+              paginationPageSizeSelector={[5, 10, 20, 50, 100]}
+              rowSelection="single"
+              animateRows={true}
+              domLayout="normal"
+              rowHeight={60}
+              headerHeight={48}
+              suppressCellFocus={true}
+              rowClass="hover:bg-gray-50"
+            />
           </div>
-
-          {filteredStudents.length === 0 && (
-            <div className="text-center py-8">
-              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No se encontraron prospectos</p>
-            </div>
-          )}
         </div>
       )}
 
