@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
+import { motion, AnimatePresence } from 'framer-motion';
 import '../../../css/ag-grid-custom.css';
 
 // Registrar módulos de AG Grid Community
@@ -1542,140 +1543,165 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         />
       )}
 
-      {/* Kanban View - Mejorado */}
+      {/* Kanban Pipeline - Estilo Profesional (Jira/Linear) */}
       {viewMode === 'kanban' && (
-        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 shadow-sm">
-          <div className="overflow-x-auto overflow-y-hidden">
+        <div className="bg-gray-50 rounded-lg p-4">
+          <div className="overflow-x-auto">
             <div className="flex gap-4 pb-4" style={{ minWidth: 'max-content' }}>
-              {getVisibleKanbanColumns().map((column) => (
-                <div
-                  key={column.id}
-                  className="flex-shrink-0 w-[280px]"
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, column.id as any)}
-                >
-                  {/* Header de Columna */}
-                  <div className={`${column.color} rounded-t-xl p-3 shadow-sm border-b-3 ${
-                    column.id === 'registrado' ? 'border-blue-600' :
-                    column.id === 'propuesta_enviada' ? 'border-yellow-600' :
-                    column.id === 'pago_por_verificar' ? 'border-orange-600' :
-                    'border-green-600'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">
-                        {column.title}
-                      </h3>
-                      <div className={`flex items-center justify-center w-6 h-6 rounded-full font-bold text-xs ${
-                        column.id === 'registrado' ? 'bg-blue-600 text-white' :
-                        column.id === 'propuesta_enviada' ? 'bg-yellow-600 text-white' :
-                        column.id === 'pago_por_verificar' ? 'bg-orange-600 text-white' :
-                        'bg-green-600 text-white'
-                      }`}>
-                        {getStudentsByStatus(column.id).length}
+              {getVisibleKanbanColumns().map((column) => {
+                const studentsInColumn = getStudentsByStatus(column.id);
+                
+                return (
+                  <div
+                    key={column.id}
+                    className="flex-shrink-0 w-[300px]"
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, column.id as any)}
+                  >
+                    {/* Column Header - Con color de estado */}
+                    <div className={`rounded-lg p-3 mb-3 ${
+                      column.id === 'registrado' ? 'bg-blue-500' :
+                      column.id === 'propuesta_enviada' ? 'bg-yellow-500' :
+                      column.id === 'pago_por_verificar' ? 'bg-orange-500' :
+                      'bg-green-500'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-white uppercase tracking-wide">
+                          {column.title}
+                        </h3>
+                        <span className="px-2 py-0.5 bg-white/20 backdrop-blur-sm rounded-full text-xs font-bold text-white">
+                          {studentsInColumn.length}
+                        </span>
                       </div>
                     </div>
-                  </div>
               
-                  {/* Contenedor de Cards */}
-                  <div className="bg-white rounded-b-xl shadow-md min-h-[400px] max-h-[calc(100vh-280px)] overflow-y-auto p-2 space-y-2">
-                    {getStudentsByStatus(column.id).map((student) => {
-                      // Determinar si el prospecto puede ser arrastrado según el rol
-                      const isDraggable = 
-                        userRole === 'admin' || 
-                        (userRole === 'sales_advisor' && (student.prospectStatus === 'registrado' || student.prospectStatus === 'propuesta_enviada')) ||
-                        (userRole === 'cashier' && student.prospectStatus === 'pago_por_verificar');
+                    {/* Cards Container */}
+                    <div className="bg-gray-100/50 rounded-lg p-2 min-h-[500px] max-h-[calc(100vh-250px)] overflow-y-auto space-y-2">
+                      <AnimatePresence>
+                        {studentsInColumn.map((student) => {
+                          // El cajero NO puede arrastrar - solo puede verificar desde el modal
+                          const isDraggable = 
+                            userRole === 'admin' || 
+                            (userRole === 'sales_advisor' && (student.prospectStatus === 'registrado' || student.prospectStatus === 'propuesta_enviada'));
 
-                      return (
-                        <div
-                          key={student.id}
-                          draggable={isDraggable}
-                          onDragStart={(e) => handleDragStart(e, student)}
-                          className={`bg-white rounded-lg border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 overflow-hidden ${
-                            isDraggable ? 'cursor-move' : 'cursor-default opacity-60'
-                          }`}
-                        >
-                          {/* Card Header - Compacto */}
-                          <div className="p-2.5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
-                            <div className="flex items-start gap-2">
-                              {/* Avatar compacto */}
-                              <div className="flex-shrink-0">
-                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-sm">
-                                  <span className="text-white text-xs font-bold">
+                          return (
+                            <motion.div
+                              key={student.id}
+                              layout
+                              initial={{ opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
+                              transition={{ duration: 0.2 }}
+                              draggable={isDraggable}
+                              onDragStart={(e) => {
+                                if (isDraggable) {
+                                  handleDragStart(e as any, student);
+                                }
+                              }}
+                              className={`bg-white rounded-lg border border-gray-200 p-3 ${
+                                isDraggable 
+                                  ? 'cursor-grab active:cursor-grabbing hover:shadow-md hover:border-gray-300' 
+                                  : userRole === 'cashier' 
+                                  ? 'cursor-pointer hover:shadow-md hover:border-blue-300'
+                                  : 'cursor-default opacity-50'
+                              } transition-all duration-150`}
+                              whileHover={isDraggable ? { scale: 1.01 } : userRole === 'cashier' ? { scale: 1.01 } : {}}
+                              whileTap={isDraggable ? { scale: 0.99 } : {}}
+                              onClick={() => {
+                                // Si es cajero, al hacer clic abre el modal de verificación
+                                if (userRole === 'cashier' && student.prospectStatus === 'pago_por_verificar') {
+                                  setEditingStudent(student);
+                                }
+                              }}
+                            >
+                              {/* Card Content */}
+                              <div className="flex items-start gap-3">
+                                {/* Avatar */}
+                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-white text-xs font-semibold">
                                     {student.name.split(' ').slice(0, 2).map(n => n[0]).join('')}
                                   </span>
                                 </div>
+                                
+                                {/* Info */}
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-medium text-sm text-gray-900 truncate">
+                                    {student.name}
+                                  </h4>
+                                  <p className="text-xs text-gray-500 truncate mt-0.5">
+                                    {student.email}
+                                  </p>
+                                  
+                                  {/* Tags */}
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {student.level && (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                        {student.level === 'basic' ? 'Básico' : student.level === 'intermediate' ? 'Intermedio' : 'Avanzado'}
+                                      </span>
+                                    )}
+                                    {student.contractedPlan && (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700 border border-purple-100">
+                                        {student.contractedPlan}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
-                              
-                              {/* Info del estudiante */}
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-gray-900 text-xs truncate mb-0.5">
-                                  {student.name}
-                                </h4>
-                                <p className="text-[10px] text-gray-500 truncate">
-                                  {student.email}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
 
-
-
-                          {/* Card Footer - Compacto */}
-                          <div className="px-2.5 py-2 bg-gray-50 border-t border-gray-100">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-0.5">
-                                {(userRole === 'admin' || userRole === 'sales_advisor') && (
-                                  <>
+                              {/* Footer Actions */}
+                              <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                                <div className="flex items-center gap-1">
+                                  {(userRole === 'admin' || userRole === 'sales_advisor') && (
+                                    <>
+                                      <button
+                                        onClick={() => setEditingStudent(student)}
+                                        className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                        title="Editar"
+                                      >
+                                        <Edit className="h-3.5 w-3.5" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteStudent(student.id)}
+                                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                        title="Eliminar"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    </>
+                                  )}
+                                  {userRole === 'cashier' && (
                                     <button
                                       onClick={() => setEditingStudent(student)}
-                                      className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition-colors"
-                                      title="Editar"
+                                      className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                      title="Ver detalles"
                                     >
-                                      <Edit className="h-3.5 w-3.5" />
+                                      <Eye className="h-3.5 w-3.5" />
                                     </button>
-                                    <button
-                                      onClick={() => handleDeleteStudent(student.id)}
-                                      className="p-1 text-red-600 hover:text-red-800 hover:bg-red-100 rounded transition-colors"
-                                      title="Eliminar"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </button>
-                                  </>
-                                )}
-                                {userRole === 'cashier' && (
-                                  <button
-                                    onClick={() => setEditingStudent(student)}
-                                    className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition-colors"
-                                    title="Ver detalles"
-                                  >
-                                    <Eye className="h-3.5 w-3.5" />
-                                  </button>
+                                  )}
+                                </div>
+                                
+                                {student.paymentDate && (
+                                  <span className="text-xs text-gray-400">
+                                    {new Date(student.paymentDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                                  </span>
                                 )}
                               </div>
-                              
-                              {/* Indicador de estado */}
-                              <div className={`w-2 h-2 rounded-full ${
-                                student.status === 'active' ? 'bg-green-500' : 'bg-gray-400'
-                              }`} title={student.status === 'active' ? 'Activo' : 'Inactivo'} />
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
                     
-                    {/* Estado vacío */}
-                    {getStudentsByStatus(column.id).length === 0 && (
-                      <div className="text-center py-8">
-                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-2">
-                          <Users className="h-6 w-6 text-gray-400" />
+                      {/* Empty State */}
+                      {studentsInColumn.length === 0 && (
+                        <div className="text-center py-12">
+                          <Users className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                          <p className="text-xs text-gray-400">Sin prospectos</p>
                         </div>
-                        <p className="text-xs text-gray-500 font-medium">No hay prospectos</p>
-                        <p className="text-[10px] text-gray-400 mt-0.5">en esta etapa</p>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
