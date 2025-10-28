@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\PaymentPlan;
+use App\Models\AcademicLevel;
 
 class PaymentPlanSeeder extends Seeder
 {
@@ -12,11 +13,16 @@ class PaymentPlanSeeder extends Seeder
      */
     public function run(): void
     {
+        // Obtener los IDs de los niveles académicos
+        $basicLevel = AcademicLevel::where('code', 'basic')->first();
+        $intermediateLevel = AcademicLevel::where('code', 'intermediate')->first();
+        $advancedLevel = AcademicLevel::where('code', 'advanced')->first();
+
         $plans = [
             // ========== NIVEL BÁSICO ==========
             [
                 'name' => 'Plan Premium - Pago al Contado',
-                'academic_level' => 'basic',
+                'academic_level_id' => $basicLevel->id,
                 'installments_count' => 1,
                 'monthly_amount' => 1000.00,
                 'total_amount' => 1000.00,
@@ -29,7 +35,7 @@ class PaymentPlanSeeder extends Seeder
             ],
             [
                 'name' => 'Plan Estándar - 3 Cuotas',
-                'academic_level' => 'basic',
+                'academic_level_id' => $basicLevel->id,
                 'installments_count' => 3,
                 'monthly_amount' => 400.00,
                 'total_amount' => 1200.00,
@@ -42,7 +48,7 @@ class PaymentPlanSeeder extends Seeder
             ],
             [
                 'name' => 'Plan Flexible - 6 Cuotas',
-                'academic_level' => 'basic',
+                'academic_level_id' => $basicLevel->id,
                 'installments_count' => 6,
                 'monthly_amount' => 220.00,
                 'total_amount' => 1320.00,
@@ -57,7 +63,7 @@ class PaymentPlanSeeder extends Seeder
             // ========== NIVEL INTERMEDIO ==========
             [
                 'name' => 'Plan Premium - Pago al Contado',
-                'academic_level' => 'intermediate',
+                'academic_level_id' => $intermediateLevel->id,
                 'installments_count' => 1,
                 'monthly_amount' => 1400.00,
                 'total_amount' => 1400.00,
@@ -70,7 +76,7 @@ class PaymentPlanSeeder extends Seeder
             ],
             [
                 'name' => 'Plan Estándar - 3 Cuotas',
-                'academic_level' => 'intermediate',
+                'academic_level_id' => $intermediateLevel->id,
                 'installments_count' => 3,
                 'monthly_amount' => 550.00,
                 'total_amount' => 1650.00,
@@ -83,7 +89,7 @@ class PaymentPlanSeeder extends Seeder
             ],
             [
                 'name' => 'Plan Flexible - 6 Cuotas',
-                'academic_level' => 'intermediate',
+                'academic_level_id' => $intermediateLevel->id,
                 'installments_count' => 6,
                 'monthly_amount' => 300.00,
                 'total_amount' => 1800.00,
@@ -98,7 +104,7 @@ class PaymentPlanSeeder extends Seeder
             // ========== NIVEL AVANZADO ==========
             [
                 'name' => 'Plan Premium - Pago al Contado',
-                'academic_level' => 'advanced',
+                'academic_level_id' => $advancedLevel->id,
                 'installments_count' => 1,
                 'monthly_amount' => 1800.00,
                 'total_amount' => 1800.00,
@@ -111,7 +117,7 @@ class PaymentPlanSeeder extends Seeder
             ],
             [
                 'name' => 'Plan Estándar - 3 Cuotas',
-                'academic_level' => 'advanced',
+                'academic_level_id' => $advancedLevel->id,
                 'installments_count' => 3,
                 'monthly_amount' => 700.00,
                 'total_amount' => 2100.00,
@@ -124,7 +130,7 @@ class PaymentPlanSeeder extends Seeder
             ],
             [
                 'name' => 'Plan Flexible - 6 Cuotas',
-                'academic_level' => 'advanced',
+                'academic_level_id' => $advancedLevel->id,
                 'installments_count' => 6,
                 'monthly_amount' => 380.00,
                 'total_amount' => 2280.00,
