@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Users, Plus, CreditCard as Edit, Trash2, UserCheck, UserX, Eye, List, Columns2 as Columns } from 'lucide-react';
+import { Users, Plus, CreditCard as Edit, Trash2, UserCheck, UserX, Eye, List, Columns2 as Columns, Search, XCircle } from 'lucide-react';
 import { Student, Group } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import axios from 'axios';
@@ -28,6 +28,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
   const [draggedStudent, setDraggedStudent] = useState<Student | null>(null);
+  const [quickFilterText, setQuickFilterText] = useState<string>('');
 
   // Filtrar estudiantes basado en filtros para Kanban
   const filteredStudents = students;
@@ -1717,12 +1718,35 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
         {/* List View con AG Grid */}
         {viewMode === 'list' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <>
+            {/* Barra de búsqueda */}
+              <div className="relative">
+                <Input
+                  type="text"
+                  label="Buscar por nombre, email, código, teléfono, estado, nivel, plan..."
+                  value={quickFilterText}
+                  onChange={(e) => setQuickFilterText(e.target.value)}
+                  icon={<Search className="w-4 h-4" />}
+                  className="pr-10"
+                />
+                {quickFilterText && (
+                  <button
+                    onClick={() => setQuickFilterText('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors z-20"
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+             
+           
+
             <div className="ag-theme-quartz" style={{ height: '600px', width: '100%' }}>
               <AgGridReact<Student>
                 theme={themeQuartz}
                 rowData={filteredStudents}
                 columnDefs={columnDefs}
+                quickFilterText={quickFilterText}
                 defaultColDef={{
                   sortable: true,
                   filter: true,
@@ -1742,7 +1766,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
                 rowClass="hover:bg-gray-50"
               />
             </div>
-          </div>
+          </>
         )}
 
       </div>

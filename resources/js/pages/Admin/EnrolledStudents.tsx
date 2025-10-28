@@ -1,5 +1,5 @@
 ﻿import React, { useState, useMemo, useCallback } from 'react';
-import { Users, Eye, UserCheck, UserX, Phone, BookOpen, GraduationCap, Calendar, XCircle, CheckCircle, AlertCircle } from 'lucide-react';
+import { Users, Eye, UserCheck, UserX, Phone, BookOpen, GraduationCap, Calendar, XCircle, CheckCircle, AlertCircle, Search } from 'lucide-react';
 import { Student, Group } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import { AgGridReact } from 'ag-grid-react';
@@ -7,6 +7,7 @@ import { ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-communi
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import { Input } from '@/components/ui/input';
 import '../../../css/ag-grid-custom.css';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -197,6 +198,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
   const [students, setStudents] = useState<Student[]>(initialStudents ?? []);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [quickFilterText, setQuickFilterText] = useState<string>('');
 
   const handleVerifyEnrollment = async (studentId: string) => {
     const result = await Swal.fire({
@@ -553,12 +555,33 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          {/* Barra de búsqueda global */}
+    
+              <Input
+                type="text"
+                label="Buscar por nombre, email, código, teléfono, nivel, plan..."
+                value={quickFilterText}
+                onChange={(e) => setQuickFilterText(e.target.value)}
+                icon={<Search className="w-4 h-4" />}
+                className="pr-10"
+              />
+              {quickFilterText && (
+                <button
+                  onClick={() => setQuickFilterText('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors z-20"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              )}
+          
+        
+
           <div className="ag-theme-quartz" style={{ height: '600px', width: '100%' }}>
             <AgGridReact<Student>
               theme={themeQuartz}
               rowData={students}
               columnDefs={columnDefs}
+              quickFilterText={quickFilterText}
               defaultColDef={{
                 sortable: true,
                 filter: true,
@@ -578,7 +601,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
               rowClass="hover:bg-gray-50"
             />
           </div>
-        </div>
+       
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
