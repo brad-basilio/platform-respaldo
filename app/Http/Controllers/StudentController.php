@@ -144,6 +144,13 @@ class StudentController extends Controller
         
         // Cajero: solo puede editar datos de matrícula/pago
         if ($user->role === 'cashier') {
+            Log::info('Cajero intentando actualizar estudiante:', [
+                'user_id' => $user->id,
+                'student_id' => $student->id,
+                'prospect_status' => $student->prospect_status,
+                'request_data' => $request->all()
+            ]);
+
             // Solo puede editar prospectos en estado pago_por_verificar
             if ($student->prospect_status !== 'pago_por_verificar') {
                 abort(403, 'Solo puedes editar prospectos en estado "Pago Por Verificar".');
@@ -151,11 +158,20 @@ class StudentController extends Controller
 
             // Cajero simplemente verifica el pago y el sistema matricula automáticamente
             $validated = $request->validate([
-                'payment_verified' => 'required|boolean',
+                'payment_verified' => 'required',
+            ]);
+
+            // Convertir a booleano si viene como string
+            $paymentVerified = filter_var($validated['payment_verified'], FILTER_VALIDATE_BOOLEAN);
+
+            Log::info('Valor de payment_verified:', [
+                'original' => $validated['payment_verified'],
+                'converted' => $paymentVerified,
+                'type' => gettype($paymentVerified)
             ]);
 
             // Si marca payment_verified, cambiar directamente a matriculado
-            if ($validated['payment_verified'] === true) {
+            if ($paymentVerified === true) {
                 $student->update([
                     'prospect_status' => 'matriculado',
                     'verified_payment_by' => $user->id,
@@ -169,7 +185,68 @@ class StudentController extends Controller
                 ]);
             }
 
-            return redirect()->back()->with('success', 'Pago verificado y estudiante matriculado exitosamente');
+            // Recargar el estudiante con relaciones para devolver datos actualizados
+            $student->load(['user', 'groups', 'badges', 'registeredBy', 'verifiedPaymentBy', 'verifiedEnrollmentBy']);
+
+            return response()->json([
+                'message' => 'Pago verificado y estudiante matriculado exitosamente',
+                'student' => [
+                    'id' => $student->id,
+                    'name' => $student->user->name ?? '',
+                    'firstName' => $student->first_name,
+                    'paternalLastName' => $student->paternal_last_name,
+                    'maternalLastName' => $student->maternal_last_name,
+                    'email' => $student->user->email ?? '',
+                    'phoneNumber' => $student->phone_number,
+                    'gender' => $student->gender,
+                    'birthDate' => $student->birth_date?->format('Y-m-d'),
+                    'documentType' => $student->document_type,
+                    'documentNumber' => $student->document_number,
+                    'educationLevel' => $student->education_level,
+                    'role' => 'student',
+                    'status' => $student->status ?? 'active',
+                    'level' => $student->level,
+                    'points' => $student->points ?? 0,
+                    'prospectStatus' => $student->prospect_status,
+                    'paymentDate' => $student->payment_date?->format('Y-m-d'),
+                    'enrollmentDate' => $student->enrollment_date?->format('Y-m-d'),
+                    'enrollmentCode' => $student->enrollment_code,
+                    'registrationDate' => $student->registration_date?->format('Y-m-d'),
+                    'contractedPlan' => $student->contracted_plan,
+                    'contractFileName' => $student->contract_file_name,
+                    'contractFilePath' => $student->contract_file_path,
+                    'paymentVerified' => $student->payment_verified ?? false,
+                    'hasPlacementTest' => $student->has_placement_test ?? false,
+                    'testDate' => $student->test_date?->format('Y-m-d'),
+                    'testScore' => $student->test_score,
+                    'guardianName' => $student->guardian_name,
+                    'guardianDocumentNumber' => $student->guardian_document_number,
+                    'guardianEmail' => $student->guardian_email,
+                    'guardianBirthDate' => $student->guardian_birth_date?->format('Y-m-d'),
+                    'guardianPhone' => $student->guardian_phone,
+                    'guardianAddress' => $student->guardian_address,
+                    'registeredBy' => $student->registeredBy ? [
+                        'id' => $student->registeredBy->id,
+                        'name' => $student->registeredBy->name,
+                        'email' => $student->registeredBy->email,
+                    ] : null,
+                    'verifiedPaymentBy' => $student->verifiedPaymentBy ? [
+                        'id' => $student->verifiedPaymentBy->id,
+                        'name' => $student->verifiedPaymentBy->name,
+                        'email' => $student->verifiedPaymentBy->email,
+                    ] : null,
+                    'paymentVerifiedAt' => $student->payment_verified_at?->toISOString(),
+                    'verifiedEnrollmentBy' => $student->verifiedEnrollmentBy ? [
+                        'id' => $student->verifiedEnrollmentBy->id,
+                        'name' => $student->verifiedEnrollmentBy->name,
+                        'email' => $student->verifiedEnrollmentBy->email,
+                    ] : null,
+                    'enrollmentVerifiedAt' => $student->enrollment_verified_at?->toISOString(),
+                    'createdAt' => $student->created_at->toISOString(),
+                    'enrolledGroups' => $student->groups->pluck('id')->toArray(),
+                    'assignedGroupId' => $student->groups->first()?->id,
+                ]
+            ], 200);
         }
 
         // Sales advisor solo puede editar sus propios prospectos
@@ -216,16 +293,18 @@ class StudentController extends Controller
             $fileName = 'contract_' . $student->id . '_' . time() . '.' . $file->getClientOriginalExtension();
             
             // Guardar en storage/app/private/contracts
-            $path = $file->storeAs('private/contracts', $fileName);
+            // Como el disco 'local' ya tiene root en 'storage/app/private', solo necesitamos 'contracts'
+            $path = $file->storeAs('contracts', $fileName, 'local');
             
-            // Guardar la ruta en la base de datos
-            $validated['contract_file_path'] = $path;
+            // Guardar la ruta en la base de datos (con prefijo 'private/' para compatibilidad con downloadContract)
+            $validated['contract_file_path'] = 'private/' . $path;
             $validated['contract_file_name'] = $file->getClientOriginalName();
             
             Log::info('Archivo de contrato subido:', [
                 'student_id' => $student->id,
-                'file_path' => $path,
+                'file_path' => $validated['contract_file_path'],
                 'file_name' => $file->getClientOriginalName(),
+                'absolute_path' => storage_path('app/' . $validated['contract_file_path']),
             ]);
         }
 
