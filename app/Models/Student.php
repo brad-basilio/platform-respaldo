@@ -75,6 +75,9 @@ class Student extends Model
         'payment_verified' => 'boolean',
         'test_score' => 'decimal:2',
         'points' => 'integer',
+        'registered_by' => 'integer',
+        'verified_payment_by' => 'integer',
+        'verified_enrollment_by' => 'integer',
     ];
 
     public function user(): BelongsTo
