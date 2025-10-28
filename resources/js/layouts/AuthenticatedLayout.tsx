@@ -13,7 +13,8 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
     // Determine the active view based on the current route
     React.useEffect(() => {
         const path = window.location.pathname;
-        if (path.includes('/admin/students')) setActiveView('students');
+        if (path.includes('/admin/enrolled-students')) setActiveView('enrolled-students');
+        else if (path.includes('/admin/students')) setActiveView('students');
         else if (path.includes('/admin/teachers')) setActiveView('teachers');
         else if (path.includes('/admin/groups')) setActiveView('groups');
         else if (path === '/dashboard') setActiveView('dashboard');

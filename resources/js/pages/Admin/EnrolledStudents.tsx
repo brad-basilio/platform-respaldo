@@ -281,19 +281,6 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       }
     },
     {
-      headerName: 'Tipo',
-      field: 'classType',
-      width: 120,
-      filter: 'agTextColumnFilter',
-  cellRenderer: (params: ICellRendererParams<Student>) => {
-        return (
-          <span className="text-sm text-gray-900">
-            {params.value === 'theoretical' ? 'Teórico' : 'Práctico'}
-          </span>
-        );
-      }
-    },
-    {
       headerName: 'Plan',
       field: 'contractedPlan',
       minWidth: 200,
