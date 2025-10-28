@@ -408,7 +408,7 @@ class StudentController extends Controller
         }
 
         // Sales advisor solo puede editar sus propios prospectos
-        if ($user->role === 'sales_advisor' && $student->registered_by !== $user->id) {
+        if ($user->role === 'sales_advisor' && (int)$student->registered_by !== $user->id) {
             abort(403, 'Solo puedes editar tus propios prospectos.');
         }
 
@@ -501,7 +501,7 @@ class StudentController extends Controller
         if ($user->role === 'cashier') {
             abort(403, 'No tienes permiso para eliminar prospectos.');
         }
-        if ($user->role === 'sales_advisor' && $student->registered_by !== $user->id) {
+        if ($user->role === 'sales_advisor' && (int)$student->registered_by !== $user->id) {
             abort(403, 'Solo puedes eliminar tus propios prospectos.');
         }
 
@@ -620,7 +620,7 @@ class StudentController extends Controller
         $user = Auth::user();
         
         // Verificar permisos según el rol
-        if ($user->role === 'sales_advisor' && $student->registered_by !== $user->id) {
+        if ($user->role === 'sales_advisor' && (int)$student->registered_by !== $user->id) {
             abort(403, 'No tienes permiso para ver este contrato.');
         }
         
