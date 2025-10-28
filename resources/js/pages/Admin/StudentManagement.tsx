@@ -8,10 +8,8 @@ import { DatePicker } from '@/components/ui/DatePicker';
 import { Select2 } from '@/components/ui/Select2';
 import { toast } from 'sonner';
 import { AgGridReact } from 'ag-grid-react';
-import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+import { ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-alpine.css';
 import '../../../css/ag-grid-custom.css';
 
 // Registrar módulos de AG Grid Community
@@ -62,14 +60,26 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
     if (userRole === 'sales_advisor') {
       const allowedTransitions = [
         student.prospectStatus === 'registrado' && newStatus === 'propuesta_enviada',
-        student.prospectStatus === 'propuesta_enviada' && newStatus === 'pago_por_verificar'
+        student.prospectStatus === 'propuesta_enviada' && newStatus === 'pago_por_verificar',
+        student.prospectStatus === 'propuesta_enviada' && newStatus === 'registrado', // Permitir retroceso
       ];
       if (!allowedTransitions.some(t => t)) {
         toast.error('Transición no permitida', {
-          description: 'Como asesor de ventas solo puedes: Registrado → Propuesta Enviada → Pago Por Verificar',
+          description: 'Como asesor de ventas solo puedes: Registrado ↔ Propuesta Enviada → Pago Por Verificar',
           duration: 5000,
         });
         return;
+      }
+
+      // Validar que tenga datos académicos completos SOLO antes de pasar a pago_por_verificar
+      if (newStatus === 'pago_por_verificar') {
+        if (!student.paymentDate || !student.level || !student.contractedPlan) {
+          toast.error('Datos incompletos', {
+            description: 'Debes completar fecha de pago, nivel académico y plan contratado antes de marcar como "Pago Por Verificar"',
+            duration: 5000,
+          });
+          return;
+        }
       }
     } else if (userRole === 'cashier') {
       const allowedTransitions = [
@@ -101,11 +111,20 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         });
       })
       .catch((error) => {
-        toast.error('Error al actualizar estado', {
-          description: 'No se pudo cambiar el estado. Intenta nuevamente.',
-          duration: 5000,
-        });
         console.error('Error:', error);
+        
+        // Manejar errores específicos del backend
+        if (error.response?.data?.error) {
+          toast.error(error.response.data.message || 'Error al actualizar estado', {
+            description: error.response.data.error,
+            duration: 5000,
+          });
+        } else {
+          toast.error('Error al actualizar estado', {
+            description: 'No se pudo cambiar el estado. Intenta nuevamente.',
+            duration: 5000,
+          });
+        }
       });
   };
 
@@ -138,18 +157,25 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
       if (userRole === 'sales_advisor') {
         const allowedTransitions = [
           draggedStudent.prospectStatus === 'registrado' && newStatus === 'propuesta_enviada',
-          draggedStudent.prospectStatus === 'propuesta_enviada' && newStatus === 'pago_por_verificar'
+          draggedStudent.prospectStatus === 'propuesta_enviada' && newStatus === 'pago_por_verificar',
+          draggedStudent.prospectStatus === 'propuesta_enviada' && newStatus === 'registrado', // Permitir retroceso
         ];
         if (!allowedTransitions.some(t => t)) {
-          alert('Como asesor de ventas solo puedes: Registrado → Propuesta Enviada → Pago Por Verificar');
+          toast.error('Transición no permitida', {
+            description: 'Como asesor de ventas solo puedes: Registrado ↔ Propuesta Enviada → Pago Por Verificar',
+            duration: 5000,
+          });
           setDraggedStudent(null);
           return;
         }
         
-        // Validar que tenga los datos necesarios para pasar a pago_por_verificar
+        // Validar que tenga los datos necesarios SOLO para pasar a pago_por_verificar
         if (newStatus === 'pago_por_verificar') {
           if (!draggedStudent.paymentDate || !draggedStudent.level || !draggedStudent.contractedPlan) {
-            alert('Debes completar fecha de pago, nivel académico y plan contratado antes de marcar como "Pago Por Verificar"');
+            toast.error('Datos incompletos', {
+              description: 'Debes completar fecha de pago, nivel académico y plan contratado antes de marcar como "Pago Por Verificar"',
+              duration: 5000,
+            });
             setDraggedStudent(null);
             return;
           }
@@ -159,7 +185,10 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
           draggedStudent.prospectStatus === 'pago_por_verificar' && newStatus === 'matriculado'
         ];
         if (!allowedTransitions.some(t => t)) {
-          alert('Como cajero solo puedes verificar pagos en estado "Pago Por Verificar"');
+          toast.error('Transición no permitida', {
+            description: 'Como cajero solo puedes verificar pagos en estado "Pago Por Verificar"',
+            duration: 5000,
+          });
           setDraggedStudent(null);
           return;
         }
@@ -245,51 +274,69 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
   const handleUpdateStudent = async (formData: any) => {
     if (!editingStudent) return;
 
-    // Determinar qué campos enviar según el rol
-    const updateData = userRole === 'cashier' 
-      ? {
-          // Cajero: solo datos de matrícula
-          payment_date: formData.paymentDate,
-          enrollment_date: formData.enrollmentDate,
-          enrollment_code: formData.enrollmentCode,
-          level: formData.academicLevel,
-          contracted_plan: formData.contractedPlan,
-          payment_verified: formData.paymentVerified,
-        }
-      : {
-          // Admin y Sales Advisor: todos los campos
-          first_name: formData.firstName,
-          paternal_last_name: formData.paternalLastName,
-          maternal_last_name: formData.maternalLastName,
-          phone_number: formData.phoneNumber,
-          gender: formData.gender,
-          birth_date: formData.birthDate,
-          document_type: formData.documentType,
-          document_number: formData.documentNumber,
-          education_level: formData.educationLevel,
-          email: formData.email,
-          payment_date: formData.paymentDate,
-          enrollment_date: formData.enrollmentDate,
-          enrollment_code: formData.enrollmentCode,
-          level: formData.academicLevel,
-          contracted_plan: formData.contractedPlan,
-          payment_verified: formData.paymentVerified,
-          has_placement_test: formData.hasPlacementTest,
-          test_date: formData.testDate,
-          test_score: formData.testScore,
-          guardian_name: formData.guardianName,
-          guardian_document_number: formData.guardianDocumentNumber,
-          guardian_email: formData.guardianEmail,
-          guardian_birth_date: formData.guardianBirthDate,
-          guardian_phone: formData.guardianPhone,
-          guardian_address: formData.guardianAddress,
-          status: formData.status,
-        };
+    // Crear FormData para enviar archivo
+    const data = new FormData();
 
-    console.log('Datos que se enviarán al backend:', updateData);
+    // Determinar qué campos enviar según el rol
+    if (userRole === 'cashier') {
+      // Cajero: solo datos de matrícula
+      if (formData.paymentDate) data.append('payment_date', formData.paymentDate);
+      if (formData.enrollmentDate) data.append('enrollment_date', formData.enrollmentDate);
+      if (formData.enrollmentCode) data.append('enrollment_code', formData.enrollmentCode);
+      if (formData.academicLevel) data.append('level', formData.academicLevel);
+      if (formData.contractedPlan) data.append('contracted_plan', formData.contractedPlan);
+      data.append('payment_verified', formData.paymentVerified ? '1' : '0');
+    } else {
+      // Admin y Sales Advisor: todos los campos
+      data.append('first_name', formData.firstName);
+      data.append('paternal_last_name', formData.paternalLastName);
+      data.append('maternal_last_name', formData.maternalLastName);
+      data.append('phone_number', formData.phoneNumber);
+      data.append('gender', formData.gender);
+      data.append('birth_date', formData.birthDate);
+      data.append('document_type', formData.documentType);
+      data.append('document_number', formData.documentNumber);
+      data.append('education_level', formData.educationLevel);
+      data.append('email', formData.email);
+      if (formData.paymentDate) data.append('payment_date', formData.paymentDate);
+      if (formData.enrollmentDate) data.append('enrollment_date', formData.enrollmentDate);
+      if (formData.enrollmentCode) data.append('enrollment_code', formData.enrollmentCode);
+      data.append('level', formData.academicLevel);
+      if (formData.contractedPlan) data.append('contracted_plan', formData.contractedPlan);
+      
+      // Solo admin puede verificar pagos desde el formulario de edición
+      if (userRole === 'admin') {
+        data.append('payment_verified', formData.paymentVerified ? '1' : '0');
+      }
+      
+      data.append('has_placement_test', formData.hasPlacementTest ? '1' : '0');
+      if (formData.testDate) data.append('test_date', formData.testDate);
+      if (formData.testScore) data.append('test_score', formData.testScore);
+      if (formData.guardianName) data.append('guardian_name', formData.guardianName);
+      if (formData.guardianDocumentNumber) data.append('guardian_document_number', formData.guardianDocumentNumber);
+      if (formData.guardianEmail) data.append('guardian_email', formData.guardianEmail);
+      if (formData.guardianBirthDate) data.append('guardian_birth_date', formData.guardianBirthDate);
+      if (formData.guardianPhone) data.append('guardian_phone', formData.guardianPhone);
+      if (formData.guardianAddress) data.append('guardian_address', formData.guardianAddress);
+      data.append('status', formData.status);
+    }
+
+    // Agregar archivo PDF si existe
+    if (formData.contractFile) {
+      data.append('contract_file', formData.contractFile);
+    }
+
+    // Laravel requiere _method para simular PUT en FormData
+    data.append('_method', 'PUT');
+
+    console.log('Datos que se enviarán al backend (con archivo)');
 
     try {
-      const response = await axios.put(`/admin/students/${editingStudent.id}`, updateData);
+      const response = await axios.post(`/admin/students/${editingStudent.id}`, data, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
       // Actualizar el estudiante en el estado local inmediatamente
       const updatedStudent = response.data.student;
@@ -385,7 +432,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         headerName: 'Estado',
         field: 'status',
         width: 120,
-        filter: 'agSetColumnFilter',
+        filter: 'agTextColumnFilter',
         cellRenderer: (params: any) => {
           const status = params.value;
           return (
@@ -402,7 +449,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         headerName: 'Estado Prospecto',
         field: 'prospectStatus',
         width: 180,
-        filter: 'agSetColumnFilter',
+        filter: 'agTextColumnFilter',
         cellRenderer: (params: any) => {
           const student = params.data;
           return (
@@ -458,7 +505,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         headerName: 'Nivel',
         field: 'level',
         width: 120,
-        filter: 'agSetColumnFilter',
+        filter: 'agTextColumnFilter',
         cellRenderer: (params: any) => {
           const level = params.value;
           return (
@@ -586,7 +633,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
   };
 
   const getStudentsByStatus = (status: string) => {
-    return filteredStudents.filter(student => student.prospectStatus === status);
+    return filteredStudents.filter(student => student && student.prospectStatus === status);
   };
 
   const StudentForm = ({ student, onSubmit, onCancel }: {
@@ -822,6 +869,61 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
                   </div>
                 </div>
               </div>
+
+              {/* Contrato PDF - Visible para Cajero */}
+              {student?.contractFileName && (
+                <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-6 shadow-sm">
+                  <h4 className="text-lg font-bold text-purple-900 mb-5 flex items-center gap-2">
+                    <svg className="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+                    </svg>
+                    Contrato Subido
+                  </h4>
+                  <div className="bg-white rounded-xl p-4 border border-purple-100 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                          <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900">{student.contractFileName}</p>
+                          <p className="text-sm text-gray-500">Documento PDF del contrato</p>
+                        </div>
+                      </div>
+                      <a
+                        href={`/admin/students/${student.id}/contract`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        Ver PDF
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!student?.contractFileName && (
+                <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-6 h-6 text-yellow-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-bold text-yellow-900">⚠️ Sin contrato</p>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        El asesor de ventas aún no ha subido el contrato PDF.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Verificación de Pago - ACCIÓN PRINCIPAL DEL CAJERO */}
               <div className="p-6 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 rounded-2xl border-2 border-green-400 shadow-lg">
@@ -1083,76 +1185,119 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
             {/* Subir Contrato y Verificación de Pago */}
             <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Contrato (PDF)
-                  </label>
-                  <div className="flex items-center space-x-2">
-                    <label className="flex-1 cursor-pointer">
-                      <div className="flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all">
-                        <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        <span className="text-sm text-gray-600">
-                          {formData.contractFileName || 'Seleccionar archivo PDF'}
-                        </span>
-                      </div>
-                      <input
-                        type="file"
-                        accept=".pdf"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setFormData({
-                              ...formData,
-                              contractFile: file,
-                              contractFileName: file.name
-                            });
-                          }
-                        }}
-                      />
+              <div className="grid grid-cols-1 gap-4">
+                
+                {/* Mostrar contrato existente si ya hay uno */}
+                {student?.contractFileName && !formData.contractFile && (
+                  <div className="bg-white rounded-xl p-4 border-2 border-purple-200">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Contrato Actual
                     </label>
-                    {formData.contractFileName && (
-                      <button
-                        type="button"
-                        onClick={() => setFormData({...formData, contractFile: null, contractFileName: ''})}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Eliminar archivo"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Adjunta el contrato firmado en formato PDF
-                  </p>
-                </div>
-
-                <div className="flex items-center">
-                  <label className="flex items-center space-x-3 cursor-pointer p-4 bg-white rounded-lg border border-slate-200 hover:border-blue-500 transition-all w-full">
-                    <input
-                      type="checkbox"
-                      checked={formData.paymentVerified}
-                      onChange={(e) => setFormData({...formData, paymentVerified: e.target.checked})}
-                      className="w-5 h-5 text-blue-600 focus:ring-blue-500 rounded border-gray-300"
-                    />
-                    <div className="flex-1">
-                      <span className="text-sm font-semibold text-gray-900 block">Pago Verificado</span>
-                      <span className="text-xs text-gray-500">Marca si el pago ha sido confirmado</span>
-                    </div>
-                    {formData.paymentVerified && (
-                      <div className="flex-shrink-0">
-                        <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                          <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900">{student.contractFileName}</p>
+                          <p className="text-sm text-gray-500">PDF del contrato subido</p>
+                        </div>
                       </div>
-                    )}
-                  </label>
-                </div>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`/admin/students/${student.id}/contract`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2 text-sm"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          Ver
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({...formData, contractFileName: '', contractFile: null})}
+                          className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition-colors text-sm"
+                        >
+                          Cambiar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Mostrar input para subir nuevo contrato */}
+                {(!student?.contractFileName || formData.contractFile || formData.contractFileName === '') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {student?.contractFileName ? 'Nuevo Contrato (PDF)' : 'Contrato (PDF)'}
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <label className="flex-1 cursor-pointer">
+                        <div className="flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all">
+                          <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                          <span className="text-sm text-gray-600">
+                            {formData.contractFile?.name || 'Seleccionar archivo PDF'}
+                          </span>
+                        </div>
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setFormData({
+                                ...formData,
+                                contractFile: file,
+                                contractFileName: file.name
+                              });
+                            }
+                          }}
+                        />
+                      </label>
+                      {formData.contractFile && (
+                        <button
+                          type="button"
+                          onClick={() => setFormData({...formData, contractFile: null, contractFileName: student?.contractFileName || ''})}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Eliminar archivo"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Adjunta el contrato firmado en formato PDF (máx. 10MB)
+                    </p>
+                  </div>
+                )}
+
+                {/* Verificación de pago - solo para admin */}
+                {userRole === 'admin' && (
+                  <div className="flex items-center">
+                    <label className="flex items-center space-x-3 cursor-pointer bg-white p-4 rounded-xl border border-slate-200 hover:border-blue-300 transition-all w-full">
+                      <input
+                        type="checkbox"
+                        checked={formData.paymentVerified}
+                        onChange={(e) => setFormData({...formData, paymentVerified: e.target.checked})}
+                        className="w-5 h-5 text-blue-600 focus:ring-blue-500 rounded"
+                      />
+                      <div className="flex-1">
+                        <span className="text-sm font-bold text-gray-900 block">Pago Verificado</span>
+                        <span className="text-xs text-gray-500">Marca si el pago ha sido confirmado</span>
+                      </div>
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1397,106 +1542,140 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         />
       )}
 
-      {/* Kanban View */}
+      {/* Kanban View - Mejorado */}
       {viewMode === 'kanban' && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 shadow-sm">
           <div className="overflow-x-auto overflow-y-hidden">
-            <div className="flex gap-4 p-4" style={{ minWidth: 'max-content' }}>
+            <div className="flex gap-4 pb-4" style={{ minWidth: 'max-content' }}>
               {getVisibleKanbanColumns().map((column) => (
                 <div
                   key={column.id}
-                  className={`bg-gray-50 rounded-lg shadow-sm border-t-4 ${column.color} min-h-96 w-80 flex-shrink-0`}
+                  className="flex-shrink-0 w-[280px]"
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, column.id as any)}
                 >
-                  <div className="p-4 border-b border-gray-200">
+                  {/* Header de Columna */}
+                  <div className={`${column.color} rounded-t-xl p-3 shadow-sm border-b-3 ${
+                    column.id === 'registrado' ? 'border-blue-600' :
+                    column.id === 'propuesta_enviada' ? 'border-yellow-600' :
+                    column.id === 'pago_por_verificar' ? 'border-orange-600' :
+                    'border-green-600'
+                  }`}>
                     <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-gray-900">{column.title}</h3>
-                      <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-sm font-medium">
+                      <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">
+                        {column.title}
+                      </h3>
+                      <div className={`flex items-center justify-center w-6 h-6 rounded-full font-bold text-xs ${
+                        column.id === 'registrado' ? 'bg-blue-600 text-white' :
+                        column.id === 'propuesta_enviada' ? 'bg-yellow-600 text-white' :
+                        column.id === 'pago_por_verificar' ? 'bg-orange-600 text-white' :
+                        'bg-green-600 text-white'
+                      }`}>
                         {getStudentsByStatus(column.id).length}
-                      </span>
+                      </div>
                     </div>
                   </div>
               
-              <div className="p-4 space-y-3">
-                {getStudentsByStatus(column.id).map((student) => {
-                  // Determinar si el prospecto puede ser arrastrado según el rol
-                  const isDraggable = 
-                    userRole === 'admin' || 
-                    (userRole === 'sales_advisor' && (student.prospectStatus === 'registrado' || student.prospectStatus === 'propuesta_enviada')) ||
-                    (userRole === 'cashier' && student.prospectStatus === 'pago_por_verificar');
+                  {/* Contenedor de Cards */}
+                  <div className="bg-white rounded-b-xl shadow-md min-h-[400px] max-h-[calc(100vh-280px)] overflow-y-auto p-2 space-y-2">
+                    {getStudentsByStatus(column.id).map((student) => {
+                      // Determinar si el prospecto puede ser arrastrado según el rol
+                      const isDraggable = 
+                        userRole === 'admin' || 
+                        (userRole === 'sales_advisor' && (student.prospectStatus === 'registrado' || student.prospectStatus === 'propuesta_enviada')) ||
+                        (userRole === 'cashier' && student.prospectStatus === 'pago_por_verificar');
 
-                  return (
-                  <div
-                    key={student.id}
-                    draggable={isDraggable}
-                    onDragStart={(e) => handleDragStart(e, student)}
-                    className={`bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-all ${
-                      isDraggable ? 'cursor-move' : 'cursor-default opacity-75'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                          <span className="text-white text-sm font-semibold">
-                            {student.name.split(' ').map(n => n[0]).join('')}
-                          </span>
+                      return (
+                        <div
+                          key={student.id}
+                          draggable={isDraggable}
+                          onDragStart={(e) => handleDragStart(e, student)}
+                          className={`bg-white rounded-lg border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 overflow-hidden ${
+                            isDraggable ? 'cursor-move' : 'cursor-default opacity-60'
+                          }`}
+                        >
+                          {/* Card Header - Compacto */}
+                          <div className="p-2.5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+                            <div className="flex items-start gap-2">
+                              {/* Avatar compacto */}
+                              <div className="flex-shrink-0">
+                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-sm">
+                                  <span className="text-white text-xs font-bold">
+                                    {student.name.split(' ').slice(0, 2).map(n => n[0]).join('')}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Info del estudiante */}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-gray-900 text-xs truncate mb-0.5">
+                                  {student.name}
+                                </h4>
+                                <p className="text-[10px] text-gray-500 truncate">
+                                  {student.email}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+
+
+                          {/* Card Footer - Compacto */}
+                          <div className="px-2.5 py-2 bg-gray-50 border-t border-gray-100">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-0.5">
+                                {(userRole === 'admin' || userRole === 'sales_advisor') && (
+                                  <>
+                                    <button
+                                      onClick={() => setEditingStudent(student)}
+                                      className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition-colors"
+                                      title="Editar"
+                                    >
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteStudent(student.id)}
+                                      className="p-1 text-red-600 hover:text-red-800 hover:bg-red-100 rounded transition-colors"
+                                      title="Eliminar"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </>
+                                )}
+                                {userRole === 'cashier' && (
+                                  <button
+                                    onClick={() => setEditingStudent(student)}
+                                    className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition-colors"
+                                    title="Ver detalles"
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                              
+                              {/* Indicador de estado */}
+                              <div className={`w-2 h-2 rounded-full ${
+                                student.status === 'active' ? 'bg-green-500' : 'bg-gray-400'
+                              }`} title={student.status === 'active' ? 'Activo' : 'Inactivo'} />
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{student.name}</p>
-                          <p className="text-sm text-gray-600">{student.email}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        {(userRole === 'admin' || userRole === 'sales_advisor') && (
-                          <>
-                            <button
-                              onClick={() => setEditingStudent(student)}
-                              className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
-                              title="Editar prospecto"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteStudent(student.id)}
-                              className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
-                              title="Eliminar prospecto"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </>
-                        )}
-                        {userRole === 'cashier' && (
-                          <button
-                            onClick={() => setEditingStudent(student)}
-                            className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
-                            title="Ver detalles"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                      );
+                    })}
                     
-                    <div className="mt-2 pt-2 border-t border-gray-200">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Registro:</span>
-                        <span className="text-gray-900">{new Date(student.createdAt).toLocaleDateString()}</span>
+                    {/* Estado vacío */}
+                    {getStudentsByStatus(column.id).length === 0 && (
+                      <div className="text-center py-8">
+                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-2">
+                          <Users className="h-6 w-6 text-gray-400" />
+                        </div>
+                        <p className="text-xs text-gray-500 font-medium">No hay prospectos</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">en esta etapa</p>
                       </div>
-                    </div>
+                    )}
                   </div>
-                  );
-                })}
-                
-                {getStudentsByStatus(column.id).length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No hay prospectos en esta etapa</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -1505,8 +1684,9 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
       {/* List View con AG Grid */}
       {viewMode === 'list' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
+          <div className="ag-theme-quartz" style={{ height: '600px', width: '100%' }}>
             <AgGridReact<Student>
+              theme={themeQuartz}
               rowData={filteredStudents}
               columnDefs={columnDefs}
               defaultColDef={{
@@ -1519,7 +1699,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
               pagination={true}
               paginationPageSize={10}
               paginationPageSizeSelector={[5, 10, 20, 50, 100]}
-              rowSelection="single"
+              rowSelection={{ mode: 'singleRow' }}
               animateRows={true}
               domLayout="normal"
               rowHeight={60}

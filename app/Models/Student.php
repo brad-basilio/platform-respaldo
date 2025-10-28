@@ -41,6 +41,7 @@ class Student extends Model
         'contracted_plan',
         'contract_url',
         'contract_file_name',
+        'contract_file_path',
         'payment_verified',
         // Examen de Categorización
         'has_placement_test',
@@ -126,5 +127,11 @@ class Student extends Model
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->paternal_last_name} {$this->maternal_last_name}");
+    }
+
+    // Accessor for contract file name (camelCase para frontend)
+    public function getContractFileNameAttribute(): ?string
+    {
+        return $this->attributes['contract_file_name'] ?? null;
     }
 }

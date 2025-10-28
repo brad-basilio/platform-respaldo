@@ -6,6 +6,7 @@ use App\Models\Student;
 use App\Models\Group;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -51,6 +52,8 @@ class StudentController extends Controller
                     'enrollmentCode' => $student->enrollment_code,
                     'registrationDate' => $student->registration_date?->format('Y-m-d'),
                     'contractedPlan' => $student->contracted_plan,
+                    'contractFileName' => $student->contract_file_name,
+                    'contractFilePath' => $student->contract_file_path,
                     'paymentVerified' => $student->payment_verified ?? false,
                     'hasPlacementTest' => $student->has_placement_test ?? false,
                     'testDate' => $student->test_date?->format('Y-m-d'),
@@ -176,23 +179,24 @@ class StudentController extends Controller
 
         // Admin y sales_advisor pueden editar todos los campos
         $validated = $request->validate([
-            'first_name' => 'required|string',
-            'paternal_last_name' => 'required|string',
+            'first_name' => 'sometimes|required|string',
+            'paternal_last_name' => 'sometimes|required|string',
             'maternal_last_name' => 'nullable|string',
-            'phone_number' => 'required|string',
-            'gender' => 'required|string',
-            'birth_date' => 'required|date',
-            'document_type' => 'required|string',
-            'document_number' => 'required|string|unique:students,document_number,' . $student->id,
-            'education_level' => 'required|string',
-            'email' => 'required|email|unique:users,email,' . $student->user_id,
+            'phone_number' => 'sometimes|required|string',
+            'gender' => 'sometimes|required|string',
+            'birth_date' => 'sometimes|required|date',
+            'document_type' => 'sometimes|required|string',
+            'document_number' => 'sometimes|required|string|unique:students,document_number,' . $student->id,
+            'education_level' => 'sometimes|required|string',
+            'email' => 'sometimes|required|email|unique:users,email,' . $student->user_id,
             'payment_date' => 'nullable|date',
             'enrollment_date' => 'nullable|date',
             'enrollment_code' => 'nullable|string',
-            'level' => 'required|in:basic,intermediate,advanced',
+            'level' => 'sometimes|required|in:basic,intermediate,advanced',
             'contracted_plan' => 'nullable|string',
-            'payment_verified' => 'boolean',
-            'has_placement_test' => 'boolean',
+            'contract_file' => 'nullable|file|mimes:pdf|max:10240', // Máximo 10MB
+            'payment_verified' => 'nullable|boolean',
+            'has_placement_test' => 'nullable|boolean',
             'test_date' => 'nullable|date',
             'test_score' => 'nullable|numeric',
             'guardian_name' => 'nullable|string',
@@ -201,8 +205,29 @@ class StudentController extends Controller
             'guardian_birth_date' => 'nullable|date',
             'guardian_phone' => 'nullable|string',
             'guardian_address' => 'nullable|string',
-            'status' => 'required|in:active,inactive',
+            'status' => 'sometimes|required|in:active,inactive',
         ]);
+
+        // Manejar subida del archivo PDF del contrato
+        if ($request->hasFile('contract_file')) {
+            $file = $request->file('contract_file');
+            
+            // Crear nombre único para el archivo
+            $fileName = 'contract_' . $student->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+            
+            // Guardar en storage/app/private/contracts
+            $path = $file->storeAs('private/contracts', $fileName);
+            
+            // Guardar la ruta en la base de datos
+            $validated['contract_file_path'] = $path;
+            $validated['contract_file_name'] = $file->getClientOriginalName();
+            
+            Log::info('Archivo de contrato subido:', [
+                'student_id' => $student->id,
+                'file_path' => $path,
+                'file_name' => $file->getClientOriginalName(),
+            ]);
+        }
 
         // Update user
         $student->user->update([
@@ -253,32 +278,54 @@ class StudentController extends Controller
             'prospect_status' => 'required|in:registrado,propuesta_enviada,pago_por_verificar,matriculado',
         ]);
 
-        $userRole = auth()->user()->role;
+        $userRole = Auth::user()->role;
         $currentStatus = $student->prospect_status;
         $newStatus = $validated['prospect_status'];
 
-        // Validaciones según rol
-        if ($userRole === 'sales_advisor') {
+        // Log para debug
+        Log::info('Cambio de estado prospecto', [
+            'user_role' => $userRole,
+            'student_id' => $student->id,
+            'current_status' => $currentStatus,
+            'new_status' => $newStatus,
+            'registered_by' => $student->registered_by,
+            'current_user' => Auth::id()
+        ]);
+
+        // Admin puede hacer cualquier cambio
+        if ($userRole === 'admin') {
+            // Admin tiene permisos totales, no validar transiciones
+        } elseif ($userRole === 'sales_advisor') {
             // Asesor de Ventas: puede mover registrado -> propuesta_enviada -> pago_por_verificar
             $allowedTransitions = [
                 $currentStatus === 'registrado' && $newStatus === 'propuesta_enviada',
-                $currentStatus === 'propuesta_enviada' && $newStatus === 'pago_por_verificar'
+                $currentStatus === 'propuesta_enviada' && $newStatus === 'pago_por_verificar',
+                $currentStatus === 'propuesta_enviada' && $newStatus === 'registrado', // Permitir retroceso
             ];
             
             if (!in_array(true, $allowedTransitions, true)) {
-                return redirect()->back()->withErrors(['error' => 'Solo puedes mover: Registrado → Propuesta Enviada → Pago Por Verificar']);
+                return response()->json([
+                    'message' => 'Transición no permitida',
+                    'error' => 'Solo puedes mover: Registrado ↔ Propuesta Enviada → Pago Por Verificar'
+                ], 422);
             }
 
-            // Validar que tenga fecha de pago, nivel y plan antes de pasar a pago_por_verificar
+            // Validar que tenga fecha de pago, nivel y plan SOLO antes de pasar a pago_por_verificar
             if ($newStatus === 'pago_por_verificar') {
                 if (!$student->payment_date || !$student->level || !$student->contracted_plan) {
-                    return redirect()->back()->withErrors(['error' => 'Debe completar fecha de pago, nivel académico y plan contratado antes de marcar como "Pago Por Verificar"']);
+                    return response()->json([
+                        'message' => 'Datos incompletos',
+                        'error' => 'Debe completar fecha de pago, nivel académico y plan contratado antes de marcar como "Pago Por Verificar"'
+                    ], 422);
                 }
             }
 
             // Validar que el asesor solo pueda editar sus propios prospectos
-            if ($student->registered_by !== auth()->id()) {
-                return redirect()->back()->withErrors(['error' => 'Solo puedes modificar prospectos que tú registraste']);
+            if ($student->registered_by !== Auth::id()) {
+                return response()->json([
+                    'message' => 'No autorizado',
+                    'error' => 'Solo puedes modificar prospectos que tú registraste'
+                ], 403);
             }
 
         } elseif ($userRole === 'cashier') {
@@ -288,7 +335,10 @@ class StudentController extends Controller
             ];
             
             if (!in_array(true, $allowedTransitions, true)) {
-                return redirect()->back()->withErrors(['error' => 'Solo puedes verificar pagos en estado "Pago Por Verificar"']);
+                return response()->json([
+                    'message' => 'Transición no permitida',
+                    'error' => 'Solo puedes verificar pagos en estado "Pago Por Verificar"'
+                ], 422);
             }
             
             // Auto-generar código de matrícula y fecha si no existen
@@ -303,8 +353,14 @@ class StudentController extends Controller
         }
 
         $student->update(['prospect_status' => $newStatus]);
+        
+        // Recargar el estudiante con sus relaciones
+        $student->load(['registeredBy', 'verifiedPaymentBy']);
 
-        return redirect()->back()->with('success', 'Estado del prospecto actualizado exitosamente');
+        return response()->json([
+            'message' => 'Estado actualizado exitosamente',
+            'student' => $student
+        ], 200);
     }
 
     /**
@@ -318,4 +374,40 @@ class StudentController extends Controller
         
         return "MAT-{$year}{$month}-{$random}";
     }
+
+    /**
+     * Download or view student contract PDF.
+     */
+    public function downloadContract(Student $student)
+    {
+        $user = Auth::user();
+        
+        // Verificar permisos según el rol
+        if ($user->role === 'sales_advisor' && $student->registered_by !== $user->id) {
+            abort(403, 'No tienes permiso para ver este contrato.');
+        }
+        
+        // Verificar que el contrato exista
+        if (!$student->contract_file_path) {
+            abort(404, 'No se encontró ningún contrato para este estudiante.');
+        }
+        
+        $filePath = storage_path('app/' . $student->contract_file_path);
+        
+        if (!file_exists($filePath)) {
+            Log::error('Archivo de contrato no encontrado:', [
+                'student_id' => $student->id,
+                'file_path' => $student->contract_file_path,
+                'absolute_path' => $filePath
+            ]);
+            abort(404, 'El archivo del contrato no existe en el servidor.');
+        }
+        
+        // Retornar el archivo para visualización en el navegador
+        return response()->file($filePath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . ($student->contract_file_name ?: 'contrato.pdf') . '"'
+        ]);
+    }
 }
+
