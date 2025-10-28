@@ -6,6 +6,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-community';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import '../../../css/ag-grid-custom.css';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -198,7 +199,37 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
   const [showViewModal, setShowViewModal] = useState(false);
 
   const handleVerifyEnrollment = async (studentId: string) => {
-    if (!confirm('¿Estás seguro de que quieres aprobar esta matrícula? Esto permitirá que cuente para la comisión del asesor.')) {
+    const result = await Swal.fire({
+      title: '¿Verificar Matrícula?',
+      html: `
+        <div class="text-left">
+          <p class="text-gray-700 mb-3">¿Estás seguro de que quieres aprobar esta matrícula?</p>
+          <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+            <p class="text-sm text-blue-800">
+              <strong>Importante:</strong> Al verificar esta matrícula:
+            </p>
+            <ul class="text-sm text-blue-700 mt-2 space-y-1 list-disc list-inside">
+              <li>Contará para la comisión del asesor de ventas</li>
+              <li>Se registrará como matrícula válida</li>
+              <li>Se guardará tu nombre como verificador</li>
+            </ul>
+          </div>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: '<i class="fas fa-check-circle"></i> Sí, Verificar',
+      cancelButtonText: '<i class="fas fa-times"></i> Cancelar',
+      reverseButtons: true,
+      customClass: {
+        confirmButton: 'px-6 py-2.5 rounded-xl font-medium',
+        cancelButton: 'px-6 py-2.5 rounded-xl font-medium'
+      }
+    });
+
+    if (!result.isConfirmed) {
       return;
     }
 
@@ -219,16 +250,71 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
               : s
           )
         );
-        alert('Matrícula verificada exitosamente');
+        
+        await Swal.fire({
+          title: '¡Verificado!',
+          text: 'La matrícula ha sido verificada exitosamente',
+          icon: 'success',
+          confirmButtonColor: '#10b981',
+          confirmButtonText: 'Entendido',
+          timer: 3000,
+          timerProgressBar: true,
+          customClass: {
+            confirmButton: 'px-6 py-2.5 rounded-xl font-medium'
+          }
+        });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al verificar matrícula:', error);
-      alert(error.response?.data?.message || 'Error al verificar la matrícula');
+      const errorMessage = axios.isAxiosError(error) 
+        ? error.response?.data?.message || 'Error al verificar la matrícula'
+        : 'Error al verificar la matrícula';
+      
+      await Swal.fire({
+        title: 'Error',
+        text: errorMessage,
+        icon: 'error',
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Cerrar',
+        customClass: {
+          confirmButton: 'px-6 py-2.5 rounded-xl font-medium'
+        }
+      });
     }
   };
 
   const handleUnverifyEnrollment = async (studentId: string) => {
-    if (!confirm('¿Estás seguro de que quieres remover la verificación? Esto evitará que cuente para la comisión.')) {
+    const result = await Swal.fire({
+      title: '¿Remover Verificación?',
+      html: `
+        <div class="text-left">
+          <p class="text-gray-700 mb-3">¿Estás seguro de que quieres remover la verificación de esta matrícula?</p>
+          <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
+            <p class="text-sm text-yellow-800">
+              <strong>Advertencia:</strong> Al remover la verificación:
+            </p>
+            <ul class="text-sm text-yellow-700 mt-2 space-y-1 list-disc list-inside">
+              <li>NO contará para la comisión del asesor</li>
+              <li>Se marcará como pendiente de verificación</li>
+              <li>Se eliminará el registro de verificación</li>
+            </ul>
+          </div>
+        </div>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: '<i class="fas fa-times-circle"></i> Sí, Remover',
+      cancelButtonText: '<i class="fas fa-ban"></i> Cancelar',
+      reverseButtons: true,
+      customClass: {
+        confirmButton: 'px-6 py-2.5 rounded-xl font-medium',
+        cancelButton: 'px-6 py-2.5 rounded-xl font-medium'
+      }
+    });
+
+    if (!result.isConfirmed) {
       return;
     }
 
@@ -249,11 +335,36 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
               : s
           )
         );
-        alert('Verificación removida exitosamente');
+        
+        await Swal.fire({
+          title: 'Verificación Removida',
+          text: 'La verificación ha sido removida exitosamente',
+          icon: 'success',
+          confirmButtonColor: '#10b981',
+          confirmButtonText: 'Entendido',
+          timer: 3000,
+          timerProgressBar: true,
+          customClass: {
+            confirmButton: 'px-6 py-2.5 rounded-xl font-medium'
+          }
+        });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al remover verificación:', error);
-      alert(error.response?.data?.message || 'Error al remover la verificación');
+      const errorMessage = axios.isAxiosError(error)
+        ? error.response?.data?.message || 'Error al remover la verificación'
+        : 'Error al remover la verificación';
+      
+      await Swal.fire({
+        title: 'Error',
+        text: errorMessage,
+        icon: 'error',
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Cerrar',
+        customClass: {
+          confirmButton: 'px-6 py-2.5 rounded-xl font-medium'
+        }
+      });
     }
   };
 
