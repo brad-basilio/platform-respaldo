@@ -26,7 +26,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
   const [students, setStudents] = useState<Student[]>(initialStudents);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [draggedStudent, setDraggedStudent] = useState<Student | null>(null);
   const [quickFilterText, setQuickFilterText] = useState<string>('');
 
@@ -58,6 +58,17 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
     const student = students.find(s => s.id === studentId);
     if (!student) return;
 
+    // Validar que tenga datos académicos completos antes de pasar a pago_por_verificar
+    if (newStatus === 'pago_por_verificar') {
+      if (!student.paymentDate || !student.level || !student.contractedPlan) {
+        toast.error('Datos incompletos', {
+          description: 'Debes completar fecha de pago, nivel académico y plan contratado antes de marcar como "Pago Por Verificar"',
+          duration: 5000,
+        });
+        return;
+      }
+    }
+
     // Validar transiciones permitidas según rol
     if (userRole === 'sales_advisor') {
       const allowedTransitions = [
@@ -71,17 +82,6 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
           duration: 5000,
         });
         return;
-      }
-
-      // Validar que tenga datos académicos completos SOLO antes de pasar a pago_por_verificar
-      if (newStatus === 'pago_por_verificar') {
-        if (!student.paymentDate || !student.level || !student.contractedPlan) {
-          toast.error('Datos incompletos', {
-            description: 'Debes completar fecha de pago, nivel académico y plan contratado antes de marcar como "Pago Por Verificar"',
-            duration: 5000,
-          });
-          return;
-        }
       }
     } else if (userRole === 'cashier') {
       const allowedTransitions = [
@@ -155,6 +155,18 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
   const handleDrop = (e: React.DragEvent, newStatus: 'registrado' | 'propuesta_enviada' | 'pago_por_verificar' | 'matriculado') => {
     e.preventDefault();
     if (draggedStudent) {
+      // Validar que tenga los datos necesarios antes de pasar a pago_por_verificar (para todos los roles)
+      if (newStatus === 'pago_por_verificar') {
+        if (!draggedStudent.paymentDate || !draggedStudent.level || !draggedStudent.contractedPlan) {
+          toast.error('Datos incompletos', {
+            description: 'Debes completar fecha de pago, nivel académico y plan contratado antes de marcar como "Pago Por Verificar"',
+            duration: 5000,
+          });
+          setDraggedStudent(null);
+          return;
+        }
+      }
+
       // Validar transiciones según el rol
       if (userRole === 'sales_advisor') {
         const allowedTransitions = [
@@ -169,18 +181,6 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
           });
           setDraggedStudent(null);
           return;
-        }
-
-        // Validar que tenga los datos necesarios SOLO para pasar a pago_por_verificar
-        if (newStatus === 'pago_por_verificar') {
-          if (!draggedStudent.paymentDate || !draggedStudent.level || !draggedStudent.contractedPlan) {
-            toast.error('Datos incompletos', {
-              description: 'Debes completar fecha de pago, nivel académico y plan contratado antes de marcar como "Pago Por Verificar"',
-              duration: 5000,
-            });
-            setDraggedStudent(null);
-            return;
-          }
         }
       } else if (userRole === 'cashier') {
         const allowedTransitions = [
