@@ -57,8 +57,24 @@
   padding: 14px 16px;
   border-right: none;
   line-height: 1.5;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* Asegurar que el contenido interno de las celdas también esté centrado */
+.ag-theme-alpine .ag-cell-wrapper {
   display: flex;
   align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* Centrar el contenido de las celdas renderizadas */
+.ag-theme-alpine .ag-cell .ag-react-container {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
 }
 
 /* Eliminar líneas verticales */

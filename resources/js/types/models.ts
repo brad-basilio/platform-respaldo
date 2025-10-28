@@ -76,6 +76,7 @@ export interface Student extends User {
     email: string;
   };
   enrollmentVerifiedAt?: string;
+  enrollmentVerified?: boolean; // Control anti-fraude para comisiones
 }
 
 export interface Teacher extends User {

@@ -73,6 +73,7 @@ class StudentController extends Controller
                         'email' => $student->verifiedEnrollmentBy->email,
                     ] : null,
                     'enrollmentVerifiedAt' => $student->enrollment_verified_at?->toISOString(),
+                    'enrollmentVerified' => $student->enrollment_verified ?? false,
                     'createdAt' => $student->created_at->toISOString(),
                     'enrolledGroups' => $student->groups->pluck('id')->toArray(),
                     'assignedGroupId' => $student->groups->first()?->id,
@@ -563,6 +564,120 @@ class StudentController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="' . ($student->contract_file_name ?: 'contrato.pdf') . '"'
         ]);
+    }
+
+    /**
+     * Verificar/Aprobar la matrícula de un estudiante
+     * Solo matrículas verificadas cuentan para comisiones de asesores de venta
+     */
+    public function verifyEnrollment(Request $request, Student $student)
+    {
+        // Validar que solo admins puedan verificar matrículas
+        if (!auth()->user()->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permisos para verificar matrículas'
+            ], 403);
+        }
+
+        // Validar que el estudiante esté matriculado
+        if ($student->prospect_status !== 'matriculado') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo se pueden verificar estudiantes matriculados'
+            ], 400);
+        }
+
+        try {
+            // Marcar como verificado
+            $student->update([
+                'enrollment_verified' => true,
+                'enrollment_verified_at' => now(),
+                'verified_enrollment_by' => auth()->id(),
+            ]);
+
+            Log::info('Matrícula verificada por administrador', [
+                'student_id' => $student->id,
+                'student_name' => $student->user->name ?? 'N/A',
+                'verified_by' => auth()->user()->name,
+                'verified_at' => now()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Matrícula verificada exitosamente',
+                'student' => [
+                    'id' => $student->id,
+                    'enrollmentVerified' => true,
+                    'enrollmentVerifiedAt' => $student->enrollment_verified_at->toISOString(),
+                    'verifiedEnrollmentBy' => [
+                        'id' => auth()->id(),
+                        'name' => auth()->user()->name,
+                        'email' => auth()->user()->email,
+                    ]
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al verificar matrícula', [
+                'student_id' => $student->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al verificar la matrícula'
+            ], 500);
+        }
+    }
+
+    /**
+     * Remover verificación de matrícula
+     */
+    public function unverifyEnrollment(Request $request, Student $student)
+    {
+        // Validar que solo admins puedan remover verificación
+        if (!auth()->user()->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permisos para modificar verificaciones'
+            ], 403);
+        }
+
+        try {
+            // Remover verificación
+            $student->update([
+                'enrollment_verified' => false,
+                'enrollment_verified_at' => null,
+                'verified_enrollment_by' => null,
+            ]);
+
+            Log::info('Verificación de matrícula removida', [
+                'student_id' => $student->id,
+                'student_name' => $student->user->name ?? 'N/A',
+                'unverified_by' => auth()->user()->name,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Verificación removida exitosamente',
+                'student' => [
+                    'id' => $student->id,
+                    'enrollmentVerified' => false,
+                    'enrollmentVerifiedAt' => null,
+                    'verifiedEnrollmentBy' => null
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al remover verificación', [
+                'student_id' => $student->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al remover la verificación'
+            ], 500);
+        }
     }
 }
 
