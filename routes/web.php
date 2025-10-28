@@ -27,9 +27,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/admin/students/{student}', [StudentController::class, 'destroy'])->name('admin.students.destroy');
         Route::put('/admin/students/{student}/prospect-status', [StudentController::class, 'updateProspectStatus'])->name('admin.students.prospect-status');
     });
+      // Input Demo
+        Route::get('/admin/input-demo', function () {
+            return inertia('Admin/InputDemo');
+        })->name('admin.input-demo');
+        
     
     // Admin-only routes
     Route::middleware('can:admin')->group(function () {
+      
         // Enrolled Students
         Route::get('/admin/enrolled-students', function () {
             return inertia('Admin/EnrolledStudents');

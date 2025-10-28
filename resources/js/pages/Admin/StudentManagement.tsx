@@ -3,6 +3,11 @@ import { Users, Plus, CreditCard as Edit, Trash2, Search, UserCheck, UserX, Book
 import { Student, Group } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import { router } from '@inertiajs/react';
+import { Input } from '@/components/ui/Input';
+import { DatePicker } from '@/components/ui/DatePicker';
+import { Select2, SelectOption } from '@/components/ui/Select2';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
+import { useToast } from '@/components/ui/Toast';
 
 interface Props {
   students: Student[];
@@ -607,148 +612,97 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombres <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
+              <Input
+                label="Nombres"
+                value={formData.firstName}
+                onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                required
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Apellido Paterno <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.paternalLastName}
-                  onChange={(e) => setFormData({...formData, paternalLastName: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
+              <Input
+                label="Apellido Paterno"
+                value={formData.paternalLastName}
+                onChange={(e) => setFormData({...formData, paternalLastName: e.target.value})}
+                required
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Apellido Materno <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.maternalLastName}
-                  onChange={(e) => setFormData({...formData, maternalLastName: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
+              <Input
+                label="Apellido Materno"
+                value={formData.maternalLastName}
+                onChange={(e) => setFormData({...formData, maternalLastName: e.target.value})}
+                required
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de Documento <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.documentType}
-                  onChange={(e) => setFormData({...formData, documentType: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="dni">DNI</option>
-                  <option value="ce">Carnet de Extranjería</option>
-                </select>
-              </div>
+              <Select2
+                label="Tipo de Documento"
+                value={formData.documentType}
+                onChange={(value) => setFormData({...formData, documentType: value as string})}
+                options={[
+                  { value: 'dni', label: 'DNI' },
+                  { value: 'ce', label: 'Carnet de Extranjería' }
+                ]}
+                isSearchable={false}
+                isClearable={false}
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Número de Documento <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.documentNumber}
-                  onChange={(e) => setFormData({...formData, documentNumber: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
+              <Input
+                label="Número de Documento"
+                value={formData.documentNumber}
+                onChange={(e) => setFormData({...formData, documentNumber: e.target.value})}
+                required
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de Nacimiento <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={formData.birthDate}
-                  onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
+              <DatePicker
+                label="Fecha de Nacimiento"
+                selected={formData.birthDate ? new Date(formData.birthDate) : null}
+                onChange={(date) => setFormData({...formData, birthDate: date ? date.toISOString().split('T')[0] : ''})}
+                maxDate={new Date()}
+                required
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sexo <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.gender}
-                  onChange={(e) => setFormData({...formData, gender: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Seleccionar</option>
-                  <option value="M">Masculino</option>
-                  <option value="F">Femenino</option>
-                </select>
-              </div>
+              <Select2
+                label="Sexo"
+                value={formData.gender}
+                onChange={(value) => setFormData({...formData, gender: value as string})}
+                options={[
+                  { value: 'M', label: 'Masculino' },
+                  { value: 'F', label: 'Femenino' }
+                ]}
+                isSearchable={false}
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Número de Celular <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phoneNumber}
-                  onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
+              <Input
+                label="Número de Celular"
+                type="tel"
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
+                required
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Grado de Instrucción <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.educationLevel}
-                  onChange={(e) => setFormData({...formData, educationLevel: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Seleccionar</option>
-                  <option value="primaria">Primaria</option>
-                  <option value="secundaria">Secundaria</option>
-                  <option value="tecnico">Técnico</option>
-                  <option value="universitario">Universitario</option>
-                  <option value="postgrado">Postgrado</option>
-                </select>
-              </div>
+              <Select2
+                label="Grado de Instrucción"
+                value={formData.educationLevel}
+                onChange={(value) => setFormData({...formData, educationLevel: value as string})}
+                options={[
+                  { value: 'primaria', label: 'Primaria' },
+                  { value: 'secundaria', label: 'Secundaria' },
+                  { value: 'tecnico', label: 'Técnico' },
+                  { value: 'universitario', label: 'Universitario' },
+                  { value: 'postgrado', label: 'Postgrado' }
+                ]}
+              />
             </div>
 
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Correo Electrónico <span className="text-red-500">*</span>
-              </label>
-              <input
+              <Input
+                label="Correo Electrónico"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
@@ -765,111 +719,71 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de Registro <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={formData.registrationDate}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
-                  disabled
-                  readOnly
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Se establece automáticamente con la fecha actual
-                </p>
-              </div>
+              <DatePicker
+                label="Fecha de Registro"
+                selected={formData.registrationDate ? new Date(formData.registrationDate) : null}
+                onChange={() => {}} // No hace nada, es solo lectura
+                disabled
+                required
+                helperText="Se establece automáticamente con la fecha actual"
+              />
 
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de Pago
-                </label>
-                <input
-                  type="date"
-                  value={formData.paymentDate}
-                  onChange={(e) => handlePaymentDateChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              <DatePicker
+                label="Fecha de Pago"
+                selected={formData.paymentDate ? new Date(formData.paymentDate) : null}
+                onChange={(date) => handlePaymentDateChange(date ? date.toISOString().split('T')[0] : '')}
+                maxDate={new Date()}
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nivel Académico
-                </label>
-                <select
-                  value={formData.academicLevel}
-                  onChange={(e) => setFormData({...formData, academicLevel: e.target.value as 'basic' | 'intermediate' | 'advanced'})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="basic">Básico</option>
-                  <option value="intermediate">Intermedio</option>
-                  <option value="advanced">Avanzado</option>
-                </select>
-              </div>
-
+              <Select2
+                label="Nivel Académico"
+                value={formData.academicLevel}
+                onChange={(value) => setFormData({...formData, academicLevel: value as 'basic' | 'intermediate' | 'advanced'})}
+                options={[
+                  { value: 'basic', label: 'Básico' },
+                  { value: 'intermediate', label: 'Intermedio' },
+                  { value: 'advanced', label: 'Avanzado' }
+                ]}
+                isSearchable={false}
+                isClearable={false}
+              />
             </div>
 
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Plan Contratado
-              </label>
-              <select
+              <Select2
+                label="Plan Contratado"
                 value={formData.contractedPlan}
-                onChange={(e) => setFormData({...formData, contractedPlan: e.target.value})}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  !formData.paymentDate ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
-                }`}
-                disabled={!formData.paymentDate}
-              >
-                <option value="">Seleccionar Plan</option>
-                <option value="basico">Plan Básico</option>
-                <option value="estandar">Plan Estándar</option>
-                <option value="premium">Plan Premium</option>
-                <option value="intensivo">Plan Intensivo</option>
-              </select>
-              {!formData.paymentDate && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Selecciona primero una fecha de pago para activar este campo
-                </p>
-              )}
+                onChange={(value) => setFormData({...formData, contractedPlan: value as string})}
+                options={[
+                  { value: 'basico', label: 'Plan Básico' },
+                  { value: 'estandar', label: 'Plan Estándar' },
+                  { value: 'premium', label: 'Plan Premium' },
+                  { value: 'intensivo', label: 'Plan Intensivo' }
+                ]}
+                isDisabled={!formData.paymentDate}
+                helperText={!formData.paymentDate ? 'Selecciona primero una fecha de pago para activar este campo' : undefined}
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de Matrícula
-                </label>
-                <input
-                  type="date"
-                  value={formData.enrollmentDate}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
-                  disabled
-                  placeholder="Se llena automáticamente al seleccionar fecha de pago"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Se llena automáticamente al seleccionar la fecha de pago
-                </p>
-              </div>
+              <DatePicker
+                label="Fecha de Matrícula"
+                selected={formData.enrollmentDate ? new Date(formData.enrollmentDate) : null}
+                onChange={() => {}} // No hace nada, es solo lectura
+                disabled
+                helperText="Se llena automáticamente al seleccionar la fecha de pago"
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Código de Matrícula
-                </label>
-                <input
-                  type="text"
-                  value={formData.enrollmentCode}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
-                  disabled
-                  placeholder="Se genera automáticamente"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Se genera automáticamente al confirmar el pago
-                </p>
-              </div>
+              <Input
+                label="Código de Matrícula"
+                value={formData.enrollmentCode}
+                onChange={() => {}} // No hace nada, es solo lectura
+                disabled
+                helperText="Se genera automáticamente al confirmar el pago"
+              />
             </div>
 
             {/* Subir Contrato y Verificación de Pago */}
@@ -971,34 +885,24 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
             {formData.hasPlacementTest && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-8">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha del Examen <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.testDate}
-                    onChange={(e) => setFormData({...formData, testDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    required={formData.hasPlacementTest}
-                  />
-                </div>
+                <DatePicker
+                  label="Fecha del Examen"
+                  selected={formData.testDate ? new Date(formData.testDate) : null}
+                  onChange={(date) => setFormData({...formData, testDate: date ? date.toISOString().split('T')[0] : ''})}
+                  maxDate={new Date()}
+                  required={formData.hasPlacementTest}
+                />
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nota del Examen (0-20) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="20"
-                    step="0.1"
-                    value={formData.testScore}
-                    onChange={(e) => setFormData({...formData, testScore: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    required={formData.hasPlacementTest}
-                  />
-                </div>
+                <Input
+                  label="Nota del Examen (0-20)"
+                  type="number"
+                  value={formData.testScore}
+                  onChange={(e) => setFormData({...formData, testScore: e.target.value})}
+                  required={formData.hasPlacementTest}
+                  min="0"
+                  max="20"
+                  step="0.1"
+                />
               </div>
             )}
           </div>
@@ -1013,81 +917,48 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre Completo del Titular
-                </label>
-                <input
-                  type="text"
-                  value={formData.guardianName}
-                  onChange={(e) => setFormData({...formData, guardianName: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              <Input
+                label="Nombre Completo del Titular"
+                value={formData.guardianName}
+                onChange={(e) => setFormData({...formData, guardianName: e.target.value})}
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  DNI del Titular
-                </label>
-                <input
-                  type="text"
-                  value={formData.guardianDocumentNumber}
-                  onChange={(e) => setFormData({...formData, guardianDocumentNumber: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              <Input
+                label="DNI del Titular"
+                value={formData.guardianDocumentNumber}
+                onChange={(e) => setFormData({...formData, guardianDocumentNumber: e.target.value})}
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Correo Electrónico del Titular
-                </label>
-                <input
-                  type="email"
-                  value={formData.guardianEmail}
-                  onChange={(e) => setFormData({...formData, guardianEmail: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              <Input
+                label="Correo Electrónico del Titular"
+                type="email"
+                value={formData.guardianEmail}
+                onChange={(e) => setFormData({...formData, guardianEmail: e.target.value})}
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de Nacimiento del Titular
-                </label>
-                <input
-                  type="date"
-                  value={formData.guardianBirthDate}
-                  onChange={(e) => setFormData({...formData, guardianBirthDate: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              <DatePicker
+                label="Fecha de Nacimiento del Titular"
+                selected={formData.guardianBirthDate ? new Date(formData.guardianBirthDate) : null}
+                onChange={(date) => setFormData({...formData, guardianBirthDate: date ? date.toISOString().split('T')[0] : ''})}
+                maxDate={new Date()}
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Número de Celular del Apoderado
-                </label>
-                <input
-                  type="tel"
-                  value={formData.guardianPhone}
-                  onChange={(e) => setFormData({...formData, guardianPhone: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              <Input
+                label="Número de Celular del Apoderado"
+                type="tel"
+                value={formData.guardianPhone}
+                onChange={(e) => setFormData({...formData, guardianPhone: e.target.value})}
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Dirección del Titular
-                </label>
-                <input
-                  type="text"
-                  value={formData.guardianAddress}
-                  onChange={(e) => setFormData({...formData, guardianAddress: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              <Input
+                label="Dirección del Titular"
+                value={formData.guardianAddress}
+                onChange={(e) => setFormData({...formData, guardianAddress: e.target.value})}
+              />
             </div>
           </div>
           </>
