@@ -388,6 +388,8 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
+      console.log('📝 Formulario enviado:', formData);
+      console.log('📝 Función onSubmit:', onSubmit);
       onSubmit(formData);
     };
 
@@ -458,8 +460,9 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
           </div>
 
           {/* Contenido del Modal - Con scroll */}
-          <div className="p-8 space-y-6 overflow-y-auto flex-1">
-            <form onSubmit={handleSubmit} className="space-y-6">{isCashierEditing ? (
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+            <div className="p-8 space-y-6 overflow-y-auto flex-1">
+              {isCashierEditing ? (
             // VISTA SIMPLIFICADA PARA CAJERO - SOLO VERIFICACIÓN
             <>
               {/* Información del Prospecto (Solo lectura) */}
@@ -963,8 +966,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
           </div>
           </>
           )}
-            </form>
-          </div>
+            </div>
 
           {/* Footer con Botones */}
           <div className="bg-gray-50 px-8 py-6 rounded-b-3xl border-t-2 border-gray-200 flex-shrink-0">
@@ -993,6 +995,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
               </button>
             </div>
           </div>
+          </form>
         </div>
       </div>
     );
