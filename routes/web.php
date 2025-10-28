@@ -22,6 +22,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Student/Prospect Management (accessible by admin, sales_advisor, cashier)
     Route::middleware('prospect.access')->group(function () {
         Route::get('/admin/students', [StudentController::class, 'index'])->name('admin.students');
+        Route::get('/api/admin/students', [StudentController::class, 'getStudentsJson'])->name('api.admin.students');
         Route::post('/admin/students', [StudentController::class, 'store'])->name('admin.students.store');
         Route::put('/admin/students/{student}', [StudentController::class, 'update'])->name('admin.students.update');
         Route::delete('/admin/students/{student}', [StudentController::class, 'destroy'])->name('admin.students.destroy');

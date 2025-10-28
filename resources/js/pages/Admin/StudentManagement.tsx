@@ -30,6 +30,33 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
   const [draggedStudent, setDraggedStudent] = useState<Student | null>(null);
   const [quickFilterText, setQuickFilterText] = useState<string>('');
 
+  // Función para obtener la lista de estudiantes desde el backend y mantener el estado canónico
+  const fetchStudents = async () => {
+    try {
+      const response = await axios.get('/api/admin/students');
+      const students = response.data;
+      
+      if (Array.isArray(students)) {
+        setStudents(students);
+        console.log('✅ Lista actualizada desde el servidor:', students.length, 'prospectos');
+      } else {
+        console.error('❌ Formato de respuesta inesperado:', students);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching students:', error);
+      toast.error('Error al obtener la lista de prospectos', {
+        description: 'No se pudo sincronizar la lista con el servidor. Intenta recargar la página.',
+        duration: 5000,
+      });
+    }
+  };
+
+  // Obtener lista canónica al montar el componente para asegurar datos actualizados
+  React.useEffect(() => {
+    fetchStudents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Filtrar estudiantes basado en filtros para Kanban
   const filteredStudents = students;
 
@@ -96,16 +123,16 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
       }
     }
 
-    // Enviar actualización al servidor usando axios
+    // Enviar actualización al servidor usando axios (sin actualización optimista para evitar parpadeo)
     axios.put(`/admin/students/${studentId}/prospect-status`, {
       prospect_status: newStatus
     })
-      .then((response) => {
-        // Actualizar estado local inmediatamente
-        const updatedStudent = response.data.student;
-        setStudents(prevStudents =>
-          prevStudents.map(s => s.id === studentId ? updatedStudent : s)
-        );
+      .then(async () => {
+        // Pequeño delay para permitir que la animación de salida se complete
+        await new Promise(resolve => setTimeout(resolve, 250));
+        
+        // Refrescar lista desde el servidor para garantizar consistencia en Kanban y lista
+        await fetchStudents();
 
         toast.success('Estado actualizado', {
           description: `El prospecto ahora está en estado: ${getProspectStatusLabel(newStatus)}`,
@@ -238,12 +265,11 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         class_type: 'theoretical', // Por defecto
       });
 
-      // Agregar el nuevo estudiante al estado local inmediatamente
-      const newStudent = response.data.student;
-      setStudents(prevStudents => [...prevStudents, newStudent]);
+  // Agregar el nuevo estudiante al estado canónico refrescando desde el servidor
+  await fetchStudents();
 
-      // Éxito: cerrar modal y mostrar toast
-      setShowCreateForm(false);
+  // Éxito: cerrar modal y mostrar toast
+  setShowCreateForm(false);
       toast.success('Prospecto registrado exitosamente', {
         description: 'El nuevo prospecto ha sido agregado al sistema.',
         duration: 4000,
@@ -340,14 +366,13 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         },
       });
 
-      // Actualizar el estudiante en el estado local inmediatamente
-      const updatedStudent = response.data.student;
-      setStudents(prevStudents =>
-        prevStudents.map(s => s.id === editingStudent.id ? updatedStudent : s)
-      );
+  // Actualizar el estudiante en el estado canónico refrescando desde el servidor
+  await fetchStudents();
 
-      // Éxito: cerrar modal y mostrar toast
+      // Cerrar modal ANTES del toast para que el usuario vea el cambio inmediatamente
       setEditingStudent(null);
+
+      // Éxito: mostrar toast
       toast.success('Prospecto actualizado exitosamente', {
         description: 'Los datos del prospecto han sido actualizados.',
         duration: 4000,
@@ -1587,7 +1612,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
                       {/* Cards Container */}
                       <div className="bg-gray-100/50 rounded-lg p-2 min-h-[500px] max-h-[calc(100vh-250px)] overflow-y-auto space-y-2">
-                        <AnimatePresence>
+                        <AnimatePresence mode="popLayout">
                           {studentsInColumn.map((student) => {
                             // El cajero NO puede arrastrar - solo puede verificar desde el modal
                             const isDraggable =
@@ -1598,10 +1623,15 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
                               <motion.div
                                 key={student.id}
                                 layout
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
-                                transition={{ duration: 0.2 }}
+                                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, x: -20, scale: 0.9, transition: { duration: 0.2 } }}
+                                transition={{ 
+                                  type: "spring",
+                                  stiffness: 500,
+                                  damping: 35,
+                                  mass: 0.5
+                                }}
                                 draggable={isDraggable}
                                 onDragStart={(e) => {
                                   if (isDraggable) {
@@ -1613,9 +1643,9 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
                                     : userRole === 'cashier'
                                       ? 'cursor-pointer hover:shadow-md hover:border-blue-300'
                                       : 'cursor-default opacity-50'
-                                  } transition-all duration-150`}
-                                whileHover={isDraggable ? { scale: 1.01 } : userRole === 'cashier' ? { scale: 1.01 } : {}}
-                                whileTap={isDraggable ? { scale: 0.99 } : {}}
+                                  } transition-all duration-200`}
+                                whileHover={isDraggable ? { scale: 1.02, y: -2 } : userRole === 'cashier' ? { scale: 1.02, y: -2 } : {}}
+                                whileTap={isDraggable ? { scale: 0.98 } : {}}
                                 onClick={() => {
                                   // Si es cajero, al hacer clic abre el modal de verificación
                                   if (userRole === 'cashier' && student.prospectStatus === 'pago_por_verificar') {
