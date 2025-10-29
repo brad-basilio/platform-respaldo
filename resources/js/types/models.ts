@@ -56,6 +56,8 @@ export interface Student extends User {
   enrollmentCode?: string;
   contractUrl?: string;
   contractFileName?: string;
+  paymentVoucherUrl?: string;      // ✅ Nuevo: URL del voucher de pago
+  paymentVoucherFileName?: string; // ✅ Nuevo: Nombre del archivo del voucher
   paymentVerified?: boolean;
 
   // Examen de Categorización

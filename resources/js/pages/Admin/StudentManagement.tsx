@@ -357,9 +357,14 @@ const StudentManagement: React.FC<Props> = ({
       data.append('status', formData.status);
     }
 
-    // Agregar archivo PDF si existe
+    // Agregar archivos si existen
     if (formData.contractFile) {
       data.append('contract_file', formData.contractFile);
+    }
+    
+    // ✅ NUEVO: Agregar voucher de pago si existe
+    if (formData.paymentVoucherFile) {
+      data.append('payment_voucher_file', formData.paymentVoucherFile);
     }
 
     // Laravel requiere _method para simular PUT en FormData
@@ -753,6 +758,8 @@ const StudentManagement: React.FC<Props> = ({
       paymentPlanId: student?.paymentPlanId || undefined,      // ✅ Cambiado de contractedPlan
       contractFile: null as File | null,
       contractFileName: student?.contractFileName || '',
+      paymentVoucherFile: null as File | null,                 // ✅ Nuevo: archivo del voucher
+      paymentVoucherFileName: student?.paymentVoucherFileName || '', // ✅ Nuevo: nombre del voucher
       paymentVerified: student?.paymentVerified || false,
 
       // Examen de Categorización
@@ -1024,6 +1031,61 @@ const StudentManagement: React.FC<Props> = ({
                     </div>
                   )}
 
+                  {/* ✅ NUEVO: Voucher de Pago - Visible para Cajero */}
+                  {student?.paymentVoucherFileName && (
+                    <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6 shadow-sm">
+                      <h4 className="text-lg font-bold text-green-900 mb-5 flex items-center gap-2">
+                        <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                        </svg>
+                        Voucher de Pago Subido
+                      </h4>
+                      <div className="bg-white rounded-xl p-4 border border-green-100 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-14 h-14 bg-green-100 rounded-lg flex items-center justify-center">
+                              <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="font-bold text-gray-900 text-lg">{student.paymentVoucherFileName}</p>
+                              <p className="text-sm text-gray-500">Comprobante de pago del estudiante</p>
+                            </div>
+                          </div>
+                          <a
+                            href={`/admin/students/${student.id}/payment-voucher`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-5 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            Ver Voucher
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!student?.paymentVoucherFileName && (
+                    <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <svg className="w-6 h-6 text-yellow-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        <div>
+                          <h5 className="font-bold text-yellow-900 mb-1">⚠️ Sin voucher de pago</h5>
+                          <p className="text-sm text-yellow-800">
+                            El asesor de ventas debe subir el comprobante de pago antes de que puedas verificarlo.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Verificación de Pago - ACCIÓN PRINCIPAL DEL CAJERO */}
                   <div className="p-6 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 rounded-2xl border-2 border-green-400 shadow-lg">
                     <label className="flex items-start gap-4 cursor-pointer group">
@@ -1272,6 +1334,109 @@ const StudentManagement: React.FC<Props> = ({
                         <p className="text-xs text-gray-500 mt-1">
                           Primero selecciona un nivel académico
                         </p>
+                      )}
+                    </div>
+
+                    {/* ✅ NUEVO: Campo para subir voucher de pago */}
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Voucher/Comprobante de Pago
+                      </label>
+                      
+                      {/* Mostrar voucher existente si ya hay uno */}
+                      {student?.paymentVoucherFileName && !formData.paymentVoucherFile && (
+                        <div className="bg-white rounded-xl p-4 border-2 border-green-200 mb-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                              <div>
+                                <p className="font-bold text-gray-900">{student.paymentVoucherFileName}</p>
+                                <p className="text-sm text-gray-500">Comprobante de pago subido</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={`/admin/students/${student.id}/payment-voucher`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2 text-sm"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                Ver
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, paymentVoucherFileName: '', paymentVoucherFile: null })}
+                                className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition-colors text-sm"
+                              >
+                                Cambiar
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Input para subir nuevo voucher */}
+                      {(!student?.paymentVoucherFileName || formData.paymentVoucherFile || formData.paymentVoucherFileName === '') && (
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <label className="flex-1 cursor-pointer">
+                              <div className="flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all">
+                                <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span className="text-sm text-gray-600">
+                                  {formData.paymentVoucherFile?.name || 'Seleccionar imagen o PDF del voucher'}
+                                </span>
+                              </div>
+                              <input
+                                type="file"
+                                accept="image/*,.pdf"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    // Validar tamaño (máx 5MB)
+                                    if (file.size > 5 * 1024 * 1024) {
+                                      toast.error('Archivo muy grande', {
+                                        description: 'El voucher no debe superar 5MB',
+                                        duration: 4000,
+                                      });
+                                      return;
+                                    }
+                                    setFormData({
+                                      ...formData,
+                                      paymentVoucherFile: file,
+                                      paymentVoucherFileName: file.name
+                                    });
+                                  }
+                                }}
+                              />
+                            </label>
+                            {formData.paymentVoucherFile && (
+                              <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, paymentVoucherFile: null, paymentVoucherFileName: student?.paymentVoucherFileName || '' })}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Eliminar archivo"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            📸 Adjunta la captura o foto del voucher de pago (JPG, PNG o PDF, máx. 5MB)
+                          </p>
+                        </div>
                       )}
                     </div>
 

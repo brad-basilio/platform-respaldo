@@ -30,6 +30,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/admin/students/{student}', [StudentController::class, 'destroy'])->name('admin.students.destroy');
         Route::put('/admin/students/{student}/prospect-status', [StudentController::class, 'updateProspectStatus'])->name('admin.students.prospect-status');
         Route::get('/admin/students/{student}/contract', [StudentController::class, 'downloadContract'])->name('admin.students.contract');
+        Route::get('/admin/students/{student}/payment-voucher', [StudentController::class, 'viewPaymentVoucher'])->name('admin.students.payment-voucher');  // ✅ NUEVO
     });
       // Input Demo
         Route::get('/admin/input-demo', function () {

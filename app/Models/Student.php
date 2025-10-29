@@ -43,6 +43,8 @@ class Student extends Model
         'contract_url',
         'contract_file_name',
         'contract_file_path',
+        'payment_voucher_url',       // ✅ NUEVO: URL del voucher de pago
+        'payment_voucher_file_name', // ✅ NUEVO: Nombre del archivo del voucher
         'payment_verified',
         // Examen de Categorización
         'has_placement_test',

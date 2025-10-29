@@ -9,6 +9,7 @@ use App\Models\PaymentPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;  // ✅ NUEVO: Para manejar archivos
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -47,6 +48,8 @@ class StudentController extends Controller
                     'contractedPlan' => $student->contracted_plan,
                     'contractFileName' => $student->contract_file_name,
                     'contractFilePath' => $student->contract_file_path,
+                    'paymentVoucherUrl' => $student->payment_voucher_url,
+                    'paymentVoucherFileName' => $student->payment_voucher_file_name,
                     'paymentVerified' => $student->payment_verified ?? false,
                     'hasPlacementTest' => $student->has_placement_test ?? false,
                     'testDate' => $student->test_date?->format('Y-m-d'),
@@ -155,6 +158,8 @@ class StudentController extends Controller
                     ] : null,
                     'contractFileName' => $student->contract_file_name,
                     'contractFilePath' => $student->contract_file_path,
+                    'paymentVoucherUrl' => $student->payment_voucher_url,
+                    'paymentVoucherFileName' => $student->payment_voucher_file_name,
                     'paymentVerified' => $student->payment_verified ?? false,
                     'hasPlacementTest' => $student->has_placement_test ?? false,
                     'testDate' => $student->test_date?->format('Y-m-d'),
@@ -277,6 +282,8 @@ class StudentController extends Controller
                     ] : null,
                     'contractFileName' => $student->contract_file_name,
                     'contractFilePath' => $student->contract_file_path,
+                    'paymentVoucherUrl' => $student->payment_voucher_url,
+                    'paymentVoucherFileName' => $student->payment_voucher_file_name,
                     'paymentVerified' => $student->payment_verified ?? false,
                     'hasPlacementTest' => $student->has_placement_test ?? false,
                     'testDate' => $student->test_date?->format('Y-m-d'),
@@ -432,6 +439,8 @@ class StudentController extends Controller
                     'contractedPlan' => $student->contracted_plan,
                     'contractFileName' => $student->contract_file_name,
                     'contractFilePath' => $student->contract_file_path,
+                    'paymentVoucherUrl' => $student->payment_voucher_url,
+                    'paymentVoucherFileName' => $student->payment_voucher_file_name,
                     'paymentVerified' => $student->payment_verified ?? false,
                     'hasPlacementTest' => $student->has_placement_test ?? false,
                     'testDate' => $student->test_date?->format('Y-m-d'),
@@ -489,6 +498,7 @@ class StudentController extends Controller
             'academic_level_id' => 'nullable|exists:academic_levels,id',  // ✅ Cambiado de 'level'
             'payment_plan_id' => 'nullable|exists:payment_plans,id',     // ✅ Cambiado de 'contracted_plan'
             'contract_file' => 'nullable|file|mimes:pdf|max:10240', // Máximo 10MB
+            'payment_voucher_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120', // ✅ NUEVO: Máximo 5MB
             'payment_verified' => 'nullable|boolean',
             'has_placement_test' => 'nullable|boolean',
             'test_date' => 'nullable|date',
@@ -522,6 +532,27 @@ class StudentController extends Controller
                 'file_path' => $validated['contract_file_path'],
                 'file_name' => $file->getClientOriginalName(),
                 'absolute_path' => storage_path('app/' . $validated['contract_file_path']),
+            ]);
+        }
+
+        // ✅ NUEVO: Manejar subida del voucher de pago
+        if ($request->hasFile('payment_voucher_file')) {
+            $file = $request->file('payment_voucher_file');
+            
+            // Crear nombre único para el archivo
+            $fileName = 'voucher_' . $student->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+            
+            // Guardar en storage/app/public/payment_vouchers
+            $path = $file->storeAs('payment_vouchers', $fileName, 'public');
+            
+            // Guardar la URL pública y el nombre original
+            $validated['payment_voucher_url'] = Storage::url($path);
+            $validated['payment_voucher_file_name'] = $file->getClientOriginalName();
+            
+            Log::info('Voucher de pago subido:', [
+                'student_id' => $student->id,
+                'file_url' => $validated['payment_voucher_url'],
+                'file_name' => $file->getClientOriginalName(),
             ]);
         }
 
@@ -703,6 +734,55 @@ class StudentController extends Controller
         return response()->file($filePath, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="' . ($student->contract_file_name ?: 'contrato.pdf') . '"'
+        ]);
+    }
+
+    /**
+     * ✅ NUEVO: Ver el voucher de pago de un estudiante
+     */
+    public function viewPaymentVoucher(Student $student)
+    {
+        $user = Auth::user();
+        
+        // Verificar permisos según el rol
+        if ($user->role === 'sales_advisor' && (int)$student->registered_by !== $user->id) {
+            abort(403, 'No tienes permiso para ver este voucher.');
+        }
+        
+        // Verificar que el voucher exista
+        if (!$student->payment_voucher_url) {
+            abort(404, 'No se encontró ningún voucher de pago para este estudiante.');
+        }
+        
+        // Convertir la URL pública a ruta de archivo
+        // La URL es como: /storage/payment_vouchers/voucher_123_456.jpg
+        // Necesitamos: storage/app/public/payment_vouchers/voucher_123_456.jpg
+        $relativePath = str_replace('/storage/', '', $student->payment_voucher_url);
+        $filePath = storage_path('app/public/' . $relativePath);
+        
+        if (!file_exists($filePath)) {
+            Log::error('Archivo de voucher no encontrado:', [
+                'student_id' => $student->id,
+                'voucher_url' => $student->payment_voucher_url,
+                'absolute_path' => $filePath
+            ]);
+            abort(404, 'El archivo del voucher no existe en el servidor.');
+        }
+        
+        // Determinar el tipo MIME según la extensión
+        $extension = pathinfo($filePath, PATHINFO_EXTENSION);
+        $mimeTypes = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'pdf' => 'application/pdf',
+        ];
+        $mimeType = $mimeTypes[strtolower($extension)] ?? 'application/octet-stream';
+        
+        // Retornar el archivo para visualización en el navegador
+        return response()->file($filePath, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="' . ($student->payment_voucher_file_name ?: 'voucher.' . $extension) . '"'
         ]);
     }
 
