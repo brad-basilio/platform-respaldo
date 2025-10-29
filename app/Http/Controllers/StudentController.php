@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Student;
 use App\Models\Group;
+use App\Models\AcademicLevel;
+use App\Models\PaymentPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -93,8 +95,17 @@ class StudentController extends Controller
     {
         $user = auth()->user();
         
-        // Construir query base
-        $query = Student::with(['user', 'groups', 'badges', 'registeredBy', 'verifiedPaymentBy', 'verifiedEnrollmentBy']);
+        // Construir query base con relaciones de academic_level y payment_plan
+        $query = Student::with([
+            'user', 
+            'groups', 
+            'badges', 
+            'registeredBy', 
+            'verifiedPaymentBy', 
+            'verifiedEnrollmentBy',
+            'academicLevel',  // ✅ Nuevo
+            'paymentPlan'     // ✅ Nuevo
+        ]);
         
         // Filtrar según el rol
         if ($user->role === 'sales_advisor') {
@@ -121,14 +132,27 @@ class StudentController extends Controller
                     'educationLevel' => $student->education_level,
                     'role' => 'student',
                     'status' => $student->status ?? 'active',
-                    'level' => $student->level,
+                    'academicLevelId' => $student->academic_level_id,  // ✅ Nuevo
+                    'academicLevel' => $student->academicLevel ? [     // ✅ Nuevo
+                        'id' => $student->academicLevel->id,
+                        'name' => $student->academicLevel->name,
+                        'code' => $student->academicLevel->code,
+                        'color' => $student->academicLevel->color,
+                    ] : null,
                     'points' => $student->points ?? 0,
                     'prospectStatus' => $student->prospect_status,
                     'paymentDate' => $student->payment_date?->format('Y-m-d'),
                     'enrollmentDate' => $student->enrollment_date?->format('Y-m-d'),
                     'enrollmentCode' => $student->enrollment_code,
                     'registrationDate' => $student->registration_date?->format('Y-m-d'),
-                    'contractedPlan' => $student->contracted_plan,
+                    'paymentPlanId' => $student->payment_plan_id,       // ✅ Nuevo
+                    'paymentPlan' => $student->paymentPlan ? [          // ✅ Nuevo
+                        'id' => $student->paymentPlan->id,
+                        'name' => $student->paymentPlan->name,
+                        'installments_count' => $student->paymentPlan->installments_count,
+                        'monthly_amount' => $student->paymentPlan->monthly_amount,
+                        'total_amount' => $student->paymentPlan->total_amount,
+                    ] : null,
                     'contractFileName' => $student->contract_file_name,
                     'contractFilePath' => $student->contract_file_path,
                     'paymentVerified' => $student->payment_verified ?? false,
@@ -165,10 +189,23 @@ class StudentController extends Controller
             });
 
         $groups = Group::with('teacher.user')->get();
+        
+        // ✅ Cargar Academic Levels y Payment Plans
+        $academicLevels = AcademicLevel::where('is_active', true)
+            ->orderBy('order')
+            ->get();
+            
+        $paymentPlans = PaymentPlan::with('academicLevel')
+            ->where('is_active', true)
+            ->orderBy('academic_level_id')
+            ->orderBy('installments_count')
+            ->get();
 
         return Inertia::render('Admin/StudentManagement', [
             'students' => $students,
             'groups' => $groups,
+            'academicLevels' => $academicLevels,  // ✅ Nuevo
+            'paymentPlans' => $paymentPlans,      // ✅ Nuevo
             'userRole' => auth()->user()->role ?? 'admin',
         ]);
     }
@@ -180,8 +217,17 @@ class StudentController extends Controller
     {
         $user = auth()->user();
         
-        // Construir query base (misma lógica que index)
-        $query = Student::with(['user', 'groups', 'badges', 'registeredBy', 'verifiedPaymentBy', 'verifiedEnrollmentBy']);
+        // Construir query base (misma lógica que index) con relaciones
+        $query = Student::with([
+            'user', 
+            'groups', 
+            'badges', 
+            'registeredBy', 
+            'verifiedPaymentBy', 
+            'verifiedEnrollmentBy',
+            'academicLevel',  // ✅ Nuevo
+            'paymentPlan'     // ✅ Nuevo
+        ]);
         
         // Filtrar según el rol
         if ($user->role === 'sales_advisor') {
@@ -208,14 +254,27 @@ class StudentController extends Controller
                     'educationLevel' => $student->education_level,
                     'role' => 'student',
                     'status' => $student->status ?? 'active',
-                    'level' => $student->level,
+                    'academicLevelId' => $student->academic_level_id,  // ✅ Nuevo
+                    'academicLevel' => $student->academicLevel ? [     // ✅ Nuevo
+                        'id' => $student->academicLevel->id,
+                        'name' => $student->academicLevel->name,
+                        'code' => $student->academicLevel->code,
+                        'color' => $student->academicLevel->color,
+                    ] : null,
                     'points' => $student->points ?? 0,
                     'prospectStatus' => $student->prospect_status,
                     'paymentDate' => $student->payment_date?->format('Y-m-d'),
                     'enrollmentDate' => $student->enrollment_date?->format('Y-m-d'),
                     'enrollmentCode' => $student->enrollment_code,
                     'registrationDate' => $student->registration_date?->format('Y-m-d'),
-                    'contractedPlan' => $student->contracted_plan,
+                    'paymentPlanId' => $student->payment_plan_id,       // ✅ Nuevo
+                    'paymentPlan' => $student->paymentPlan ? [          // ✅ Nuevo
+                        'id' => $student->paymentPlan->id,
+                        'name' => $student->paymentPlan->name,
+                        'installments_count' => $student->paymentPlan->installments_count,
+                        'monthly_amount' => $student->paymentPlan->monthly_amount,
+                        'total_amount' => $student->paymentPlan->total_amount,
+                    ] : null,
                     'contractFileName' => $student->contract_file_name,
                     'contractFilePath' => $student->contract_file_path,
                     'paymentVerified' => $student->payment_verified ?? false,
@@ -272,7 +331,7 @@ class StudentController extends Controller
             'document_type' => 'required|string',
             'document_number' => 'required|string|unique:students',
             'education_level' => 'required|string',
-            'level' => 'required|in:basic,intermediate,advanced',
+            'academic_level_id' => 'nullable|exists:academic_levels,id',  // ✅ Cambiado de 'level'
             'class_type' => 'required|in:theoretical,practical',
         ]);
 
@@ -427,8 +486,8 @@ class StudentController extends Controller
             'payment_date' => 'nullable|date',
             'enrollment_date' => 'nullable|date',
             'enrollment_code' => 'nullable|string',
-            'level' => 'sometimes|required|in:basic,intermediate,advanced',
-            'contracted_plan' => 'nullable|string',
+            'academic_level_id' => 'nullable|exists:academic_levels,id',  // ✅ Cambiado de 'level'
+            'payment_plan_id' => 'nullable|exists:payment_plans,id',     // ✅ Cambiado de 'contracted_plan'
             'contract_file' => 'nullable|file|mimes:pdf|max:10240', // Máximo 10MB
             'payment_verified' => 'nullable|boolean',
             'has_placement_test' => 'nullable|boolean',
@@ -480,10 +539,10 @@ class StudentController extends Controller
 
         // Lógica de cambio de estado automático para Sales Advisor
         if ($user->role === 'sales_advisor') {
-            // Si completa fecha de pago, nivel y plan, puede marcar como listo para verificar
+            // Si completa fecha de pago, nivel académico y plan de pago, puede marcar como listo para verificar
             if (!empty($validated['payment_date']) && 
-                !empty($validated['level']) && 
-                !empty($validated['contracted_plan']) &&
+                !empty($validated['academic_level_id']) &&  // ✅ Cambiado de 'level'
+                !empty($validated['payment_plan_id']) &&    // ✅ Cambiado de 'contracted_plan'
                 $student->prospect_status === 'propuesta_enviada') {
                 // Auto-cambiar a pago_por_verificar
                 $student->update(['prospect_status' => 'pago_por_verificar']);
@@ -547,12 +606,12 @@ class StudentController extends Controller
                 ], 422);
             }
 
-            // Validar que tenga fecha de pago, nivel y plan SOLO antes de pasar a pago_por_verificar
+            // Validar que tenga fecha de pago, nivel académico y plan SOLO antes de pasar a pago_por_verificar
             if ($newStatus === 'pago_por_verificar') {
-                if (!$student->payment_date || !$student->level || !$student->contracted_plan) {
+                if (!$student->payment_date || !$student->academic_level_id || !$student->payment_plan_id) {  // ✅ Actualizado
                     return response()->json([
                         'message' => 'Datos incompletos',
-                        'error' => 'Debe completar fecha de pago, nivel académico y plan contratado antes de marcar como "Pago Por Verificar"'
+                        'error' => 'Debe completar fecha de pago, nivel académico y plan de pago antes de marcar como "Pago Por Verificar"'
                     ], 422);
                 }
             }

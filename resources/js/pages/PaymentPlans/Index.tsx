@@ -38,6 +38,7 @@ interface PaymentPlan {
   grace_period_days: number;
   is_active: boolean;
   description?: string;
+  students_count?: number; // Cantidad de estudiantes matriculados
 }
 
 interface Props {
@@ -228,6 +229,23 @@ const PaymentPlansIndex: React.FC<Props> = ({
         return (
           <div className="flex items-center justify-center h-full">
             <span className="text-sm text-gray-600">{params.value} meses</span>
+          </div>
+        );
+      }
+    },
+    {
+      headerName: 'Estudiantes',
+      field: 'students_count',
+      width: 130,
+      cellRenderer: (params: any) => {
+        const count = params.value || 0;
+        return (
+          <div className="flex items-center justify-center h-full">
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+              count > 0 ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-600'
+            }`}>
+              {count} {count === 1 ? 'estudiante' : 'estudiantes'}
+            </span>
           </div>
         );
       }

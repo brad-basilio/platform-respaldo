@@ -33,13 +33,13 @@ class Student extends Model
         // Estado y Tipo
         'status',
         'class_type',
-        'level',
+        'academic_level_id',  // ✅ Cambiado de 'level'
         // Datos Académicos
         'payment_date',
         'enrollment_date',
         'registration_date',
         'enrollment_code',
-        'contracted_plan',
+        'payment_plan_id',  // ✅ Cambiado de 'contracted_plan'
         'contract_url',
         'contract_file_name',
         'contract_file_path',
@@ -78,6 +78,8 @@ class Student extends Model
         'registered_by' => 'integer',
         'verified_payment_by' => 'integer',
         'verified_enrollment_by' => 'integer',
+        'academic_level_id' => 'integer',  // ✅ Agregado
+        'payment_plan_id' => 'integer',    // ✅ Agregado
     ];
 
     public function user(): BelongsTo
@@ -142,6 +144,22 @@ class Student extends Model
     public function activeEnrollment()
     {
         return $this->hasOne(Enrollment::class)->where('status', 'active')->latest();
+    }
+
+    /**
+     * Relación con Nivel Académico
+     */
+    public function academicLevel(): BelongsTo
+    {
+        return $this->belongsTo(AcademicLevel::class, 'academic_level_id');
+    }
+
+    /**
+     * Relación con Plan de Pago
+     */
+    public function paymentPlan(): BelongsTo
+    {
+        return $this->belongsTo(PaymentPlan::class, 'payment_plan_id');
     }
 
     // Accessor for full name

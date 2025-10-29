@@ -14,7 +14,25 @@ export interface Student extends User {
   assignedGroupId?: string;
   attendanceHistory: AttendanceRecord[];
   enrolledGroups: string[];
-  level: 'basic' | 'intermediate' | 'advanced';
+  
+  // ✅ Campos actualizados
+  academicLevelId?: number;  // Nuevo: ID del nivel académico
+  academicLevel?: {          // Nuevo: Relación con AcademicLevel
+    id: number;
+    name: string;
+    code: string;
+    color: string;
+  };
+  
+  paymentPlanId?: number;    // Nuevo: ID del plan de pago
+  paymentPlan?: {            // Nuevo: Relación con PaymentPlan
+    id: number;
+    name: string;
+    installments_count: number;
+    monthly_amount: number;
+    total_amount: number;
+  };
+  
   points: number;
   badges: Badge[];
   certificates: Certificate[];
@@ -36,7 +54,6 @@ export interface Student extends User {
   enrollmentDate?: string;
   registrationDate?: string;
   enrollmentCode?: string;
-  contractedPlan?: string;
   contractUrl?: string;
   contractFileName?: string;
   paymentVerified?: boolean;
@@ -256,4 +273,36 @@ export interface Progress {
   workshopsAttended: string[];
   overallProgress: number;
   currentLevel: string;
+}
+
+// ✅ Nuevas interfaces para el sistema de niveles y planes de pago
+export interface AcademicLevel {
+  id: number;
+  name: string;
+  code: string;
+  description?: string;
+  order: number;
+  color: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PaymentPlan {
+  id: number;
+  name: string;
+  academic_level_id: number;
+  academicLevel?: AcademicLevel;
+  installments_count: number;
+  monthly_amount: number;
+  total_amount: number;
+  discount_percentage: number;
+  duration_months: number;
+  late_fee_percentage: number;
+  grace_period_days: number;
+  is_active: boolean;
+  description?: string;
+  students_count?: number;
+  created_at?: string;
+  updated_at?: string;
 }

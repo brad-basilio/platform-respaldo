@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Users, Plus, CreditCard as Edit, Trash2, UserCheck, UserX, Eye, List, Columns2 as Columns, Search, XCircle } from 'lucide-react';
-import { Student, Group } from '../../types/models';
+import { Student, Group, AcademicLevel, PaymentPlan } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import axios from 'axios';
 import { Input } from '@/components/ui/input';
@@ -19,10 +19,18 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 interface Props {
   students: Student[];
   groups: Group[];
+  academicLevels: AcademicLevel[];  // ✅ Nuevo
+  paymentPlans: PaymentPlan[];      // ✅ Nuevo
   userRole: string;
 }
 
-const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups, userRole }) => {
+const StudentManagement: React.FC<Props> = ({ 
+  students: initialStudents, 
+  groups, 
+  academicLevels,  // ✅ Nuevo
+  paymentPlans,    // ✅ Nuevo
+  userRole 
+}) => {
   const [students, setStudents] = useState<Student[]>(initialStudents);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
@@ -87,9 +95,9 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
     // Validar que tenga datos académicos completos antes de pasar a pago_por_verificar
     if (newStatus === 'pago_por_verificar') {
-      if (!student.paymentDate || !student.level || !student.contractedPlan) {
+      if (!student.paymentDate || !student.academicLevelId || !student.paymentPlanId) {  // ✅ Actualizado
         toast.error('Datos incompletos', {
-          description: 'Debes completar fecha de pago, nivel académico y plan contratado antes de marcar como "Pago Por Verificar"',
+          description: 'Debes completar fecha de pago, nivel académico y plan de pago antes de marcar como "Pago Por Verificar"',
           duration: 5000,
         });
         return;
@@ -184,9 +192,9 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
     if (draggedStudent) {
       // Validar que tenga los datos necesarios antes de pasar a pago_por_verificar (para todos los roles)
       if (newStatus === 'pago_por_verificar') {
-        if (!draggedStudent.paymentDate || !draggedStudent.level || !draggedStudent.contractedPlan) {
+        if (!draggedStudent.paymentDate || !draggedStudent.academicLevelId || !draggedStudent.paymentPlanId) {  // ✅ Actualizado
           toast.error('Datos incompletos', {
-            description: 'Debes completar fecha de pago, nivel académico y plan contratado antes de marcar como "Pago Por Verificar"',
+            description: 'Debes completar fecha de pago, nivel académico y plan de pago antes de marcar como "Pago Por Verificar"',
             duration: 5000,
           });
           setDraggedStudent(null);
@@ -261,7 +269,7 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         document_type: formData.documentType,
         document_number: formData.documentNumber,
         education_level: formData.educationLevel,
-        level: formData.academicLevel,
+        academic_level_id: formData.academicLevelId,  // ✅ Cambiado de 'level'
         class_type: 'theoretical', // Por defecto
       });
 
@@ -311,8 +319,8 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
       if (formData.paymentDate) data.append('payment_date', formData.paymentDate);
       if (formData.enrollmentDate) data.append('enrollment_date', formData.enrollmentDate);
       if (formData.enrollmentCode) data.append('enrollment_code', formData.enrollmentCode);
-      if (formData.academicLevel) data.append('level', formData.academicLevel);
-      if (formData.contractedPlan) data.append('contracted_plan', formData.contractedPlan);
+      if (formData.academicLevelId) data.append('academic_level_id', formData.academicLevelId.toString());  // ✅ Actualizado
+      if (formData.paymentPlanId) data.append('payment_plan_id', formData.paymentPlanId.toString());        // ✅ Actualizado
       data.append('payment_verified', formData.paymentVerified ? '1' : '0');
     } else {
       // Admin y Sales Advisor: todos los campos
@@ -329,8 +337,8 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
       if (formData.paymentDate) data.append('payment_date', formData.paymentDate);
       if (formData.enrollmentDate) data.append('enrollment_date', formData.enrollmentDate);
       if (formData.enrollmentCode) data.append('enrollment_code', formData.enrollmentCode);
-      data.append('level', formData.academicLevel);
-      if (formData.contractedPlan) data.append('contracted_plan', formData.contractedPlan);
+      if (formData.academicLevelId) data.append('academic_level_id', formData.academicLevelId.toString());  // ✅ Actualizado
+      if (formData.paymentPlanId) data.append('payment_plan_id', formData.paymentPlanId.toString());        // ✅ Actualizado
 
       // Solo admin puede verificar pagos desde el formulario de edición
       if (userRole === 'admin') {
@@ -532,17 +540,59 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
         }
       },
       {
-        headerName: 'Nivel',
-        field: 'level',
-        width: 120,
+        headerName: 'Nivel Académico',
+        field: 'academicLevel',
+        width: 150,
         filter: 'agTextColumnFilter',
         cellRenderer: (params: any) => {
-          const level = params.value;
+          const student = params.data;
+          const academicLevel = student.academicLevel;
+          
+          if (!academicLevel) {
+            return (
+              <div className='flex items-center w-full h-full'>
+                <span className="text-xs text-gray-400">Sin nivel</span>
+              </div>
+            );
+          }
+          
           return (
-            <div className='flex items-center space-x-2 w-full h-full'>
-              <span className="text-sm text-gray-900 capitalize">
-                {level === 'basic' ? 'Básico' : level === 'intermediate' ? 'Intermedio' : 'Avanzado'}
+            <div className='flex items-center w-full h-full'>
+              <span 
+                className="px-3 py-1 rounded-full text-xs font-semibold text-white"
+                style={{ backgroundColor: academicLevel.color }}
+              >
+                {academicLevel.name}
               </span>
+            </div>
+          );
+        }
+      },
+      {
+        headerName: 'Plan de Pago',
+        field: 'paymentPlan',
+        width: 180,
+        filter: 'agTextColumnFilter',
+        cellRenderer: (params: any) => {
+          const student = params.data;
+          const paymentPlan = student.paymentPlan;
+          
+          if (!paymentPlan) {
+            return (
+              <div className='flex items-center w-full h-full'>
+                <span className="text-xs text-gray-400">Sin plan</span>
+              </div>
+            );
+          }
+          
+          return (
+            <div className='flex items-center w-full h-full'>
+              <div>
+                <div className="text-sm font-medium text-gray-900">{paymentPlan.name}</div>
+                <div className="text-xs text-gray-500">
+                  S/ {paymentPlan.total_amount.toFixed(2)} • {paymentPlan.installments_count} cuotas
+                </div>
+              </div>
             </div>
           );
         }
@@ -694,13 +744,13 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
       educationLevel: student?.educationLevel || '',
       email: student?.email || '',
 
-      // Datos Académicos
+      // Datos Académicos - ✅ Actualizados
       paymentDate: student?.paymentDate || '',
       enrollmentDate: student?.enrollmentDate || '',
       registrationDate: student?.registrationDate || new Date().toISOString().split('T')[0],
       enrollmentCode: student?.enrollmentCode || '',
-      academicLevel: student?.level || 'basic',
-      contractedPlan: student?.contractedPlan || '',
+      academicLevelId: student?.academicLevelId || undefined,  // ✅ Cambiado de academicLevel
+      paymentPlanId: student?.paymentPlanId || undefined,      // ✅ Cambiado de contractedPlan
       contractFile: null as File | null,
       contractFileName: student?.contractFileName || '',
       paymentVerified: student?.paymentVerified || false,
@@ -873,11 +923,20 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
                       </div>
                       <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm hover:shadow-md transition-all">
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Nivel Académico</p>
-                        <p className="text-base font-bold text-gray-900 capitalize">{student?.level || '-'}</p>
+                        <p className="text-base font-bold text-gray-900">
+                          {student?.academicLevel?.name || 'Sin nivel asignado'}
+                        </p>
                       </div>
                       <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm hover:shadow-md transition-all">
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Plan Contratado</p>
-                        <p className="text-base font-bold text-gray-900 capitalize">{student?.contractedPlan || '-'}</p>
+                        <p className="text-base font-bold text-gray-900">
+                          {student?.paymentPlan?.name || 'Sin plan asignado'}
+                        </p>
+                        {student?.paymentPlan && (
+                          <p className="text-xs text-gray-600 mt-1">
+                            {student.paymentPlan.installments_count} cuotas • S/ {student.paymentPlan.total_amount.toFixed(2)}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1177,32 +1236,43 @@ const StudentManagement: React.FC<Props> = ({ students: initialStudents, groups,
 
                       <Select2
                         label="Nivel Académico"
-                        value={formData.academicLevel}
-                        onChange={(value) => setFormData({ ...formData, academicLevel: value as 'basic' | 'intermediate' | 'advanced' })}
-                        options={[
-                          { value: 'basic', label: 'Básico' },
-                          { value: 'intermediate', label: 'Intermedio' },
-                          { value: 'advanced', label: 'Avanzado' }
-                        ]}
+                        value={formData.academicLevelId}
+                        onChange={(value) => {
+                          setFormData({ ...formData, academicLevelId: value as number, paymentPlanId: undefined });
+                        }}
+                        options={academicLevels.map(level => ({
+                          value: level.id,
+                          label: level.name
+                        }))}
                         isSearchable={false}
-                        isClearable={false}
+                        isClearable={true}
                       />
                     </div>
 
                     <div className="mt-4">
                       <Select2
-                        label="Plan Contratado"
-                        value={formData.contractedPlan}
-                        onChange={(value) => setFormData({ ...formData, contractedPlan: value as string })}
-                        options={[
-                          { value: 'basico', label: 'Plan Básico' },
-                          { value: 'estandar', label: 'Plan Estándar' },
-                          { value: 'premium', label: 'Plan Premium' },
-                          { value: 'intensivo', label: 'Plan Intensivo' }
-                        ]}
-                        isDisabled={!formData.paymentDate}
-                        helperText={!formData.paymentDate ? 'Selecciona primero una fecha de pago para activar este campo' : undefined}
+                        label="Plan de Pago"
+                        value={formData.paymentPlanId}
+                        onChange={(value) => setFormData({ ...formData, paymentPlanId: value as number })}
+                        options={
+                          formData.academicLevelId
+                            ? paymentPlans
+                                .filter(plan => plan.academic_level_id === formData.academicLevelId)
+                                .map(plan => ({
+                                  value: plan.id,
+                                  label: `${plan.name} - ${plan.installments_count} cuotas (S/ ${plan.total_amount.toFixed(2)})`
+                                }))
+                            : []
+                        }
+                        isSearchable={false}
+                        isClearable={true}
+                        isDisabled={!formData.academicLevelId}
                       />
+                      {!formData.academicLevelId && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Primero selecciona un nivel académico
+                        </p>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
