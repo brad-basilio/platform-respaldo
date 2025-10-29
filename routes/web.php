@@ -65,6 +65,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'update' => 'admin.payment-plans.update',
                 'destroy' => 'admin.payment-plans.destroy',
             ]);
+        Route::get('/api/admin/payment-plans', [PaymentPlanController::class, 'getPaymentPlansJson'])->name('api.admin.payment-plans');
         
         // Teacher Management
         Route::get('/admin/teachers', [TeacherController::class, 'index'])->name('admin.teachers');

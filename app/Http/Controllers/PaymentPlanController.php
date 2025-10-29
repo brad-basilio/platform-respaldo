@@ -16,7 +16,8 @@ class PaymentPlanController extends Controller
     {
         $academicLevels = AcademicLevel::active()->orderBy('order')->get();
         
-        $query = PaymentPlan::with('academicLevel');
+        $query = PaymentPlan::with('academicLevel')
+            ->withCount('enrollments as students_count');
         
         // Filtrar por nivel académico si se proporciona
         if ($request->has('academic_level_id')) {
@@ -32,6 +33,26 @@ class PaymentPlanController extends Controller
             'academicLevels' => $academicLevels,
             'selectedLevelId' => $request->academic_level_id
         ]);
+    }
+
+    /**
+     * Get payment plans as JSON for API calls
+     */
+    public function getPaymentPlansJson(Request $request)
+    {
+        $query = PaymentPlan::with('academicLevel')
+            ->withCount('enrollments as students_count');
+        
+        // Filtrar por nivel académico si se proporciona
+        if ($request->has('academic_level_id')) {
+            $query->where('academic_level_id', $request->academic_level_id);
+        }
+        
+        $paymentPlans = $query->orderBy('academic_level_id')
+            ->orderBy('installments_count')
+            ->get();
+            
+        return response()->json($paymentPlans);
     }
 
     /**

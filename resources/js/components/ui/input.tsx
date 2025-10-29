@@ -13,7 +13,11 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, label, error, helperText, icon, required, variant = 'outlined', ...props }, ref) => {
     const [isFocused, setIsFocused] = React.useState(false);
-    const [hasValue, setHasValue] = React.useState(!!props.value || !!props.defaultValue);
+    // Fix: Verificar si el valor no es vacío, incluyendo 0 como valor válido
+    const [hasValue, setHasValue] = React.useState(
+      props.value !== undefined && props.value !== '' || 
+      props.defaultValue !== undefined && props.defaultValue !== ''
+    );
 
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
       setIsFocused(true);
@@ -22,12 +26,14 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
       setIsFocused(false);
-      setHasValue(!!e.target.value);
+      // Fix: Considerar 0 como valor válido
+      setHasValue(e.target.value !== '');
       props.onBlur?.(e);
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setHasValue(!!e.target.value);
+      // Fix: Considerar 0 como valor válido
+      setHasValue(e.target.value !== '');
       props.onChange?.(e);
     };
 
@@ -139,7 +145,11 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
   ({ className, label, error, helperText, icon, required, variant = 'outlined', children, ...props }, ref) => {
     const [isFocused, setIsFocused] = React.useState(false);
-    const [hasValue, setHasValue] = React.useState(!!props.value || !!props.defaultValue);
+    // Fix: Verificar si el valor no es vacío, incluyendo 0 como valor válido
+    const [hasValue, setHasValue] = React.useState(
+      props.value !== undefined && props.value !== '' || 
+      props.defaultValue !== undefined && props.defaultValue !== ''
+    );
 
     const handleFocus = (e: React.FocusEvent<HTMLSelectElement>) => {
       setIsFocused(true);
@@ -148,12 +158,14 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
 
     const handleBlur = (e: React.FocusEvent<HTMLSelectElement>) => {
       setIsFocused(false);
-      setHasValue(!!e.target.value);
+      // Fix: Considerar 0 como valor válido
+      setHasValue(e.target.value !== '');
       props.onBlur?.(e);
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      setHasValue(!!e.target.value);
+      // Fix: Considerar 0 como valor válido
+      setHasValue(e.target.value !== '');
       props.onChange?.(e);
     };
 
