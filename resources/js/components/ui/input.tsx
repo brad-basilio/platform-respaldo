@@ -19,6 +19,11 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       props.defaultValue !== undefined && props.defaultValue !== ''
     );
 
+    // Fix: Actualizar hasValue cuando props.value cambie desde el padre
+    React.useEffect(() => {
+      setHasValue(props.value !== undefined && props.value !== '');
+    }, [props.value]);
+
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
       setIsFocused(true);
       props.onFocus?.(e);
@@ -150,6 +155,11 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       props.value !== undefined && props.value !== '' || 
       props.defaultValue !== undefined && props.defaultValue !== ''
     );
+
+    // Fix: Actualizar hasValue cuando props.value cambie desde el padre
+    React.useEffect(() => {
+      setHasValue(props.value !== undefined && props.value !== '');
+    }, [props.value]);
 
     const handleFocus = (e: React.FocusEvent<HTMLSelectElement>) => {
       setIsFocused(true);
