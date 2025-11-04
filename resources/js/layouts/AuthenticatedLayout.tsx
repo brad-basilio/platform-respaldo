@@ -23,7 +23,7 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
     }, []);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 overflow-x-hidden">
+        <div className="h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex flex-col overflow-hidden">
             <Toaster 
                 position="top-right" 
                 richColors 
@@ -34,10 +34,16 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
                     },
                 }}
             />
+            {/* Header fijo */}
             <Header />
-            <div className="flex overflow-x-hidden">
+            
+            {/* Contenedor principal con Sidebar y contenido */}
+            <div className="flex flex-1 overflow-hidden">
+                {/* Sidebar scrolleable */}
                 <Sidebar activeView={activeView} onViewChange={setActiveView} />
-                <main className="flex-1 min-h-screen overflow-x-hidden">
+                
+                {/* Contenido principal scrolleable */}
+                <main className="flex-1 overflow-y-auto main-scroll">
                     <div className="animate-fade-in">
                         {children}
                     </div>

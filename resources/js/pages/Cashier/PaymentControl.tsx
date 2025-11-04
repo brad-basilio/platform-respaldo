@@ -24,16 +24,47 @@ const PaymentScheduleModal: React.FC<{
   student: Student; 
   enrollment: Enrollment;
   onClose: () => void;
-  onVerifyInstallment: (installmentId: number) => Promise<void>;
-}> = ({ student, enrollment, onClose, onVerifyInstallment }) => {
+  onVerifyVoucher: (voucherId: number, action: 'approve' | 'reject', rejectionReason?: string) => Promise<void>;
+}> = ({ student, enrollment, onClose, onVerifyVoucher }) => {
   const [verifying, setVerifying] = useState<number | null>(null);
 
-  const handleVerify = async (installmentId: number) => {
-    setVerifying(installmentId);
+  const handleApprove = async (voucherId: number) => {
+    setVerifying(voucherId);
     try {
-      await onVerifyInstallment(installmentId);
+      await onVerifyVoucher(voucherId, 'approve');
     } finally {
       setVerifying(null);
+    }
+  };
+
+  const handleReject = async (voucherId: number) => {
+    const result = await Swal.fire({
+      title: 'Rechazar Voucher',
+      input: 'textarea',
+      inputLabel: 'Motivo del rechazo',
+      inputPlaceholder: 'Explica por qué se rechaza este voucher...',
+      inputAttributes: {
+        'aria-label': 'Motivo del rechazo'
+      },
+      showCancelButton: true,
+      confirmButtonText: 'Rechazar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      inputValidator: (value) => {
+        if (!value) {
+          return 'Debes especificar un motivo';
+        }
+      }
+    });
+
+    if (result.isConfirmed && result.value) {
+      setVerifying(voucherId);
+      try {
+        await onVerifyVoucher(voucherId, 'reject', result.value);
+      } finally {
+        setVerifying(null);
+      }
     }
   };
 
@@ -219,44 +250,83 @@ const PaymentScheduleModal: React.FC<{
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {vouchers && vouchers.length > 0 ? (
-                            <a
-                              href={vouchers[0].voucher_url || vouchers[0].voucherUrl || '#'}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
-                            >
-                              <Download className="w-4 h-4 mr-1" />
-                              Ver Voucher
-                            </a>
+                            <div className="space-y-1">
+                              {vouchers.map((voucher) => {
+                                const voucherStatus = voucher.status || 'pending';
+                                return (
+                                  <div key={voucher.id} className="flex items-center space-x-2">
+                                    <a
+                                      href={voucher.voucher_url || '#'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
+                                    >
+                                      <Download className="w-4 h-4 mr-1" />
+                                      Ver
+                                    </a>
+                                    {voucherStatus === 'approved' && (
+                                      <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                                        Aprobado
+                                      </span>
+                                    )}
+                                    {voucherStatus === 'pending' && (
+                                      <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full animate-pulse">
+                                        Pendiente
+                                      </span>
+                                    )}
+                                    {voucherStatus === 'rejected' && (
+                                      <span className="text-xs px-2 py-1 bg-red-100 text-red-800 rounded-full">
+                                        Rechazado
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           ) : (
                             <span className="text-sm text-gray-400">Sin voucher</span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {installment.status === 'paid' && (
-                            <button
-                              onClick={() => handleVerify(installment.id)}
-                              disabled={verifying === installment.id}
-                              className="inline-flex items-center px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {verifying === installment.id ? (
-                                <>
-                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                                  Verificando...
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle className="w-4 h-4 mr-1" />
-                                  Verificar
-                                </>
-                              )}
-                            </button>
-                          )}
-                          {installment.status === 'verified' && verifiedBy && (
+                          {vouchers && vouchers.length > 0 && vouchers.some(v => v.status === 'pending') ? (
+                            <div className="flex items-center space-x-2">
+                              {vouchers.filter(v => v.status === 'pending').map((voucher) => (
+                                <div key={voucher.id} className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() => handleApprove(voucher.id)}
+                                    disabled={verifying === voucher.id}
+                                    className="inline-flex items-center px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {verifying === voucher.id ? (
+                                      <>
+                                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
+                                        Procesando...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CheckCircle className="w-3 h-3 mr-1" />
+                                        Aprobar
+                                      </>
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => handleReject(voucher.id)}
+                                    disabled={verifying === voucher.id}
+                                    className="inline-flex items-center px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    Rechazar
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : installment.status === 'verified' && verifiedBy ? (
                             <div className="text-xs text-gray-500">
                               <div>Verificado por:</div>
                               <div className="font-medium text-gray-700">{verifiedBy.name}</div>
                             </div>
+                          ) : (
+                            <span className="text-sm text-gray-400">—</span>
                           )}
                         </td>
                       </tr>
@@ -324,60 +394,68 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
     }
   };
 
-  const handleVerifyInstallment = async (installmentId: number) => {
-    const result = await Swal.fire({
-      title: '¿Verificar Pago?',
-      html: `
-        <div class="text-left">
-          <p class="text-gray-700 mb-3">¿Confirmas que el voucher de pago es válido?</p>
-          <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-            <p class="text-sm text-blue-800">
-              <strong>Importante:</strong> Al verificar este pago:
-            </p>
-            <ul class="text-sm text-blue-700 mt-2 space-y-1 list-disc list-inside">
-              <li>Se marcará como cuota verificada</li>
-              <li>Se actualizará el progreso del estudiante</li>
-              <li>Se registrará tu nombre como verificador</li>
-            </ul>
+  const handleVerifyVoucher = async (voucherId: number, action: 'approve' | 'reject', rejectionReason?: string) => {
+    const confirmTitle = action === 'approve' ? '¿Aprobar Voucher?' : '¿Rechazar Voucher?';
+    const confirmText = action === 'approve' 
+      ? '¿Confirmas que el voucher de pago es válido?' 
+      : 'El voucher será rechazado y el estudiante deberá subir uno nuevo.';
+    
+    // Si ya se llamó con reject, no necesitamos confirmar de nuevo (ya se confirmó con el textarea)
+    if (action === 'reject' && rejectionReason) {
+      // Proceder directamente sin confirmación adicional
+    } else if (action === 'approve') {
+      const result = await Swal.fire({
+        title: confirmTitle,
+        html: `
+          <div class="text-left">
+            <p class="text-gray-700 mb-3">${confirmText}</p>
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+              <p class="text-sm text-blue-800">
+                <strong>Importante:</strong> Al aprobar este voucher:
+              </p>
+              <ul class="text-sm text-blue-700 mt-2 space-y-1 list-disc list-inside">
+                <li>Se marcará el voucher como aprobado</li>
+                <li>Se actualizará la cuota correspondiente</li>
+                <li>Se registrará tu nombre como revisor</li>
+              </ul>
+            </div>
           </div>
-        </div>
-      `,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#10b981',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Sí, Verificar',
-      cancelButtonText: 'Cancelar',
-      reverseButtons: true
-    });
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Sí, Aprobar',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+      });
 
-    if (!result.isConfirmed) return;
+      if (!result.isConfirmed) return;
+    }
 
     try {
-      const response = await axios.post(`/cashier/installments/${installmentId}/verify`);
+      const response = await axios.post(`/cashier/vouchers/${voucherId}/verify`, {
+        action,
+        rejection_reason: rejectionReason
+      });
       
       if (response.data.success) {
         // Actualizar el estado local
         if (selectedStudent?.enrollment) {
-          const updatedInstallments = selectedStudent.enrollment.installments?.map(inst =>
-            inst.id === installmentId ? response.data.installment : inst
-          );
+          // Recargar el enrollment completo
+          const enrollmentResponse = await axios.get(`/cashier/students/${selectedStudent.id}/enrollment`);
           
-          setSelectedStudent({
-            ...selectedStudent,
-            enrollment: {
-              ...selectedStudent.enrollment,
-              installments: updatedInstallments,
-              totalPaid: response.data.enrollment.totalPaid,
-              totalPending: response.data.enrollment.totalPending,
-              paymentProgress: response.data.enrollment.paymentProgress
-            }
-          });
+          if (enrollmentResponse.data.success) {
+            setSelectedStudent({
+              ...selectedStudent,
+              enrollment: enrollmentResponse.data.enrollment
+            });
+          }
         }
 
         await Swal.fire({
-          title: '¡Verificado!',
-          text: 'El pago ha sido verificado exitosamente',
+          title: action === 'approve' ? '¡Aprobado!' : 'Rechazado',
+          text: response.data.message,
           icon: 'success',
           confirmButtonColor: '#10b981',
           timer: 2000,
@@ -385,10 +463,10 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
         });
       }
     } catch (error) {
-      console.error('Error al verificar pago:', error);
+      console.error('Error al verificar voucher:', error);
       await Swal.fire({
         title: 'Error',
-        text: 'No se pudo verificar el pago',
+        text: 'No se pudo procesar la verificación del voucher',
         icon: 'error',
         confirmButtonColor: '#ef4444'
       });
@@ -723,7 +801,7 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
           student={selectedStudent} 
           enrollment={selectedStudent.enrollment}
           onClose={() => setShowScheduleModal(false)}
-          onVerifyInstallment={handleVerifyInstallment}
+          onVerifyVoucher={handleVerifyVoucher}
         />
       )}
     </AuthenticatedLayout>

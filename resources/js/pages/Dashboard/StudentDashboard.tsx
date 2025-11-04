@@ -43,7 +43,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
       </div>
 
       {/* Banner de Estado de Matrícula */}
-      {student.enrollment && !student.enrollment.enrollment_fee_verified && (
+      {student.enrollmentVerified === false && student.prospectStatus === 'matriculado' && (
         <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-400 rounded-2xl p-6 shadow-lg animate-pulse">
           <div className="flex items-start space-x-4">
             <div className="flex-shrink-0">
@@ -61,9 +61,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
                 <Clock className="h-4 w-4" />
                 <span>Estado: <strong className="text-yellow-700">Pendiente de revisión</strong></span>
               </div>
-              {student.enrollment.created_at && (
+              {student.enrollmentDate && (
                 <div className="mt-2 text-xs text-slate-500">
-                  Fecha de registro: {new Date(student.enrollment.created_at).toLocaleDateString('es-PE', { 
+                  Fecha de matrícula: {new Date(student.enrollmentDate).toLocaleDateString('es-PE', { 
                     year: 'numeric', 
                     month: 'long', 
                     day: 'numeric' 
@@ -76,7 +76,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
       )}
 
       {/* Banner de Matrícula Verificada */}
-      {student.enrollment && student.enrollment.enrollment_fee_verified && (
+      {student.enrollmentVerified === true && student.prospectStatus === 'matriculado' && (
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 rounded-2xl p-6 shadow-lg">
           <div className="flex items-start space-x-4">
             <div className="flex-shrink-0">
@@ -89,12 +89,12 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
               <p className="text-slate-700">
                 ¡Felicitaciones! Tu matrícula ha sido verificada exitosamente. Ya puedes acceder a todas las funciones de la plataforma.
               </p>
-              {student.enrollment.verifiedBy && (
+              {student.verifiedEnrollmentBy && (
                 <div className="mt-2 text-sm text-slate-600">
-                  Verificado por: <strong>{student.enrollment.verifiedBy.name}</strong>
-                  {student.enrollment.verified_at && (
+                  Verificado por: <strong>{student.verifiedEnrollmentBy.name}</strong>
+                  {student.enrollmentVerifiedAt && (
                     <span className="ml-2 text-xs text-slate-500">
-                      el {new Date(student.enrollment.verified_at).toLocaleDateString('es-PE', { 
+                      el {new Date(student.enrollmentVerifiedAt).toLocaleDateString('es-PE', { 
                         year: 'numeric', 
                         month: 'long', 
                         day: 'numeric' 
@@ -103,25 +103,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
                   )}
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Banner para estudiantes sin matrícula */}
-      {!student.enrollment && student.prospectStatus === 'matriculado' && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-400 rounded-2xl p-6 shadow-lg">
-          <div className="flex items-start space-x-4">
-            <div className="flex-shrink-0">
-              <AlertTriangle className="h-8 w-8 text-blue-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-bold text-slate-900 mb-2">
-                📋 Matrícula en Proceso
-              </h3>
-              <p className="text-slate-700">
-                Tu proceso de matrícula está siendo procesado. Pronto podrás acceder a todas las funciones de la plataforma.
-              </p>
             </div>
           </div>
         </div>

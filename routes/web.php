@@ -148,7 +148,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/cashier/payment-control', [CashierController::class, 'paymentControl'])->name('cashier.payment-control');
         Route::get('/cashier/payment-reports', [CashierController::class, 'paymentReports'])->name('cashier.payment-reports');
         Route::get('/cashier/students/{student}/enrollment', [CashierController::class, 'getStudentEnrollment'])->name('cashier.students.enrollment');
-        Route::post('/cashier/installments/{installment}/verify', [CashierController::class, 'verifyInstallment'])->name('cashier.installments.verify');
+        Route::post('/cashier/vouchers/{voucher}/verify', [CashierController::class, 'verifyVoucher'])->name('cashier.vouchers.verify');
     });
 });
 

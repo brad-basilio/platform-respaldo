@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Student;
 use App\Models\Enrollment;
 use App\Models\Installment;
+use App\Models\InstallmentVoucher;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -185,22 +186,22 @@ class CashierController extends Controller
     }
 
     /**
-     * Verifica el pago de una cuota
+     * Verifica un voucher de pago y actualiza el estado de la cuota
      */
-    public function verifyInstallment(Request $request, int $installmentId)
+    public function verifyVoucher(Request $request, int $voucherId)
     {
-        $installment = Installment::with(['enrollment.student', 'vouchers'])->findOrFail($installmentId);
+        $request->validate([
+            'action' => 'required|in:approve,reject',
+            'rejection_reason' => 'required_if:action,reject|string|max:500'
+        ]);
 
-        // Verificar que la cuota esté en estado 'paid'
-        if ($installment->status !== 'paid') {
-            return response()->json([
-                'success' => false,
-                'message' => 'La cuota debe estar en estado "pagado" para ser verificada'
-            ], 400);
-        }
+        // Cargar voucher con sus relaciones
+        $voucher = InstallmentVoucher::with(['installment.enrollment.student'])->findOrFail($voucherId);
+        
+        $installment = $voucher->installment;
+        $student = $installment->enrollment->student;
 
         // Verificar que el estudiante esté matriculado y verificado
-        $student = $installment->enrollment->student;
         if ($student->prospect_status !== 'matriculado' || !$student->enrollment_verified) {
             return response()->json([
                 'success' => false,
@@ -208,11 +209,47 @@ class CashierController extends Controller
             ], 403);
         }
 
-        // Actualizar el estado de la cuota
-        $installment->status = 'verified';
-        $installment->verified_by = $request->user()->id;
-        $installment->verified_at = now();
-        $installment->save();
+        // Verificar que el voucher esté pendiente
+        if ($voucher->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'El voucher ya fue revisado anteriormente'
+            ], 400);
+        }
+
+        if ($request->action === 'approve') {
+            // Aprobar voucher
+            $voucher->status = 'approved';
+            $voucher->reviewed_by = $request->user()->id;
+            $voucher->reviewed_at = now();
+            $voucher->save();
+
+            // Actualizar el monto pagado de la cuota
+            $installment->paid_amount = $voucher->declared_amount;
+            
+            // Si el monto pagado cubre el total, marcar como verificado
+            if ($installment->paid_amount >= $installment->amount) {
+                $installment->status = 'verified';
+                $installment->verified_by = $request->user()->id;
+                $installment->verified_at = now();
+            } else {
+                // Si no cubre el total, marcar como pagado parcialmente
+                $installment->status = 'paid';
+            }
+            
+            $installment->save();
+
+            $message = 'Voucher aprobado exitosamente';
+        } else {
+            // Rechazar voucher
+            $voucher->status = 'rejected';
+            $voucher->rejection_reason = $request->rejection_reason;
+            $voucher->reviewed_by = $request->user()->id;
+            $voucher->reviewed_at = now();
+            $voucher->save();
+
+            $message = 'Voucher rechazado';
+        }
 
         // Recargar el enrollment con totales actualizados
         $enrollment = $installment->enrollment->fresh([
@@ -222,7 +259,8 @@ class CashierController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Pago verificado exitosamente',
+            'message' => $message,
+            'voucher' => $voucher->load('reviewedBy'),
             'installment' => $installment->load('verifiedBy'),
             'enrollment' => [
                 'totalPaid' => $enrollment->totalPaid,

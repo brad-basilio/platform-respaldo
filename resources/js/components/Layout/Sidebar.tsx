@@ -81,87 +81,180 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
   };
 
   const getMenuItems = () => {
-    const baseItems = [
-      { id: 'dashboard', label: 'Panel Principal', icon: Home },
-    ];
-
     switch (user?.role) {
       case 'admin':
         return [
-          ...baseItems,
-          { id: 'students', label: 'Prospectos', icon: Users },
-          { id: 'enrolled-students', label: 'Alumnos Matriculados', icon: GraduationCap },
-          { id: 'teachers', label: 'Docentes', icon: UserCheck },
-          { id: 'groups', label: 'Creacion de grupos', icon: Users },
-          { id: 'academic-levels', label: 'Niveles Académicos', icon: GraduationCap },
-          { id: 'payment-plans', label: 'Planes de Pago', icon: CreditCard },
-          { id: 'payments', label: 'Control de pagos', icon: FileText },
-          { id: 'analytics', label: 'Estadísticas', icon: PieChart },
-          { id: 'settings', label: 'Configuración', icon: Settings },
+          {
+            section: 'GESTIÓN',
+            items: [
+              { id: 'dashboard', label: 'Panel Principal', icon: Home },
+            ]
+          },
+          {
+            section: 'PROSPECTOS',
+            items: [
+              { id: 'students', label: 'Prospectos', icon: Users },
+              { id: 'enrolled-students', label: 'Alumnos Matriculados', icon: GraduationCap },
+            ]
+          },
+          {
+            section: 'CONFIGURACIÓN',
+            items: [
+              //{ id: 'teachers', label: 'Docentes', icon: UserCheck },
+              //{ id: 'groups', label: 'Creación de grupos', icon: Users },
+              { id: 'academic-levels', label: 'Niveles Académicos', icon: GraduationCap },
+              { id: 'payment-plans', label: 'Planes de Pago', icon: CreditCard },
+            ]
+          },
+          {
+            section: 'FINANZAS',
+            items: [
+              { id: 'payments', label: 'Control de pagos', icon: FileText },
+            ]
+          },
+          {
+            section: 'REPORTES',
+            items: [
+              { id: 'analytics', label: 'Estadísticas', icon: PieChart },
+              { id: 'settings', label: 'Configuración', icon: Settings },
+            ]
+          },
         ];
       case 'teacher':
         return [
-          ...baseItems,
-          { id: 'classes', label: 'Clases', icon: BookOpen },
-          { id: 'workshops', label: 'Talleres', icon: Video },
-          { id: 'forums', label: 'Foros', icon: MessageSquare },
-          { id: 'evaluations', label: 'Evaluaciones', icon: FileText },
-          { id: 'students', label: 'Mis Estudiantes', icon: Users },
+          {
+            section: 'GESTIÓN',
+            items: [
+              { id: 'dashboard', label: 'Panel Principal', icon: Home },
+            ]
+          },
+          {
+            section: 'ACADÉMICO',
+            items: [
+              { id: 'classes', label: 'Clases', icon: BookOpen },
+              { id: 'workshops', label: 'Talleres', icon: Video },
+              { id: 'evaluations', label: 'Evaluaciones', icon: FileText },
+              { id: 'students', label: 'Mis Estudiantes', icon: Users },
+            ]
+          },
+          {
+            section: 'COMUNICACIÓN',
+            items: [
+              { id: 'forums', label: 'Foros', icon: MessageSquare },
+            ]
+          },
         ];
       case 'student':
         return [
-          ...baseItems,
-          { id: 'classes', label: 'Clases', icon: BookOpen },
-          { id: 'workshops', label: 'Talleres', icon: Video },
-          { id: 'payment-control', label: 'Control de Pagos', icon: CreditCard },
-          { id: 'forums', label: 'Foros', icon: MessageSquare },
-          { id: 'exams', label: 'Exámenes', icon: FileText },
-          { id: 'progress', label: 'Progreso', icon: BarChart3 },
-          { id: 'certificates', label: 'Certificados', icon: Award },
+          {
+            section: 'GESTIÓN',
+            items: [
+              { id: 'dashboard', label: 'Panel Principal', icon: Home },
+            ]
+          },
+    /*      {
+            section: 'ACADÉMICO',
+            items: [
+          //    { id: 'classes', label: 'Clases', icon: BookOpen },
+           //   { id: 'workshops', label: 'Talleres', icon: Video },
+            //  { id: 'exams', label: 'Exámenes', icon: FileText },
+             // { id: 'progress', label: 'Progreso', icon: BarChart3 },
+             // { id: 'certificates', label: 'Certificados', icon: Award },
+            ]
+          },*/
+          {
+            section: 'FINANZAS',
+            items: [
+              { id: 'payment-control', label: 'Control de Pagos', icon: CreditCard },
+            ]
+          },
+         /* {
+            section: 'COMUNICACIÓN',
+            items: [
+              { id: 'forums', label: 'Foros', icon: MessageSquare },
+            ]
+          },*/
         ];
       case 'sales_advisor':
         return [
-          ...baseItems,
-          { id: 'students', label: 'Mis Prospectos', icon: Users },
-          { id: 'enrolled-students', label: 'Matriculados Verificados', icon: GraduationCap },
+          {
+            section: 'GESTIÓN',
+            items: [
+              { id: 'dashboard', label: 'Panel Principal', icon: Home },
+            ]
+          },
+          {
+            section: 'VENTAS',
+            items: [
+              { id: 'students', label: 'Mis Prospectos', icon: Users },
+              { id: 'enrolled-students', label: 'Matriculados Verificados', icon: GraduationCap },
+            ]
+          },
         ];
       case 'cashier':
         return [
-          ...baseItems,
-           { id: 'students', label: 'Prospectos', icon: Users },
-          { id: 'cashier-payment-control', label: 'Control de Pagos', icon: CreditCard },
-          { id: 'payment-reports', label: 'Reportes', icon: BarChart3 },
+          {
+            section: 'GESTIÓN',
+            items: [
+              { id: 'dashboard', label: 'Panel Principal', icon: Home },
+            ]
+          },
+          {
+            section: 'FINANZAS',
+            items: [
+              { id: 'students', label: 'Prospectos', icon: Users },
+              { id: 'cashier-payment-control', label: 'Control de Pagos', icon: CreditCard },
+              { id: 'payment-reports', label: 'Reportes', icon: BarChart3 },
+            ]
+          },
         ];
       default:
-        return baseItems;
+        return [
+          {
+            section: 'GESTIÓN',
+            items: [
+              { id: 'dashboard', label: 'Panel Principal', icon: Home },
+            ]
+          },
+        ];
     }
   };
 
   return (
-    <div className="bg-white w-64 min-h-screen border-r border-slate-200">
-      <div className="p-4">
-        <nav className="space-y-1.5">
-          {getMenuItems().map((item) => {
-            const Icon = item.icon;
-            const isActive = currentActiveView === item.id;
+    <div className="bg-white w-64 border-r border-slate-200 flex flex-col overflow-hidden">
+      <div className="flex-1 overflow-y-auto p-4 sidebar-scroll">
+        <nav className="space-y-6">
+          {getMenuItems().map((section, sectionIndex) => (
+            <div key={sectionIndex} className="space-y-1.5">
+              {/* Título de la sección */}
+              <h3 className="px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                {section.section}
+              </h3>
+              
+              {/* Items de la sección */}
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = currentActiveView === item.id;
 
-            return (
-              <button
-                key={item.id}
-                onClick={() => handleNavigation(item.id)}
-                className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <Icon className={`mr-3 h-5 w-5 transition-transform group-hover:scale-110 ${
-                  isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
-                }`} />
-                <span className="truncate">{item.label}</span>
-              </button>
-            );
-          })}
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNavigation(item.id)}
+                    className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group ${
+                      isActive
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Icon className={`mr-3 h-5 w-5 transition-transform group-hover:scale-110 ${
+                      isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
+                    }`} />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </nav>
       </div>
     </div>
