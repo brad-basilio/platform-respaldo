@@ -65,21 +65,27 @@ class Enrollment extends Model
     }
 
     /**
-     * Generar cronograma de cuotas automáticamente
+     * Generar cronograma de cuotas automáticamente basado en la fecha de pago del estudiante
      */
     public function generateInstallments(): void
     {
         $plan = $this->paymentPlan;
-        $startDate = Carbon::parse($this->enrollment_date);
+        $student = $this->student;
+        
+        // Usar la fecha de pago del estudiante como base, o enrollment_date si no existe
+        $paymentDate = $student->payment_date ? Carbon::parse($student->payment_date) : Carbon::parse($this->enrollment_date);
 
         for ($i = 1; $i <= $plan->installments_count; $i++) {
-            $dueDate = $startDate->copy()->addMonths($i);
+            // Primera cuota vence 30 días después del pago inicial
+            // Las siguientes cada 30 días más
+            $dueDate = $paymentDate->copy()->addDays(30 * $i);
 
             Installment::create([
                 'enrollment_id' => $this->id,
                 'installment_number' => $i,
                 'due_date' => $dueDate,
                 'amount' => $plan->monthly_amount,
+                'late_fee' => 0, // Sin mora inicial
                 'status' => 'pending',
             ]);
         }

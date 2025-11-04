@@ -19,19 +19,15 @@ class PaymentPlanController extends Controller
         $query = PaymentPlan::with('academicLevel')
             ->withCount('enrollments as students_count');
         
-        // Filtrar por nivel académico si se proporciona
-        if ($request->has('academic_level_id')) {
-            $query->where('academic_level_id', $request->academic_level_id);
-        }
+        // Ya no filtramos por nivel académico - los planes son independientes
         
-        $paymentPlans = $query->orderBy('academic_level_id')
-            ->orderBy('installments_count')
+        $paymentPlans = $query->orderBy('installments_count')
+            ->orderBy('name')
             ->get();
 
         return Inertia::render('PaymentPlans/Index', [
             'paymentPlans' => $paymentPlans,
             'academicLevels' => $academicLevels,
-            'selectedLevelId' => $request->academic_level_id
         ]);
     }
 
@@ -43,13 +39,10 @@ class PaymentPlanController extends Controller
         $query = PaymentPlan::with('academicLevel')
             ->withCount('enrollments as students_count');
         
-        // Filtrar por nivel académico si se proporciona
-        if ($request->has('academic_level_id')) {
-            $query->where('academic_level_id', $request->academic_level_id);
-        }
+        // Ya no filtramos por nivel académico - los planes son independientes
         
-        $paymentPlans = $query->orderBy('academic_level_id')
-            ->orderBy('installments_count')
+        $paymentPlans = $query->orderBy('installments_count')
+            ->orderBy('name')
             ->get();
             
         return response()->json($paymentPlans);
@@ -62,7 +55,7 @@ class PaymentPlanController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'academic_level_id' => 'required|exists:academic_levels,id',
+            'academic_level_id' => 'nullable|exists:academic_levels,id',  // Ahora es opcional
             'installments_count' => 'required|integer|min:1|max:12',
             'monthly_amount' => 'required|numeric|min:0',
             'total_amount' => 'required|numeric|min:0',
@@ -91,7 +84,7 @@ class PaymentPlanController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'academic_level_id' => 'required|exists:academic_levels,id',
+            'academic_level_id' => 'nullable|exists:academic_levels,id',  // Ahora es opcional
             'installments_count' => 'required|integer|min:1|max:12',
             'monthly_amount' => 'required|numeric|min:0',
             'total_amount' => 'required|numeric|min:0',

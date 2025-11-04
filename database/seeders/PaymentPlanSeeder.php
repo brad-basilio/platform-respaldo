@@ -13,133 +13,92 @@ class PaymentPlanSeeder extends Seeder
      */
     public function run(): void
     {
-        // Obtener los IDs de los niveles académicos
-        $basicLevel = AcademicLevel::where('code', 'basic')->first();
-        $intermediateLevel = AcademicLevel::where('code', 'intermediate')->first();
-        $advancedLevel = AcademicLevel::where('code', 'advanced')->first();
+        // Los planes de pago ahora son independientes del nivel académico
+        // Se aplican al curso completo, no a un nivel específico
+        
+        // LÓGICA DE INTERESES:
+        // - Pago al contado (1 cuota): SIN intereses - precio base S/ 1800
+        // - Pago en 3 meses: Interés del 5% - S/ 1890
+        // - Pago en 6 meses: Interés del 10% - S/ 1980
+        // - Pago en 9 meses: Interés del 15% - S/ 2070
+        // - Pago en 12 meses: Interés del 20% - S/ 2160
+
+        $basePrice = 1800.00; // Precio base del curso sin intereses
 
         $plans = [
-            // ========== NIVEL BÁSICO ==========
+            // ========== PAGO AL CONTADO - SIN INTERESES ==========
             [
-                'name' => 'Plan Premium - Pago al Contado',
-                'academic_level_id' => $basicLevel->id,
+                'name' => 'Pago al Contado',
+                'academic_level_id' => null,
                 'installments_count' => 1,
-                'monthly_amount' => 1000.00,
-                'total_amount' => 1000.00,
-                'discount_percentage' => 24.24, // Ahorro de S/ 320
+                'monthly_amount' => $basePrice,
+                'total_amount' => $basePrice,
+                'discount_percentage' => 0, // Sin descuento, precio base
                 'duration_months' => 1,
                 'late_fee_percentage' => 0, // Sin mora (pago único)
                 'grace_period_days' => 0,
                 'is_active' => true,
-                'description' => 'Pago único con 24% de descuento. Ideal para quienes prefieren pagar todo al inicio.',
+                'description' => 'Pago único sin intereses. Precio base del curso.',
             ],
+            
+            // ========== PAGO EN 3 MESES - 5% INTERÉS ==========
             [
-                'name' => 'Plan Estándar - 3 Cuotas',
-                'academic_level_id' => $basicLevel->id,
+                'name' => 'Plan 3 Meses',
+                'academic_level_id' => null,
                 'installments_count' => 3,
-                'monthly_amount' => 400.00,
-                'total_amount' => 1200.00,
-                'discount_percentage' => 9.09, // Ahorro de S/ 120
+                'monthly_amount' => 630.00, // 1890 / 3
+                'total_amount' => 1890.00,  // 1800 + 5% = 1890
+                'discount_percentage' => 0,  // Aquí representamos que tiene interés
                 'duration_months' => 3,
                 'late_fee_percentage' => 5.0, // 5% de mora mensual
                 'grace_period_days' => 5,
                 'is_active' => true,
-                'description' => 'Pago en 3 cuotas mensuales con descuento moderado. 5 días de gracia.',
+                'description' => 'Pago en 3 cuotas mensuales. Incluye 5% de interés sobre el precio base.',
             ],
+            
+            // ========== PAGO EN 6 MESES - 10% INTERÉS ==========
             [
-                'name' => 'Plan Flexible - 6 Cuotas',
-                'academic_level_id' => $basicLevel->id,
+                'name' => 'Plan 6 Meses',
+                'academic_level_id' => null,
                 'installments_count' => 6,
-                'monthly_amount' => 220.00,
-                'total_amount' => 1320.00,
+                'monthly_amount' => 330.00, // 1980 / 6
+                'total_amount' => 1980.00,  // 1800 + 10% = 1980
                 'discount_percentage' => 0,
                 'duration_months' => 6,
                 'late_fee_percentage' => 5.0,
                 'grace_period_days' => 5,
                 'is_active' => true,
-                'description' => 'Cuotas más accesibles distribuidas en 6 meses. Sin descuento.',
+                'description' => 'Pago en 6 cuotas mensuales. Incluye 10% de interés sobre el precio base.',
             ],
-
-            // ========== NIVEL INTERMEDIO ==========
+            
+            // ========== PAGO EN 9 MESES - 15% INTERÉS ==========
             [
-                'name' => 'Plan Premium - Pago al Contado',
-                'academic_level_id' => $intermediateLevel->id,
-                'installments_count' => 1,
-                'monthly_amount' => 1400.00,
-                'total_amount' => 1400.00,
-                'discount_percentage' => 22.22,
-                'duration_months' => 1,
-                'late_fee_percentage' => 0,
-                'grace_period_days' => 0,
-                'is_active' => true,
-                'description' => 'Pago único nivel intermedio con descuento especial.',
-            ],
-            [
-                'name' => 'Plan Estándar - 3 Cuotas',
-                'academic_level_id' => $intermediateLevel->id,
-                'installments_count' => 3,
-                'monthly_amount' => 550.00,
-                'total_amount' => 1650.00,
-                'discount_percentage' => 8.33,
-                'duration_months' => 3,
-                'late_fee_percentage' => 5.0,
-                'grace_period_days' => 5,
-                'is_active' => true,
-                'description' => 'Plan de 3 meses para nivel intermedio.',
-            ],
-            [
-                'name' => 'Plan Flexible - 6 Cuotas',
-                'academic_level_id' => $intermediateLevel->id,
-                'installments_count' => 6,
-                'monthly_amount' => 300.00,
-                'total_amount' => 1800.00,
+                'name' => 'Plan 9 Meses',
+                'academic_level_id' => null,
+                'installments_count' => 9,
+                'monthly_amount' => 230.00, // 2070 / 9
+                'total_amount' => 2070.00,  // 1800 + 15% = 2070
                 'discount_percentage' => 0,
-                'duration_months' => 6,
+                'duration_months' => 9,
                 'late_fee_percentage' => 5.0,
                 'grace_period_days' => 5,
                 'is_active' => true,
-                'description' => 'Cuotas mensuales accesibles para nivel intermedio.',
+                'description' => 'Pago en 9 cuotas mensuales. Incluye 15% de interés sobre el precio base.',
             ],
-
-            // ========== NIVEL AVANZADO ==========
+            
+            // ========== PAGO EN 12 MESES - 20% INTERÉS ==========
             [
-                'name' => 'Plan Premium - Pago al Contado',
-                'academic_level_id' => $advancedLevel->id,
-                'installments_count' => 1,
-                'monthly_amount' => 1800.00,
-                'total_amount' => 1800.00,
-                'discount_percentage' => 20.00,
-                'duration_months' => 1,
-                'late_fee_percentage' => 0,
-                'grace_period_days' => 0,
-                'is_active' => true,
-                'description' => 'Pago único nivel avanzado con máximo descuento.',
-            ],
-            [
-                'name' => 'Plan Estándar - 3 Cuotas',
-                'academic_level_id' => $advancedLevel->id,
-                'installments_count' => 3,
-                'monthly_amount' => 700.00,
-                'total_amount' => 2100.00,
-                'discount_percentage' => 6.67,
-                'duration_months' => 3,
-                'late_fee_percentage' => 5.0,
-                'grace_period_days' => 5,
-                'is_active' => true,
-                'description' => 'Plan de 3 meses para nivel avanzado.',
-            ],
-            [
-                'name' => 'Plan Flexible - 6 Cuotas',
-                'academic_level_id' => $advancedLevel->id,
-                'installments_count' => 6,
-                'monthly_amount' => 380.00,
-                'total_amount' => 2280.00,
+                'name' => 'Plan 12 Meses',
+                'academic_level_id' => null,
+                'installments_count' => 12,
+                'monthly_amount' => 180.00, // 2160 / 12
+                'total_amount' => 2160.00,  // 1800 + 20% = 2160
                 'discount_percentage' => 0,
-                'duration_months' => 6,
+                'duration_months' => 12,
                 'late_fee_percentage' => 5.0,
                 'grace_period_days' => 5,
                 'is_active' => true,
-                'description' => 'Flexibilidad de pago para nivel avanzado.',
+                'description' => 'Pago en 12 cuotas mensuales. Incluye 20% de interés sobre el precio base.',
             ],
         ];
 

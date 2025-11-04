@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Users, Plus, CreditCard as Edit, Trash2, UserCheck, UserX, Eye, List, Columns2 as Columns, Search, XCircle } from 'lucide-react';
+import { Users, Plus, CreditCard as Edit, Trash2, UserCheck, UserX, Eye, List, Columns2 as Columns, Search, XCircle, Calendar } from 'lucide-react';
 import { Student, Group, AcademicLevel, PaymentPlan } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import axios from 'axios';
@@ -11,6 +11,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
 import { motion, AnimatePresence } from 'framer-motion';
+import PaymentScheduleModal from '@/components/PaymentScheduleModal';
 import '../../../css/ag-grid-custom.css';
 
 // Registrar módulos de AG Grid Community
@@ -37,6 +38,10 @@ const StudentManagement: React.FC<Props> = ({
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [draggedStudent, setDraggedStudent] = useState<Student | null>(null);
   const [quickFilterText, setQuickFilterText] = useState<string>('');
+  
+  // ✅ Nuevo: Estado para Payment Schedule Modal
+  const [paymentScheduleModalOpen, setPaymentScheduleModalOpen] = useState(false);
+  const [selectedStudentForSchedule, setSelectedStudentForSchedule] = useState<Student | null>(null);
 
   // Función para obtener la lista de estudiantes desde el backend y mantener el estado canónico
   const fetchStudents = async () => {
@@ -81,7 +86,7 @@ const StudentManagement: React.FC<Props> = ({
   const getProspectStatusLabel = (status: string) => {
     switch (status) {
       case 'registrado': return 'Registrado';
-      case 'propuesta_enviada': return 'Propuesta Enviada';
+      case 'propuesta_enviada': return 'Reunión Realizada';
       case 'pago_por_verificar': return 'Pago Por Verificar';
       case 'matriculado': return 'Matriculado';
       default: return 'Sin Estado';
@@ -1300,7 +1305,7 @@ const StudentManagement: React.FC<Props> = ({
                         label="Nivel Académico"
                         value={formData.academicLevelId}
                         onChange={(value) => {
-                          setFormData({ ...formData, academicLevelId: value as number, paymentPlanId: undefined });
+                          setFormData({ ...formData, academicLevelId: value as number });
                         }}
                         options={academicLevels.map(level => ({
                           value: level.id,
@@ -1316,25 +1321,19 @@ const StudentManagement: React.FC<Props> = ({
                         label="Plan de Pago"
                         value={formData.paymentPlanId}
                         onChange={(value) => setFormData({ ...formData, paymentPlanId: value as number })}
-                        options={
-                          formData.academicLevelId
-                            ? paymentPlans
-                                .filter(plan => plan.academic_level_id === formData.academicLevelId)
-                                .map(plan => ({
-                                  value: plan.id,
-                                  label: `${plan.name} - ${plan.installments_count} cuotas (S/ ${plan.total_amount.toFixed(2)})`
-                                }))
-                            : []
+                        options={paymentPlans
+                          .filter(plan => plan.is_active)
+                          .map(plan => ({
+                            value: plan.id,
+                            label: `${plan.name} - ${plan.installments_count} cuotas (S/ ${plan.total_amount.toFixed(2)})`
+                          }))
                         }
                         isSearchable={false}
                         isClearable={true}
-                        isDisabled={!formData.academicLevelId}
                       />
-                      {!formData.academicLevelId && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Primero selecciona un nivel académico
-                        </p>
-                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        El plan de pago es independiente del nivel académico
+                      </p>
                     </div>
 
                     {/* ✅ NUEVO: Campo para subir voucher de pago */}
@@ -1682,28 +1681,123 @@ const StudentManagement: React.FC<Props> = ({
 
             {/* Footer con Botones */}
             <div className="bg-gray-50 px-8 py-6 rounded-b-3xl border-t-2 border-gray-200 flex-shrink-0">
-              <div className="flex justify-end gap-4">
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="px-6 py-3 text-gray-700 bg-white hover:bg-gray-100 border-2 border-gray-300 rounded-xl font-semibold transition-all duration-200"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isCashierEditing && !formData.paymentVerified}
-                  className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm flex items-center gap-2 ${isCashierEditing && !formData.paymentVerified
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
-                    }`}
-                >
-                  {isCashierEditing
-                    ? (formData.paymentVerified ? 'Verificar y Matricular' : 'Marcar la verificación')
-                    : student
-                      ? 'Actualizar'
-                      : 'Registrar'}
-                </button>
+              <div className="flex justify-between items-center gap-4">
+                {/* Botones de Cronograma */}
+                {student && (
+                  <>
+                    {/* Ver Cronograma - Solo para estudiantes matriculados */}
+                    {student.prospectStatus === 'matriculado' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedStudentForSchedule(student);
+                          setPaymentScheduleModalOpen(true);
+                        }}
+                        className="px-6 py-3 text-blue-700 bg-blue-50 hover:bg-blue-100 border-2 border-blue-300 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        Ver Cronograma de Pagos
+                      </button>
+                    )}
+                    
+                    {/* Crear/Ver Cronograma - Para cajeros en pago_por_verificar */}
+                    {student.prospectStatus === 'pago_por_verificar' && userRole === 'cashier' && (
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          
+                          console.log('Botón cronograma clickeado');
+                          
+                          if (!student.paymentPlanId) {
+                            toast.error('El estudiante no tiene un plan de pago asignado');
+                            return;
+                          }
+                          
+                          // Cerrar el modal de edición primero
+                          onCancel();
+                          
+                          // Esperar un poco para que se cierre el modal
+                          setTimeout(async () => {
+                            // Primero intentar obtener el enrollment existente
+                            try {
+                              const checkResponse = await axios.get(`/api/students/${student.id}/enrollment`);
+                              
+                              console.log('Enrollment response:', checkResponse.data);
+                              
+                              // Si existe enrollment, abrir modal
+                              if (checkResponse.status === 200) {
+                                setSelectedStudentForSchedule(student);
+                                setPaymentScheduleModalOpen(true);
+                                return;
+                              }
+                            } catch (checkError) {
+                              console.log('No enrollment found, will try to create:', checkError);
+                              
+                              // Si no existe (404), intentar crear uno nuevo
+                              if (!student.enrollmentDate) {
+                                toast.error('El estudiante no tiene fecha de matrícula');
+                                return;
+                              }
+                              
+                              try {
+                                const createResponse = await axios.post('/api/enrollments', {
+                                  student_id: student.id,
+                                  payment_plan_id: student.paymentPlanId,
+                                  enrollment_date: student.enrollmentDate,
+                                  enrollment_fee: 0,
+                                  notes: 'Matrícula creada desde gestión de prospectos'
+                                });
+                                
+                                console.log('Enrollment created:', createResponse.data);
+                                
+                                toast.success('Cronograma de pagos creado exitosamente');
+                                
+                                // Abrir el modal después de crear
+                                setTimeout(() => {
+                                  setSelectedStudentForSchedule(student);
+                                  setPaymentScheduleModalOpen(true);
+                                }, 300);
+                              } catch (createError) {
+                                console.error('Error creating enrollment:', createError);
+                                toast.error('Error al crear el cronograma de pagos');
+                              }
+                            }
+                          }, 200);
+                        }}
+                        className="px-6 py-3 text-green-700 bg-green-50 hover:bg-green-100 border-2 border-green-300 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        Ver/Crear Cronograma de Pagos
+                      </button>
+                    )}
+                  </>
+                )}
+                
+                <div className="flex justify-end gap-4 ml-auto">
+                  <button
+                    type="button"
+                    onClick={onCancel}
+                    className="px-6 py-3 text-gray-700 bg-white hover:bg-gray-100 border-2 border-gray-300 rounded-xl font-semibold transition-all duration-200"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCashierEditing && !formData.paymentVerified}
+                    className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm flex items-center gap-2 ${isCashierEditing && !formData.paymentVerified
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
+                  >
+                    {isCashierEditing
+                      ? (formData.paymentVerified ? 'Verificar y Matricular' : 'Marcar la verificación')
+                      : student
+                        ? 'Actualizar'
+                        : 'Registrar'}
+                  </button>
+                </div>
               </div>
             </div>
           </form>
@@ -2035,6 +2129,17 @@ const StudentManagement: React.FC<Props> = ({
         )}
 
       </div>
+      
+      {/* Payment Schedule Modal */}
+      {selectedStudentForSchedule && (
+        <PaymentScheduleModal
+          open={paymentScheduleModalOpen}
+          onOpenChange={setPaymentScheduleModalOpen}
+          studentId={selectedStudentForSchedule.id}
+          studentName={selectedStudentForSchedule.name}
+          userRole={userRole}
+        />
+      )}
     </AuthenticatedLayout>
   );
 };

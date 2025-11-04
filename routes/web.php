@@ -10,6 +10,10 @@ use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\AcademicLevelController;
 use App\Http\Controllers\PaymentPlanController;
+use App\Http\Controllers\EnrollmentController;
+use App\Http\Controllers\InstallmentController;
+use App\Http\Controllers\InstallmentVoucherController;
+use App\Http\Controllers\VoucherVerificationController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -30,7 +34,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/admin/students/{student}', [StudentController::class, 'destroy'])->name('admin.students.destroy');
         Route::put('/admin/students/{student}/prospect-status', [StudentController::class, 'updateProspectStatus'])->name('admin.students.prospect-status');
         Route::get('/admin/students/{student}/contract', [StudentController::class, 'downloadContract'])->name('admin.students.contract');
-        Route::get('/admin/students/{student}/payment-voucher', [StudentController::class, 'viewPaymentVoucher'])->name('admin.students.payment-voucher');  // ✅ NUEVO
+        Route::get('/admin/students/{student}/payment-voucher', [StudentController::class, 'viewPaymentVoucher'])->name('admin.students.payment-voucher');
+        
+        // Enrollments & Payment Schedules
+        Route::get('/api/students/{student}/enrollment', [EnrollmentController::class, 'show'])->name('api.students.enrollment');
+        Route::post('/api/enrollments', [EnrollmentController::class, 'store'])->name('api.enrollments.store');
+        Route::put('/api/enrollments/{enrollment}', [EnrollmentController::class, 'update'])->name('api.enrollments.update');
+        
+        // Installments (Cuotas)
+        Route::get('/api/enrollments/{enrollment}/installments', [InstallmentController::class, 'index'])->name('api.enrollments.installments');
+        Route::get('/api/installments/{installment}', [InstallmentController::class, 'show'])->name('api.installments.show');
+        Route::put('/api/installments/{installment}', [InstallmentController::class, 'update'])->name('api.installments.update');
+        Route::post('/api/installments/{installment}/verify', [InstallmentController::class, 'verify'])->name('api.installments.verify');
+        Route::post('/api/enrollments/{enrollment}/recalculate-late-fees', [InstallmentController::class, 'recalculateLateFees'])->name('api.enrollments.recalculate-late-fees');
+        
+        // Installment Vouchers (Vouchers de Cuotas)
+        Route::post('/api/installments/{installment}/vouchers', [InstallmentVoucherController::class, 'store'])->name('api.installments.vouchers.store');
+        Route::get('/api/vouchers/{voucher}', [InstallmentVoucherController::class, 'show'])->name('api.vouchers.show');
+        Route::post('/api/vouchers/{voucher}/approve', [InstallmentVoucherController::class, 'approve'])->name('api.vouchers.approve');
+        Route::post('/api/vouchers/{voucher}/reject', [InstallmentVoucherController::class, 'reject'])->name('api.vouchers.reject');
+        Route::get('/api/vouchers/pending', [InstallmentVoucherController::class, 'pending'])->name('api.vouchers.pending');
+        
+        // Voucher Verification Page (for cashiers)
+        Route::get('/admin/voucher-verification', [VoucherVerificationController::class, 'index'])->name('admin.voucher-verification');
     });
       // Input Demo
         Route::get('/admin/input-demo', function () {
@@ -67,6 +93,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'destroy' => 'admin.payment-plans.destroy',
             ]);
         Route::get('/api/admin/payment-plans', [PaymentPlanController::class, 'getPaymentPlansJson'])->name('api.admin.payment-plans');
+        
+        // Enrollments & Installments (Admin only)
+        Route::get('/api/admin/enrollments', [EnrollmentController::class, 'index'])->name('api.admin.enrollments');
+        Route::get('/api/admin/installments/overdue', [InstallmentController::class, 'overdueInstallments'])->name('api.admin.installments.overdue');
         
         // Teacher Management
         Route::get('/admin/teachers', [TeacherController::class, 'index'])->name('admin.teachers');

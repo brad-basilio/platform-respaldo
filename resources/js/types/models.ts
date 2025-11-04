@@ -293,7 +293,7 @@ export interface AcademicLevel {
 export interface PaymentPlan {
   id: number;
   name: string;
-  academic_level_id: number;
+  academic_level_id?: number;  // Ahora es opcional - el plan no está amarrado a un nivel
   academicLevel?: AcademicLevel;
   installments_count: number;
   monthly_amount: number;
@@ -307,4 +307,94 @@ export interface PaymentPlan {
   students_count?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+// ✅ Sistema de Matrículas y Cuotas
+export interface Enrollment {
+  id: number;
+  student_id: string;
+  student?: Student;
+  payment_plan_id: number;
+  paymentPlan?: PaymentPlan;
+  enrollment_fee: number;
+  enrollment_voucher_path?: string;
+  enrollment_voucher_url?: string;
+  status: 'active' | 'paused' | 'completed' | 'cancelled';
+  notes?: string;
+  verified_by?: string;
+  verifiedBy?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  verified_at?: string;
+  created_at: string;
+  updated_at: string;
+  
+  // Relaciones
+  installments?: Installment[];
+  
+  // Atributos calculados
+  totalPaid?: number;
+  totalPending?: number;
+  paymentProgress?: number;
+}
+
+export interface Installment {
+  id: number;
+  enrollment_id: number;
+  enrollment?: Enrollment;
+  installment_number: number;
+  due_date: string;
+  amount: number;
+  late_fee: number;
+  paid_amount: number;
+  status: 'pending' | 'paid' | 'verified' | 'overdue' | 'cancelled';
+  notes?: string;
+  verified_by?: string;
+  verifiedBy?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  verified_at?: string;
+  created_at: string;
+  updated_at: string;
+  
+  // Relaciones
+  vouchers?: InstallmentVoucher[];
+  
+  // Atributos calculados
+  totalDue?: number;
+  isOverdue?: boolean;
+  daysLate?: number;
+}
+
+export interface InstallmentVoucher {
+  id: number;
+  installment_id: number;
+  installment?: Installment;
+  voucher_path: string;
+  voucher_url?: string;
+  declared_amount: number;
+  payment_date: string;
+  payment_method: 'cash' | 'transfer' | 'deposit' | 'card';
+  transaction_reference?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewed_by?: string;
+  reviewedBy?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  reviewed_at?: string;
+  rejection_reason?: string;
+  uploaded_by: string;
+  uploadedBy?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  created_at: string;
+  updated_at: string;
 }

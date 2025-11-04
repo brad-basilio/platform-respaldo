@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Select2 } from '@/components/ui/Select2';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
@@ -27,7 +26,7 @@ interface AcademicLevel {
 interface PaymentPlan {
   id: number;
   name: string;
-  academic_level_id: number;
+  academic_level_id?: number;  // Ahora es opcional
   academic_level?: AcademicLevel;
   installments_count: number;
   monthly_amount: number;
@@ -43,23 +42,20 @@ interface PaymentPlan {
 
 interface Props {
   paymentPlans: PaymentPlan[];
-  academicLevels: AcademicLevel[];
-  selectedLevelId?: number;
+  academicLevels: AcademicLevel[];  // Todavía lo recibimos del backend pero no lo usamos
 }
 
 const PaymentPlansIndex: React.FC<Props> = ({ 
-  paymentPlans: initialPlans, 
-  academicLevels,
-  selectedLevelId: initialSelectedLevel
+  paymentPlans: initialPlans,
+  // academicLevels ya no se usa en el frontend
 }) => {
   const [plans, setPlans] = useState<PaymentPlan[]>(initialPlans);
-  const [selectedLevelId, setSelectedLevelId] = useState<number | undefined>(initialSelectedLevel);
   const [showForm, setShowForm] = useState(false);
   const [editingPlan, setEditingPlan] = useState<PaymentPlan | null>(null);
   const [quickFilterText, setQuickFilterText] = useState<string>('');
   const [formData, setFormData] = useState<Partial<PaymentPlan>>({
     name: '',
-    academic_level_id: undefined,
+    academic_level_id: undefined,  // Opcional
     installments_count: 1,
     monthly_amount: 0,
     total_amount: 0,
@@ -74,8 +70,6 @@ const PaymentPlansIndex: React.FC<Props> = ({
   // Función para obtener planes de pago desde el backend
   const fetchPaymentPlans = useCallback(async () => {
     try {
-      // SIEMPRE obtener todos los planes sin filtrar
-      // El filtrado por tab se hace en el frontend con filteredPlans
       const response = await axios.get('/api/admin/payment-plans');
       const paymentPlans = response.data;
       
@@ -90,19 +84,12 @@ const PaymentPlansIndex: React.FC<Props> = ({
         duration: 5000,
       });
     }
-  }, []); // Sin dependencias porque siempre obtiene todos
+  }, []);
 
-  // Obtener lista al montar y cuando cambie el nivel seleccionado
+  // Obtener lista al montar
   React.useEffect(() => {
     fetchPaymentPlans();
   }, [fetchPaymentPlans]);
-
-  // Filtrar planes según el tab activo
-  const filteredPlans = useMemo(() => {
-    return selectedLevelId
-      ? plans.filter(p => p.academic_level_id === selectedLevelId)
-      : plans;
-  }, [plans, selectedLevelId]);
 
   // Handlers
   const handleEdit = useCallback((plan: PaymentPlan) => {
@@ -152,13 +139,15 @@ const PaymentPlansIndex: React.FC<Props> = ({
           <div className="flex items-center py-2 h-full">
             <div 
               className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: plan.academic_level?.color || '#3B82F6' }}
+              style={{ backgroundColor: '#3B82F6' }}
             >
               <CreditCard className="w-5 h-5 text-white" />
             </div>
             <div className="ml-3">
               <div className="text-sm font-medium text-gray-900">{plan.name}</div>
-              <div className="text-xs text-gray-500">{plan.academic_level?.name}</div>
+              <div className="text-xs text-gray-500">
+                {plan.installments_count} {plan.installments_count === 1 ? 'cuota' : 'cuotas'} - S/ {plan.total_amount.toFixed(2)}
+              </div>
             </div>
           </div>
         );
@@ -203,19 +192,25 @@ const PaymentPlansIndex: React.FC<Props> = ({
       }
     },
     {
-      headerName: 'Descuento',
+      headerName: 'Interés',
       field: 'discount_percentage',
       width: 120,
       cellRenderer: (params: any) => {
-        const discount = params.value || 0;
+        // Calculamos el interés basado en el precio base de S/ 1800
+        const basePrice = 1800;
+        const totalAmount = params.data.total_amount;
+        const interestPercentage = ((totalAmount - basePrice) / basePrice * 100).toFixed(1);
+        
         return (
           <div className="flex items-center justify-center h-full">
-            {discount > 0 ? (
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                {discount}%
+            {parseFloat(interestPercentage) > 0 ? (
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800">
+                +{interestPercentage}%
               </span>
             ) : (
-              <span className="text-xs text-gray-400">Sin descuento</span>
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                Sin interés
+              </span>
             )}
           </div>
         );
@@ -345,7 +340,7 @@ const PaymentPlansIndex: React.FC<Props> = ({
     setEditingPlan(null);
     setFormData({
       name: '',
-      academic_level_id: selectedLevelId || academicLevels[0]?.id,
+      academic_level_id: undefined,  // No pre-seleccionar, ahora es opcional
       installments_count: 1,
       monthly_amount: 0,
       total_amount: 0,
@@ -398,10 +393,9 @@ const PaymentPlansIndex: React.FC<Props> = ({
   const calculateTotalAmount = () => {
     const monthly = formData.monthly_amount || 0;
     const installments = formData.installments_count || 1;
-    const discount = formData.discount_percentage || 0;
     
-    const subtotal = monthly * installments;
-    const total = subtotal * (1 - discount / 100);
+    // Simplemente multiplicar: mensualidad × número de cuotas
+    const total = monthly * installments;
     
     setFormData({ ...formData, total_amount: Math.round(total * 100) / 100 });
   };
@@ -417,7 +411,7 @@ const PaymentPlansIndex: React.FC<Props> = ({
               Planes de Pago
             </h1>
             <p className="text-gray-600 mt-1">
-              Configura los planes de pago por nivel académico
+              Configura los planes de pago disponibles para el curso
             </p>
           </div>
           <Button onClick={handleCreate} className="flex items-center gap-2">
@@ -432,7 +426,7 @@ const PaymentPlansIndex: React.FC<Props> = ({
           <div className="relative">
             <Input
               type="text"
-              label="Buscar por nombre, nivel, descripción..."
+              label="Buscar por nombre, descripción..."
               value={quickFilterText}
               onChange={(e) => setQuickFilterText(e.target.value)}
               icon={<Search className="w-4 h-4" />}
@@ -448,56 +442,13 @@ const PaymentPlansIndex: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Tabs para filtrar por nivel */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1 inline-flex overflow-x-auto">
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setSelectedLevelId(undefined)}
-                className={`px-6 py-3 rounded-lg font-medium transition-all whitespace-nowrap ${
-                  !selectedLevelId
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                Todos los Planes
-                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-white/20">
-                  {plans.length}
-                </span>
-              </button>
-              
-              {academicLevels.map((level) => (
-                <button
-                  key={level.id}
-                  onClick={() => setSelectedLevelId(level.id)}
-                  className={`px-6 py-3 rounded-lg font-medium transition-all whitespace-nowrap ${
-                    selectedLevelId === level.id
-                      ? 'text-white shadow-md'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                  style={
-                    selectedLevelId === level.id
-                      ? { 
-                          background: `linear-gradient(to right, ${level.color || '#3B82F6'}, ${level.color || '#3B82F6'}dd)` 
-                        }
-                      : {}
-                  }
-                >
-                  {level.name}
-                  <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-white/20">
-                    {plans.filter(p => p.academic_level_id === level.id).length}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div 
               className="ag-theme-quartz" 
-              style={{ height: 'calc(100vh - 400px)', width: '100%' }}
+              style={{ height: 'calc(100vh - 350px)', width: '100%' }}
             >
               <AgGridReact
-                rowData={filteredPlans}
+                rowData={plans}
                 columnDefs={columnDefs}
                 quickFilterText={quickFilterText}
                 defaultColDef={{
@@ -517,14 +468,10 @@ const PaymentPlansIndex: React.FC<Props> = ({
         </div>
 
         {/* Empty State */}
-        {filteredPlans.length === 0 && (
+        {plans.length === 0 && (
           <div className="text-center py-12">
             <CreditCard className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">
-              {selectedLevelId 
-                ? 'No hay planes de pago para este nivel académico'
-                : 'No hay planes de pago registrados'}
-            </p>
+            <p className="text-gray-500 text-lg">No hay planes de pago registrados</p>
             <p className="text-gray-400 text-sm mt-2">Crea el primer plan para comenzar</p>
           </div>
         )}
@@ -578,18 +525,8 @@ const PaymentPlansIndex: React.FC<Props> = ({
                       required
                     />
 
-                    <div>
-                      <Select2
-                        value={formData.academic_level_id}
-                        onChange={(value) => setFormData({ ...formData, academic_level_id: value as number })}
-                        options={academicLevels.map(level => ({
-                          value: level.id,
-                          label: level.name
-                        }))}
-                        label="Selecciona un nivel académico"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Nivel académico al que pertenece el plan</p>
-                    </div>
+                    {/* Campo oculto - Los planes ya NO están amarrados a niveles académicos */}
+                    <input type="hidden" name="academic_level_id" value={formData.academic_level_id || ''} />
 
                     <Textarea
                       label="Descripción"
@@ -635,38 +572,43 @@ const PaymentPlansIndex: React.FC<Props> = ({
                           onChange={(e) => setFormData({ ...formData, monthly_amount: parseFloat(e.target.value) || 0 })}
                           onBlur={calculateTotalAmount}
                           min={0}
-                         
                           required
                         />
                       </div>
 
                       <div>
                         <Input
-                          label="Descuento (%)"
+                          label="Monto Total (S/)"
                           type="number"
                           step="0.01"
-                          value={formData.discount_percentage}
-                          onChange={(e) => setFormData({ ...formData, discount_percentage: parseFloat(e.target.value) || 0 })}
-                          onBlur={calculateTotalAmount}
+                          value={formData.total_amount}
+                          onChange={(e) => setFormData({ ...formData, total_amount: parseFloat(e.target.value) || 0 })}
                           min={0}
-                          max={100}
+                          required
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Precio base S/ 1800. Al contado sin interés, fraccionado con interés.
+                        </p>
                       </div>
                     </div>
 
                     <div>
-                      <Input
-                        label="Monto Total (S/)"
-                        type="number"
-                        step="0.01"
-                        value={formData.total_amount}
-                        onChange={(e) => setFormData({ ...formData, total_amount: parseFloat(e.target.value) || 0 })}
-                        min={0}
-                        required
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Se calcula automáticamente: (Mensualidad × Cuotas) - Descuento
-                      </p>
+                      {/* Mostrar cálculo de interés */}
+                      {formData.total_amount > 1800 && (
+                        <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                          <p className="text-sm text-orange-800">
+                            <strong>Interés aplicado:</strong> +{(((formData.total_amount - 1800) / 1800) * 100).toFixed(1)}%
+                            (S/ {(formData.total_amount - 1800).toFixed(2)} sobre el precio base)
+                          </p>
+                        </div>
+                      )}
+                      {formData.total_amount === 1800 && formData.installments_count === 1 && (
+                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <p className="text-sm text-green-800">
+                            <strong>✓ Sin interés</strong> - Pago al contado al precio base
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

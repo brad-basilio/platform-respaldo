@@ -162,23 +162,23 @@ const AcademicLevelsIndex: React.FC<Props> = ({ academicLevels: initialLevels })
         );
       }
     },
-    {
-      headerName: 'Planes de Pago',
-      field: 'payment_plans_count',
-      width: 150,
-      cellRenderer: (params: any) => {
-        const count = params.value || 0;
-        return (
-          <div className="flex items-center justify-center h-full">
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-              count > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'
-            }`}>
-              {count} {count === 1 ? 'plan' : 'planes'}
-            </span>
-          </div>
-        );
-      }
-    },
+    // {
+    //   headerName: 'Planes de Pago',
+    //   field: 'payment_plans_count',
+    //   width: 150,
+    //   cellRenderer: (params: any) => {
+    //     const count = params.value || 0;
+    //     return (
+    //       <div className="flex items-center justify-center h-full">
+    //         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+    //           count > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'
+    //         }`}>
+    //           {count} {count === 1 ? 'plan' : 'planes'}
+    //         </span>
+    //       </div>
+    //     );
+    //   }
+    // },
     {
       headerName: 'Estado',
       field: 'is_active',

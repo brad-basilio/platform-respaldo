@@ -6,9 +6,11 @@ use App\Models\Student;
 use App\Models\Group;
 use App\Models\AcademicLevel;
 use App\Models\PaymentPlan;
+use App\Models\Enrollment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;  // ✅ NUEVO: Para manejar archivos
 use Inertia\Inertia;
 use Inertia\Response;
@@ -395,7 +397,7 @@ class StudentController extends Controller
             ]);
 
             // Si marca payment_verified, cambiar directamente a matriculado
-            if ($paymentVerified === true) {
+            if ($paymentVerified === true && $student->prospect_status !== 'matriculado') {
                 $student->update([
                     'prospect_status' => 'matriculado',
                     'verified_payment_by' => $user->id,
@@ -407,6 +409,50 @@ class StudentController extends Controller
                     'student_id' => $student->id,
                     'cashier_id' => $user->id,
                 ]);
+                
+                // 🆕 El enrollment ya debería existir (creado cuando cambió a pago_por_verificar)
+                // Ahora solo verificamos la primera cuota si tiene voucher pendiente
+                $existingEnrollment = $student->enrollments()->where('status', 'active')->first();
+                
+                if ($existingEnrollment) {
+                    // Buscar la primera cuota que esté en estado "paid" (con voucher pendiente de verificación)
+                    $firstInstallment = $existingEnrollment->installments()
+                        ->where('status', 'paid')
+                        ->orderBy('installment_number', 'asc')
+                        ->first();
+                    
+                    if ($firstInstallment) {
+                        // Verificar la primera cuota
+                        $firstInstallment->update([
+                            'status' => 'verified',
+                            'verified_by' => $user->id, // El cajero que verificó el pago
+                            'verified_at' => now(),
+                        ]);
+                        
+                        // También marcar el voucher como aprobado
+                        $voucher = $firstInstallment->vouchers()->first();
+                        if ($voucher) {
+                            $voucher->update([
+                                'status' => 'approved',
+                            ]);
+                        }
+                        
+                        Log::info('Primera cuota verificada por cajero', [
+                            'student_id' => $student->id,
+                            'installment_id' => $firstInstallment->id,
+                            'verified_by' => $user->id,
+                        ]);
+                    } else {
+                        Log::warning('No se encontró cuota pendiente para verificar', [
+                            'student_id' => $student->id,
+                            'enrollment_id' => $existingEnrollment->id,
+                        ]);
+                    }
+                } else {
+                    Log::error('No se encontró enrollment activo para estudiante matriculado', [
+                        'student_id' => $student->id,
+                    ]);
+                }
             }
 
             // Recargar el estudiante con relaciones para devolver datos actualizados
@@ -545,9 +591,9 @@ class StudentController extends Controller
             // Guardar en storage/app/public/payment_vouchers
             $path = $file->storeAs('payment_vouchers', $fileName, 'public');
             
-            // Guardar la URL pública y el nombre original
+            // Guardar la URL pública y el nombre del archivo normalizado
             $validated['payment_voucher_url'] = Storage::url($path);
-            $validated['payment_voucher_file_name'] = $file->getClientOriginalName();
+            $validated['payment_voucher_file_name'] = $fileName;
             
             Log::info('Voucher de pago subido:', [
                 'student_id' => $student->id,
@@ -577,6 +623,9 @@ class StudentController extends Controller
                 $student->prospect_status === 'propuesta_enviada') {
                 // Auto-cambiar a pago_por_verificar
                 $student->update(['prospect_status' => 'pago_por_verificar']);
+                
+                // 🆕 CREAR ENROLLMENT automáticamente también aquí
+                $this->createEnrollmentForStudent($student);
             }
         }
 
@@ -681,6 +730,11 @@ class StudentController extends Controller
 
         $student->update(['prospect_status' => $newStatus]);
         
+        // 🆕 CREAR MATRÍCULA (ENROLLMENT) automáticamente cuando pasa a "pago_por_verificar"
+        if ($newStatus === 'pago_por_verificar') {
+            $this->createEnrollmentForStudent($student);
+        }
+        
         // Recargar el estudiante con sus relaciones
         $student->load(['registeredBy', 'verifiedPaymentBy']);
 
@@ -700,6 +754,190 @@ class StudentController extends Controller
         $random = str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
         
         return "MAT-{$year}{$month}-{$random}";
+    }
+
+    /**
+     * Crear enrollment automáticamente para un estudiante cuando cambia a pago_por_verificar
+     */
+    private function createEnrollmentForStudent(Student $student): void
+    {
+        // Verificar que no tenga ya una matrícula activa
+        $existingEnrollment = $student->enrollments()->where('status', 'active')->first();
+        
+        if ($existingEnrollment) {
+            Log::info('Estudiante ya tiene enrollment activo', [
+                'student_id' => $student->id,
+                'enrollment_id' => $existingEnrollment->id,
+            ]);
+            return;
+        }
+
+        if (!$student->payment_plan_id) {
+            Log::warning('Estudiante sin plan de pago, no se puede crear enrollment', [
+                'student_id' => $student->id,
+                'prospect_status' => $student->prospect_status,
+            ]);
+            return;
+        }
+
+        DB::beginTransaction();
+        try {
+            $paymentPlan = PaymentPlan::find($student->payment_plan_id);
+            
+            if (!$paymentPlan) {
+                Log::warning('Plan de pago no encontrado', [
+                    'student_id' => $student->id,
+                    'payment_plan_id' => $student->payment_plan_id,
+                ]);
+                return;
+            }
+
+            // Crear el enrollment
+            $enrollment = Enrollment::create([
+                'student_id' => $student->id,
+                'payment_plan_id' => $paymentPlan->id,
+                'enrollment_fee' => $paymentPlan->total_amount / $paymentPlan->installments_count,
+                'enrollment_date' => now(),
+                'status' => 'active',
+                'notes' => 'Matrícula creada automáticamente al cambiar a pago por verificar',
+            ]);
+            
+            // Generar cuotas automáticamente (usando fecha de pago del estudiante)
+            $enrollment->generateInstallments();
+            
+            // 🆕 TRANSFERIR VOUCHER DEL PROSPECTO A LA PRIMERA CUOTA
+            if ($student->payment_voucher_file_name) {
+                $firstInstallment = $enrollment->installments()
+                    ->orderBy('installment_number', 'asc')
+                    ->first();
+                
+                if ($firstInstallment) {
+                    // Copiar voucher a nueva estructura organizada por estudiante
+                    $voucherFileName = $student->payment_voucher_file_name;
+                    
+                    // Buscar el archivo original en diferentes ubicaciones posibles
+                    $possiblePaths = [
+                        "payment_vouchers/{$voucherFileName}",
+                        $voucherFileName, // Si ya incluye la ruta completa
+                    ];
+                    
+                    $oldPath = null;
+                    foreach ($possiblePaths as $testPath) {
+                        if (Storage::disk('public')->exists($testPath)) {
+                            $oldPath = $testPath;
+                            break;
+                        }
+                    }
+                    
+                    if (!$oldPath) {
+                        Log::error('Cannot find original voucher file', [
+                            'student_id' => $student->id,
+                            'voucher_filename' => $voucherFileName,
+                            'tested_paths' => $possiblePaths,
+                            'available_files' => array_slice(Storage::disk('public')->files('payment_vouchers'), 0, 10)
+                        ]);
+                        return; // Salir si no se encuentra el archivo original
+                    }
+                    
+                    $extension = pathinfo($oldPath, PATHINFO_EXTENSION) ?: 'jpg';
+                    $newFileName = 'installment_1_' . time() . '.' . $extension;
+                    $newPath = "enrollment/{$student->id}/{$newFileName}";
+                    
+                    // Crear directorio del estudiante si no existe con permisos correctos
+                    $studentDir = "enrollment/{$student->id}";
+                    if (!Storage::disk('public')->exists($studentDir)) {
+                        // Crear directorio con permisos 755 (legible y ejecutable para web)
+                        Storage::disk('public')->makeDirectory($studentDir, 0755, true);
+                        
+                        // Verificar que se creó correctamente
+                        if (Storage::disk('public')->exists($studentDir)) {
+                            Log::info('Student directory created successfully', [
+                                'student_id' => $student->id,
+                                'directory' => $studentDir
+                            ]);
+                        } else {
+                            Log::error('Failed to create student directory', [
+                                'student_id' => $student->id,
+                                'directory' => $studentDir
+                            ]);
+                        }
+                    }
+                    
+                    // Copiar archivo a nueva ubicación
+                    try {
+                        $copyResult = Storage::disk('public')->copy($oldPath, $newPath);
+                        
+                        if ($copyResult && Storage::disk('public')->exists($newPath)) {
+                            Log::info('Voucher file copied successfully', [
+                                'student_id' => $student->id,
+                                'old_path' => $oldPath,
+                                'new_path' => $newPath,
+                                'file_size' => Storage::disk('public')->size($newPath)
+                            ]);
+                        } else {
+                            Log::error('Failed to copy voucher file', [
+                                'student_id' => $student->id,
+                                'old_path' => $oldPath,
+                                'new_path' => $newPath,
+                                'copy_result' => $copyResult,
+                                'target_exists' => Storage::disk('public')->exists($newPath)
+                            ]);
+                            return; // No continuar si falló la copia
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Exception copying voucher file', [
+                            'student_id' => $student->id,
+                            'old_path' => $oldPath,
+                            'new_path' => $newPath,
+                            'error' => $e->getMessage()
+                        ]);
+                        return; // No continuar si hubo excepción
+                    }
+                    
+                    // Crear voucher en la primera cuota
+                    \App\Models\InstallmentVoucher::create([
+                        'installment_id' => $firstInstallment->id,
+                        'uploaded_by' => $student->registered_by,
+                        'voucher_path' => $newPath,
+                        'declared_amount' => $firstInstallment->amount,
+                        'payment_date' => $student->payment_date ?? now(),
+                        'payment_method' => 'transfer',
+                        'status' => 'pending', // Pendiente de verificación por cajero
+                        'notes' => 'Voucher transferido automáticamente desde prospecto',
+                    ]);
+                    
+                    // Actualizar estado de la primera cuota a "paid" (esperando verificación)
+                    $firstInstallment->update([
+                        'status' => 'paid',
+                        'paid_amount' => $firstInstallment->amount,
+                        'paid_date' => $student->payment_date ?? now(),
+                    ]);
+                    
+                    Log::info('Voucher transferido a primera cuota', [
+                        'student_id' => $student->id,
+                        'installment_id' => $firstInstallment->id,
+                        'voucher_path' => $student->payment_voucher_file_name,
+                        'status' => 'paid',
+                    ]);
+                }
+            }
+            
+            Log::info('Enrollment creado automáticamente', [
+                'student_id' => $student->id,
+                'enrollment_id' => $enrollment->id,
+                'installments_count' => $paymentPlan->installments_count,
+                'voucher_transferred' => $student->payment_voucher_file_name ? 'yes' : 'no',
+            ]);
+            
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al crear enrollment automático', [
+                'student_id' => $student->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
     }
 
     /**
