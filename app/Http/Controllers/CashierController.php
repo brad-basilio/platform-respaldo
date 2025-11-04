@@ -13,6 +13,71 @@ use Inertia\Response;
 class CashierController extends Controller
 {
     /**
+     * Muestra el panel de control de pagos para admins (solo visualización)
+     */
+    public function adminPaymentControl(): Response
+    {
+        // Obtener solo estudiantes matriculados y verificados con sus enrollments
+        $students = Student::where('prospect_status', 'matriculado')
+            ->where('enrollment_verified', true)
+            ->with([
+                'user',
+                'activeEnrollment.installments.vouchers.uploadedBy',
+                'activeEnrollment.installments.verifiedBy',
+                'activeEnrollment.paymentPlan'
+            ])
+            ->get()
+            ->map(function ($student) {
+                $payload = [
+                    'id' => $student->id,
+                    'name' => $student->user->name ?? '',
+                    'email' => $student->user->email ?? '',
+                    'enrollmentCode' => $student->enrollment_code,
+                    'enrollmentVerified' => (bool) $student->enrollment_verified,
+                    'paymentPlan' => $student->paymentPlan ? [
+                        'id' => $student->paymentPlan->id ?? null,
+                        'name' => $student->paymentPlan->name ?? null,
+                    ] : null,
+                    'enrollment' => null,
+                ];
+
+                if ($student->activeEnrollment) {
+                    $en = $student->activeEnrollment;
+                    $enrollmentPayload = $en->toArray();
+
+                    $enrollmentPayload['paymentProgress'] = $en->paymentProgress;
+                    $enrollmentPayload['totalPaid'] = $en->totalPaid;
+                    $enrollmentPayload['totalPending'] = $en->totalPending;
+
+                    if (!empty($enrollmentPayload['installments'])) {
+                        foreach ($enrollmentPayload['installments'] as &$inst) {
+                            if (!empty($inst['vouchers'])) {
+                                foreach ($inst['vouchers'] as &$v) {
+                                    if (empty($v['voucher_url']) && !empty($v['voucher_path'])) {
+                                        try {
+                                            $v['voucher_url'] = \Illuminate\Support\Facades\Storage::url($v['voucher_path']);
+                                        } catch (\Throwable $e) {
+                                            $v['voucher_url'] = null;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        unset($inst);
+                    }
+
+                    $payload['enrollment'] = $enrollmentPayload;
+                }
+
+                return $payload;
+            });
+
+        return Inertia::render('Admin/PaymentControl', [
+            'students' => $students,
+        ]);
+    }
+
+    /**
      * Muestra el panel de control de pagos para cajeros
      */
     public function paymentControl(): Response

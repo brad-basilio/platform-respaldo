@@ -232,4 +232,114 @@ class StudentPaymentController extends Controller
             ], 500);
         }
     }
+    
+    /**
+     * Reemplazar voucher pendiente con uno nuevo
+     */
+    public function replaceVoucher(Request $request, int $voucherId)
+    {
+        $user = Auth::user();
+        $student = $user->student;
+        
+        if (!$student) {
+            return response()->json([
+                'message' => 'No se encontró información de estudiante'
+            ], 404);
+        }
+        
+        // Obtener el voucher con sus relaciones
+        $voucher = InstallmentVoucher::with('installment.enrollment')->findOrFail($voucherId);
+        
+        // Verificar que el voucher pertenece al estudiante
+        if ($voucher->installment->enrollment->student_id !== $student->id) {
+            return response()->json([
+                'message' => 'No tienes permiso para modificar este voucher'
+            ], 403);
+        }
+        
+        // Solo se pueden reemplazar vouchers pendientes
+        if ($voucher->status !== 'pending') {
+            return response()->json([
+                'message' => 'Solo se pueden reemplazar vouchers pendientes. Este voucher ya fue ' . 
+                            ($voucher->status === 'approved' ? 'aprobado' : 'rechazado')
+            ], 400);
+        }
+        
+        $validated = $request->validate([
+            'voucher_file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'declared_amount' => 'required|numeric|min:0',
+            'payment_date' => 'required|date',
+            'payment_method' => 'nullable|string|in:cash,transfer,deposit,card',
+        ]);
+        
+        DB::beginTransaction();
+        try {
+            $installment = $voucher->installment;
+            
+            // Eliminar el archivo antiguo
+            if ($voucher->voucher_path && Storage::disk('public')->exists($voucher->voucher_path)) {
+                Storage::disk('public')->delete($voucher->voucher_path);
+            }
+            
+            // Subir nuevo archivo
+            $file = $request->file('voucher_file');
+            $fileName = 'installment_' . $installment->installment_number . '_' . time() . '.' . $file->getClientOriginalExtension();
+            
+            $studentDir = "enrollment/{$student->id}";
+            if (!Storage::disk('public')->exists($studentDir)) {
+                Storage::disk('public')->makeDirectory($studentDir, 0755, true);
+            }
+            
+            $path = $file->storeAs($studentDir, $fileName, 'public');
+            
+            // Actualizar el voucher existente
+            $voucher->update([
+                'voucher_path' => $path,
+                'declared_amount' => $validated['declared_amount'],
+                'payment_date' => $validated['payment_date'],
+                'payment_method' => $validated['payment_method'] ?? $voucher->payment_method,
+                'status' => 'pending', // Resetear a pendiente
+                'reviewed_by' => null,
+                'reviewed_at' => null,
+                'rejection_reason' => null,
+            ]);
+            
+            // Actualizar el monto pagado en la cuota
+            $installment->update([
+                'paid_amount' => $validated['declared_amount'],
+                'paid_date' => $validated['payment_date'],
+            ]);
+            
+            DB::commit();
+            
+            Log::info('Voucher reemplazado por estudiante:', [
+                'voucher_id' => $voucher->id,
+                'student_id' => $student->id,
+                'installment_id' => $installment->id,
+            ]);
+            
+            return response()->json([
+                'message' => 'Voucher reemplazado exitosamente',
+                'voucher' => [
+                    'id' => $voucher->id,
+                    'voucherPath' => $voucher->voucher_path,
+                    'voucherUrl' => Storage::url($path),
+                    'status' => $voucher->status,
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al reemplazar voucher:', [
+                'error' => $e->getMessage(),
+                'voucher_id' => $voucherId,
+                'student_id' => $student->id,
+            ]);
+            
+            return response()->json([
+                'message' => 'Error al reemplazar el voucher',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

@@ -127,6 +127,36 @@ const PaymentControl: React.FC = () => {
     }
   };
 
+  const handleReplaceVoucher = async (voucherId: string, installmentId: string, file: File) => {
+    try {
+      setUploadingVoucher(installmentId);
+      
+      const formData = new FormData();
+      formData.append('voucher_file', file);
+      formData.append('declared_amount', String(enrollment?.installments.find(i => i.id === installmentId)?.amount || 0));
+      formData.append('payment_date', new Date().toISOString().split('T')[0]);
+      formData.append('payment_method', 'transfer');
+      
+      await axios.post(`/api/student/vouchers/${voucherId}/replace`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      toast.success('Voucher reemplazado exitosamente', {
+        description: 'El nuevo comprobante está siendo verificado'
+      });
+      
+      // Recargar datos
+      await fetchEnrollment();
+    } catch (error: any) {
+      console.error('Error replacing voucher:', error);
+      toast.error('Error al reemplazar voucher', {
+        description: error.response?.data?.message || 'No se pudo reemplazar el comprobante'
+      });
+    } finally {
+      setUploadingVoucher(null);
+    }
+  };
+
   const getStatusBadge = (installment: Installment) => {
     if (installment.status === 'verified') {
       return (
@@ -335,7 +365,7 @@ const PaymentControl: React.FC = () => {
                   <div className="mt-4 space-y-2">
                     <p className="text-sm font-medium text-slate-700">Comprobantes Subidos:</p>
                     {installment.vouchers.map((voucher) => (
-                      <div key={voucher.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                      <div key={voucher.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
                         <div className="flex items-center space-x-3">
                           <FileText className="w-5 h-5 text-slate-400" />
                           <div>
@@ -345,22 +375,48 @@ const PaymentControl: React.FC = () => {
                             <p className="text-xs text-slate-500">
                               {formatDate(voucher.paymentDate)} · {voucher.paymentMethod}
                             </p>
+                            {voucher.status === 'rejected' && voucher.rejectionReason && (
+                              <p className="text-xs text-red-600 mt-1 italic">
+                                Motivo: {voucher.rejectionReason}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
                           {voucher.status === 'approved' && (
-                            <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
-                              Aprobado
+                            <span className="text-xs px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium">
+                              ✓ Aprobado
                             </span>
                           )}
                           {voucher.status === 'pending' && (
-                            <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">
-                              En revisión
-                            </span>
+                            <>
+                              <span className="text-xs px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full font-medium animate-pulse">
+                                ⏳ En revisión
+                              </span>
+                              {/* Botón para reemplazar voucher pendiente */}
+                              <label className="cursor-pointer">
+                                <input
+                                  type="file"
+                                  accept="image/*,.pdf"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      handleReplaceVoucher(voucher.id, installment.id, file);
+                                    }
+                                  }}
+                                  disabled={uploadingVoucher === installment.id}
+                                  className="hidden"
+                                />
+                                <div className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center space-x-1">
+                                  <Upload className="w-3 h-3" />
+                                  <span>Reemplazar</span>
+                                </div>
+                              </label>
+                            </>
                           )}
                           {voucher.status === 'rejected' && (
-                            <span className="text-xs px-2 py-1 bg-red-100 text-red-800 rounded-full">
-                              Rechazado
+                            <span className="text-xs px-3 py-1 bg-red-100 text-red-800 rounded-full font-medium">
+                              ✗ Rechazado
                             </span>
                           )}
                           <a
@@ -368,6 +424,7 @@ const PaymentControl: React.FC = () => {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-2 hover:bg-white rounded-lg transition-colors"
+                            title="Descargar voucher"
                           >
                             <Download className="w-4 h-4 text-blue-600" />
                           </a>
@@ -377,9 +434,17 @@ const PaymentControl: React.FC = () => {
                   </div>
                 )}
 
-                {/* Upload Voucher */}
-                {installment.status === 'pending' && (
+                {/* Upload Voucher - Solo si no hay vouchers o todos están rechazados */}
+                {installment.status === 'pending' && (!installment.vouchers.length || installment.vouchers.every(v => v.status === 'rejected')) && (
                   <div className="mt-4">
+                    {installment.vouchers.some(v => v.status === 'rejected') && (
+                      <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-sm text-red-800 font-medium flex items-center">
+                          <AlertCircle className="w-4 h-4 mr-2" />
+                          Tu voucher anterior fue rechazado. Por favor, sube un nuevo comprobante válido.
+                        </p>
+                      </div>
+                    )}
                     <label className="block">
                       <input
                         type="file"
@@ -402,7 +467,11 @@ const PaymentControl: React.FC = () => {
                         ) : (
                           <div className="flex items-center space-x-2 text-slate-600">
                             <Upload className="w-5 h-5" />
-                            <span className="text-sm font-medium">Subir Comprobante de Pago</span>
+                            <span className="text-sm font-medium">
+                              {installment.vouchers.some(v => v.status === 'rejected') 
+                                ? 'Subir Nuevo Comprobante' 
+                                : 'Subir Comprobante de Pago'}
+                            </span>
                           </div>
                         )}
                       </div>

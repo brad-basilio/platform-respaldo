@@ -32,6 +32,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
     // Usar component como respaldo si la URL no coincide
     if (currentComponent === 'Student/PaymentControl') return 'payment-control';
     if (currentComponent === 'Cashier/PaymentControl') return 'cashier-payment-control';
+    if (currentComponent === 'Admin/PaymentControl') return 'admin-payment-control';
     if (currentComponent === 'Cashier/PaymentReports') return 'payment-reports';
     
     if (currentUrl.startsWith('/admin/students')) return 'students';
@@ -44,6 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
     if (currentUrl.startsWith('/admin/payments')) return 'payments';
     if (currentUrl.startsWith('/admin/analytics')) return 'analytics';
     if (currentUrl.startsWith('/student/payment-control')) return 'payment-control';
+    if (currentUrl.startsWith('/admin/payment-control')) return 'admin-payment-control';
     if (currentUrl.startsWith('/cashier/payment-control')) return 'cashier-payment-control';
     if (currentUrl.startsWith('/cashier/payment-reports')) return 'payment-reports';
     if (currentUrl.startsWith('/settings')) return 'settings';
@@ -68,6 +70,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
       'payment-plans': '/admin/payment-plans',
       'payments': '/admin/payments',
       'payment-control': '/student/payment-control',
+      'admin-payment-control': '/admin/payment-control',
       'cashier-payment-control': '/cashier/payment-control',
       'payment-reports': '/cashier/payment-reports',
       'analytics': '/admin/analytics',
@@ -109,16 +112,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
           {
             section: 'FINANZAS',
             items: [
-              { id: 'payments', label: 'Control de pagos', icon: FileText },
+        
+              { id: 'admin-payment-control', label: 'Gestión de Pagos', icon: CreditCard },
             ]
           },
-          {
+         /* {
             section: 'REPORTES',
             items: [
               { id: 'analytics', label: 'Estadísticas', icon: PieChart },
               { id: 'settings', label: 'Configuración', icon: Settings },
             ]
-          },
+          },*/
         ];
       case 'teacher':
         return [
@@ -204,7 +208,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
             items: [
               { id: 'students', label: 'Prospectos', icon: Users },
               { id: 'cashier-payment-control', label: 'Control de Pagos', icon: CreditCard },
-              { id: 'payment-reports', label: 'Reportes', icon: BarChart3 },
+            //  { id: 'payment-reports', label: 'Reportes', icon: BarChart3 },
             ]
           },
         ];

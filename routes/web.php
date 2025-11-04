@@ -117,6 +117,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             return inertia('Admin/Payments');
         })->name('admin.payments');
         
+        // Admin Payment Control
+        Route::get('/admin/payment-control', [CashierController::class, 'adminPaymentControl'])->name('admin.payment-control');
+        Route::get('/admin/students/{student}/enrollment', [CashierController::class, 'getStudentEnrollment'])->name('admin.students.enrollment');
+        
         // Analytics
         Route::get('/admin/analytics', function () {
             return inertia('Admin/Analytics');
@@ -141,6 +145,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         Route::get('/api/student/enrollment', [StudentPaymentController::class, 'getEnrollment'])->name('api.student.enrollment');
         Route::post('/api/student/upload-voucher', [StudentPaymentController::class, 'uploadVoucher'])->name('api.student.upload-voucher');
+        Route::post('/api/student/vouchers/{voucher}/replace', [StudentPaymentController::class, 'replaceVoucher'])->name('api.student.replace-voucher');
     });
     
     // Cashier routes
