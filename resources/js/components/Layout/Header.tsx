@@ -1,7 +1,8 @@
 import React from 'react';
-import { LogOut, Settings, Bell, GraduationCap } from 'lucide-react';
+import { LogOut, Settings, GraduationCap } from 'lucide-react';
 import { usePage, router } from '@inertiajs/react';
 import { User as UserType } from '@/types/models';
+import NotificationBell from '@/components/NotificationBell';
 
 const Header: React.FC = () => {
   const { auth } = usePage<{ auth: { user: UserType } }>().props;
@@ -48,10 +49,8 @@ const Header: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-3">
-            <button className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all relative group">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
-            </button>
+            {/* 🔔 Notificación Bell - Funciona en todas las páginas */}
+            <NotificationBell userId={user.id} userRole={user.role} />
 
             <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-slate-200">
               <div className="flex items-center space-x-3">

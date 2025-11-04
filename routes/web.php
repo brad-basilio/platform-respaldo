@@ -27,7 +27,30 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
+    // ========================================
+    // NOTIFICATIONS - Accessible to all authenticated users
+    // ========================================
+    Route::get('/api/notifications', function () {
+        $user = Auth::user();
+        return response()->json([
+            'notifications' => $user->notifications()->latest()->limit(20)->get(),
+            'unread_count' => $user->unreadNotifications()->count(),
+        ]);
+    })->name('api.notifications');
+    
+    Route::post('/api/notifications/{id}/mark-as-read', function ($id) {
+        Auth::user()->notifications()->findOrFail($id)->markAsRead();
+        return response()->json(['success' => true]);
+    })->name('api.notifications.mark-as-read');
+    
+    Route::post('/api/notifications/mark-all-as-read', function () {
+        Auth::user()->unreadNotifications->markAsRead();
+        return response()->json(['success' => true]);
+    })->name('api.notifications.mark-all-as-read');
+    
+    // ========================================
     // Student/Prospect Management (accessible by admin, sales_advisor, cashier)
+    // ========================================
     Route::middleware('prospect.access')->group(function () {
         Route::get('/admin/students', [StudentController::class, 'index'])->name('admin.students');
         Route::get('/api/admin/students', [StudentController::class, 'getStudentsJson'])->name('api.admin.students');

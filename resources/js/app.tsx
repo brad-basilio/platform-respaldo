@@ -5,6 +5,23 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
+import Echo from 'laravel-echo';
+import Pusher from 'pusher-js';
+
+// Asignar Pusher globalmente (requerido por Laravel Echo)
+(window as any).Pusher = Pusher;
+
+// Crear instancia de Echo y exponerla globalmente
+(window as any).Echo = new Echo({
+    broadcaster: 'reverb',
+    key: import.meta.env.VITE_REVERB_APP_KEY,
+    wsHost: import.meta.env.VITE_REVERB_HOST,
+    wsPort: import.meta.env.VITE_REVERB_PORT ?? 8080,
+    wssPort: import.meta.env.VITE_REVERB_PORT ?? 8080,
+    forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'https') === 'https',
+    enabledTransports: ['ws', 'wss'],
+    disableStats: true,
+});
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 

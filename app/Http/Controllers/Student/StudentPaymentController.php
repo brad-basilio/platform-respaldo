@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\Enrollment;
 use App\Models\InstallmentVoucher;
+use App\Models\User;
+use App\Events\VoucherUploaded;
+use App\Notifications\VoucherUploadedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -209,6 +212,18 @@ class StudentPaymentController extends Controller
                 'installment_id' => $installment->id,
             ]);
             
+            // 🔔 Disparar evento para notificar a los cajeros
+            Log::info('🔔 Disparando evento VoucherUploaded...');
+            event(new VoucherUploaded($voucher, $student, 'uploaded'));
+            Log::info('✅ Evento VoucherUploaded disparado correctamente');
+            
+            // 💾 Guardar notificación persistente para todos los cajeros
+            $cashiers = User::whereIn('role', ['cashier', 'admin'])->get();
+            foreach ($cashiers as $cashier) {
+                $cashier->notify(new VoucherUploadedNotification($voucher, $student, 'uploaded'));
+            }
+            Log::info('✅ Notificación persistente enviada a ' . $cashiers->count() . ' cajeros');
+            
             return response()->json([
                 'message' => 'Voucher subido exitosamente',
                 'voucher' => [
@@ -317,6 +332,18 @@ class StudentPaymentController extends Controller
                 'student_id' => $student->id,
                 'installment_id' => $installment->id,
             ]);
+            
+            // 🔔 Disparar evento para notificar a los cajeros
+            Log::info('🔔 Disparando evento VoucherUploaded (replaced)...');
+            event(new VoucherUploaded($voucher->fresh(), $student, 'replaced'));
+            Log::info('✅ Evento VoucherUploaded (replaced) disparado correctamente');
+            
+            // 💾 Guardar notificación persistente para todos los cajeros
+            $cashiers = User::whereIn('role', ['cashier', 'admin'])->get();
+            foreach ($cashiers as $cashier) {
+                $cashier->notify(new VoucherUploadedNotification($voucher->fresh(), $student, 'replaced'));
+            }
+            Log::info('✅ Notificación persistente enviada a ' . $cashiers->count() . ' cajeros');
             
             return response()->json([
                 'message' => 'Voucher reemplazado exitosamente',

@@ -26,7 +26,18 @@ class DatabaseSeeder extends Seeder
             'role' => 'admin',
         ]);
 
-     
+      $admin = User::create([
+            'name' => 'Cajera Maria',
+            'email' => 'cajero@english.com',
+            'password' => Hash::make('cajero123'),
+            'role' => 'cashier',
+        ]);
+ $admin = User::create([
+            'name' => 'Asesor Carlos',
+            'email' => 'asesor@english.com',
+            'password' => Hash::make('asesor123'),
+            'role' => 'sales_advisor',
+        ]);
 
         // Create teachers
         $teacher1 = User::create([

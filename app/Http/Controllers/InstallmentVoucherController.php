@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use App\Notifications\VoucherStatusChanged;
 
 class InstallmentVoucherController extends Controller
 {
@@ -220,6 +221,10 @@ class InstallmentVoucherController extends Controller
 
             DB::commit();
 
+            // 🔔 Notificar al estudiante de la aprobación
+            $student = $installment->payment->student;
+            $student->user->notify(new VoucherStatusChanged($voucher, 'approved'));
+
             Log::info('Voucher de cuota aprobado:', [
                 'voucher_id' => $voucher->id,
                 'installment_id' => $installment->id,
@@ -296,6 +301,10 @@ class InstallmentVoucherController extends Controller
             ]);
 
             DB::commit();
+
+            // 🔔 Notificar al estudiante del rechazo
+            $student = $installment->payment->student;
+            $student->user->notify(new VoucherStatusChanged($voucher, 'rejected', $validated['rejection_reason']));
 
             Log::info('Voucher de cuota rechazado:', [
                 'voucher_id' => $voucher->id,
