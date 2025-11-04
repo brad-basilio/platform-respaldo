@@ -19,10 +19,19 @@ class StudentController extends Controller
 {
     public function enrolledStudents(): Response
     {
-        // Solo mostrar estudiantes matriculados
-        $students = Student::with(['user', 'groups', 'badges', 'registeredBy', 'verifiedPaymentBy', 'verifiedEnrollmentBy'])
-            ->where('prospect_status', 'matriculado')
-            ->orderBy('enrollment_date', 'desc')
+        $user = auth()->user();
+        
+        // Query base: estudiantes matriculados
+        $query = Student::with(['user', 'groups', 'badges', 'registeredBy', 'verifiedPaymentBy', 'verifiedEnrollmentBy'])
+            ->where('prospect_status', 'matriculado');
+        
+        // Si NO es admin, solo mostrar NO VERIFICADOS (pendientes de verificación)
+        if ($user->role !== 'admin') {
+            $query->where('enrollment_verified', false);
+        }
+        // Si es admin, mostrar TODOS (verificados y no verificados)
+        
+        $students = $query->orderBy('enrollment_date', 'desc')
             ->get()
             ->map(function ($student) {
                 return [
@@ -96,6 +105,53 @@ class StudentController extends Controller
         ]);
     }
 
+    public function salesAdvisorEnrolledStudents(): Response
+    {
+        $user = auth()->user();
+        
+        // Solo mostrar estudiantes matriculados y verificados del asesor
+        $students = Student::with(['user', 'verifiedEnrollmentBy', 'academicLevel', 'paymentPlan'])
+            ->where('prospect_status', 'matriculado')
+            ->where('enrollment_verified', true)
+            ->where('registered_by', $user->id)
+            ->orderBy('enrollment_date', 'desc')
+            ->get()
+            ->map(function ($student) {
+                return [
+                    'id' => $student->id,
+                    'name' => $student->user->name ?? '',
+                    'firstName' => $student->first_name,
+                    'paternalLastName' => $student->paternal_last_name,
+                    'maternalLastName' => $student->maternal_last_name,
+                    'email' => $student->user->email ?? '',
+                    'phoneNumber' => $student->phone_number,
+                    'enrollmentDate' => $student->enrollment_date?->format('Y-m-d'),
+                    'enrollmentCode' => $student->enrollment_code,
+                    'academicLevel' => $student->academicLevel ? [
+                        'id' => $student->academicLevel->id,
+                        'name' => $student->academicLevel->name,
+                        'code' => $student->academicLevel->code,
+                    ] : null,
+                    'paymentPlan' => $student->paymentPlan ? [
+                        'id' => $student->paymentPlan->id,
+                        'name' => $student->paymentPlan->name,
+                        'installments_count' => $student->paymentPlan->installments_count,
+                    ] : null,
+                    'enrollmentVerified' => $student->enrollment_verified ?? false,
+                    'verifiedEnrollmentBy' => $student->verifiedEnrollmentBy ? [
+                        'id' => $student->verifiedEnrollmentBy->id,
+                        'name' => $student->verifiedEnrollmentBy->name,
+                        'email' => $student->verifiedEnrollmentBy->email,
+                    ] : null,
+                    'enrollmentVerifiedAt' => $student->enrollment_verified_at?->toISOString(),
+                ];
+            });
+
+        return Inertia::render('SalesAdvisor/MyEnrolledStudents', [
+            'students' => $students,
+        ]);
+    }
+
     public function index(): Response
     {
         $user = auth()->user();
@@ -112,6 +168,13 @@ class StudentController extends Controller
             'paymentPlan'     // ✅ Nuevo
         ]);
         
+        // ✅ EXCLUIR MATRICULADOS VERIFICADOS (ya están en enrolled-students)
+        // Filtrar: NO (matriculado Y verificado)
+        $query->whereNot(function($q) {
+            $q->where('prospect_status', 'matriculado')
+              ->where('enrollment_verified', 1);
+        });
+        
         // Filtrar según el rol
         if ($user->role === 'sales_advisor') {
             // Asesor de ventas solo ve sus prospectos
@@ -119,9 +182,25 @@ class StudentController extends Controller
         }
         // Admin, cashier y otros roles ven todo
         
+        // DEBUG: Log the SQL query
+        \Log::info('StudentController@index SQL:', [
+            'sql' => $query->toSql(),
+            'bindings' => $query->getBindings()
+        ]);
+        
         $students = $query->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($student) {
+            ->get();
+        
+        // DEBUG: Log students count
+        \Log::info('StudentController@index Results:', [
+            'total_students' => $students->count(),
+            'student_names' => $students->pluck('first_name', 'id')->toArray(),
+            'verified_status' => $students->mapWithKeys(function($s) {
+                return [$s->id => ['name' => $s->first_name . ' ' . $s->paternal_last_name, 'verified' => $s->enrollment_verified, 'status' => $s->prospect_status]];
+            })->toArray()
+        ]);
+        
+        $students = $students->map(function ($student) {
                 return [
                     'id' => $student->id,
                     'name' => $student->user->name ?? '',
@@ -235,6 +314,12 @@ class StudentController extends Controller
             'academicLevel',  // ✅ Nuevo
             'paymentPlan'     // ✅ Nuevo
         ]);
+        
+        // ✅ IMPORTANTE: Excluir estudiantes matriculados y verificados (ya están en enrolled-students)
+        $query->whereNot(function($q) {
+            $q->where('prospect_status', 'matriculado')
+              ->where('enrollment_verified', 1);
+        });
         
         // Filtrar según el rol
         if ($user->role === 'sales_advisor') {

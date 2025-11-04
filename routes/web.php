@@ -15,6 +15,7 @@ use App\Http\Controllers\InstallmentController;
 use App\Http\Controllers\InstallmentVoucherController;
 use App\Http\Controllers\VoucherVerificationController;
 use App\Http\Controllers\Student\StudentPaymentController;
+use App\Http\Controllers\CashierController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -122,6 +123,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         })->name('admin.analytics');
     });
     
+    // Sales Advisor routes
+    Route::middleware('can:sales_advisor')->group(function () {
+        Route::get('/sales-advisor/enrolled-students', [StudentController::class, 'salesAdvisorEnrolledStudents'])->name('sales-advisor.enrolled-students');
+    });
+    
     // Settings
     Route::get('/settings', function () {
         return inertia('settings/index');
@@ -135,6 +141,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         Route::get('/api/student/enrollment', [StudentPaymentController::class, 'getEnrollment'])->name('api.student.enrollment');
         Route::post('/api/student/upload-voucher', [StudentPaymentController::class, 'uploadVoucher'])->name('api.student.upload-voucher');
+    });
+    
+    // Cashier routes
+    Route::middleware('can:cashier')->group(function () {
+        Route::get('/cashier/payment-control', [CashierController::class, 'paymentControl'])->name('cashier.payment-control');
+        Route::get('/cashier/payment-reports', [CashierController::class, 'paymentReports'])->name('cashier.payment-reports');
+        Route::get('/cashier/students/{student}/enrollment', [CashierController::class, 'getStudentEnrollment'])->name('cashier.students.enrollment');
+        Route::post('/cashier/installments/{installment}/verify', [CashierController::class, 'verifyInstallment'])->name('cashier.installments.verify');
     });
 });
 

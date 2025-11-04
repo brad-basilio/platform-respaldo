@@ -3,6 +3,7 @@ import { Users, Plus, CreditCard as Edit, Trash2, UserCheck, UserX, Eye, List, C
 import { Student, Group, AcademicLevel, PaymentPlan } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import axios from 'axios';
+import { router } from '@inertiajs/react';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { Select2 } from '@/components/ui/Select2';
@@ -70,8 +71,41 @@ const StudentManagement: React.FC<Props> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Filtrar estudiantes basado en filtros para Kanban
-  const filteredStudents = students;
+  // Función para forzar recarga sin caché usando Inertia
+  const forceReload = () => {
+    router.reload({ 
+      only: ['students'],
+      preserveState: false,
+      preserveScroll: false,
+      onSuccess: () => {
+        toast.success('Lista actualizada', {
+          description: 'Los datos se han recargado desde el servidor',
+          duration: 3000,
+        });
+      }
+    });
+  };
+
+  // Filtrar estudiantes basado en filtros para Kanban y tabla
+  const filteredStudents = React.useMemo(() => {
+    console.log('📊 Total students received:', students.length);
+    console.log('📊 Students data sample:', students.slice(0, 2));
+    
+    // EXCLUIR MATRICULADOS VERIFICADOS para TODOS los roles (ya están en enrolled-students)
+    const filtered = students.filter(student => {
+      const isVerified = student.prospectStatus === 'matriculado' && student.enrollmentVerified;
+      
+      if (isVerified) {
+        console.log('❌ Filtering out verified student:', student.name, student.enrollmentCode);
+      }
+      
+      // Si está matriculado y verificado, NO mostrarlo
+      return !isVerified;
+    });
+    
+    console.log('✅ After filtering:', filtered.length);
+    return filtered;
+  }, [students]);
 
   const getProspectStatusColor = (status: string) => {
     switch (status) {
@@ -733,7 +767,14 @@ const StudentManagement: React.FC<Props> = ({
   };
 
   const getStudentsByStatus = (status: string) => {
-    return filteredStudents.filter(student => student && student.prospectStatus === status);
+    const studentsByStatus = filteredStudents.filter(student => student && student.prospectStatus === status);
+    
+    // Para asesores de ventas: en la columna "Matriculado" solo mostrar NO verificados
+    if (userRole === 'sales_advisor' && status === 'matriculado') {
+      return studentsByStatus.filter(student => !student.enrollmentVerified);
+    }
+    
+    return studentsByStatus;
   };
 
   const StudentForm = ({ student, onSubmit, onCancel }: {
@@ -1683,7 +1724,8 @@ const StudentManagement: React.FC<Props> = ({
             <div className="bg-gray-50 px-8 py-6 rounded-b-3xl border-t-2 border-gray-200 flex-shrink-0">
               <div className="flex justify-between items-center gap-4">
                 {/* Botones de Cronograma */}
-                {student && (
+              <div className='!hidden'>
+                  {student && (
                   <>
                     {/* Ver Cronograma - Solo para estudiantes matriculados */}
                     {student.prospectStatus === 'matriculado' && (
@@ -1774,6 +1816,7 @@ const StudentManagement: React.FC<Props> = ({
                     )}
                   </>
                 )}
+              </div>
                 
                 <div className="flex justify-end gap-4 ml-auto">
                   <button
@@ -1856,6 +1899,18 @@ const StudentManagement: React.FC<Props> = ({
             </p>
           </div>
           <div className="flex items-center space-x-4">
+            {/* Botón de Forzar Recarga */}
+            <button
+              onClick={forceReload}
+              className="flex items-center space-x-2 px-4 py-2 text-gray-700 bg-white border-2 border-gray-300 hover:border-gray-400 rounded-lg font-medium transition-colors"
+              title="Recargar datos desde el servidor sin caché"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+              </svg>
+              <span>Recargar</span>
+            </button>
+
             {/* View Mode Toggle */}
             <div className="flex items-center bg-gray-100 rounded-lg p-1">
               <button

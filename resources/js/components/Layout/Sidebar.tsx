@@ -31,9 +31,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
     
     // Usar component como respaldo si la URL no coincide
     if (currentComponent === 'Student/PaymentControl') return 'payment-control';
+    if (currentComponent === 'Cashier/PaymentControl') return 'cashier-payment-control';
+    if (currentComponent === 'Cashier/PaymentReports') return 'payment-reports';
     
     if (currentUrl.startsWith('/admin/students')) return 'students';
     if (currentUrl.startsWith('/admin/enrolled-students')) return 'enrolled-students';
+    if (currentUrl.startsWith('/sales-advisor/enrolled-students')) return 'enrolled-students';
     if (currentUrl.startsWith('/admin/teachers')) return 'teachers';
     if (currentUrl.startsWith('/admin/groups')) return 'groups';
     if (currentUrl.startsWith('/admin/academic-levels')) return 'academic-levels';
@@ -41,6 +44,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
     if (currentUrl.startsWith('/admin/payments')) return 'payments';
     if (currentUrl.startsWith('/admin/analytics')) return 'analytics';
     if (currentUrl.startsWith('/student/payment-control')) return 'payment-control';
+    if (currentUrl.startsWith('/cashier/payment-control')) return 'cashier-payment-control';
+    if (currentUrl.startsWith('/cashier/payment-reports')) return 'payment-reports';
     if (currentUrl.startsWith('/settings')) return 'settings';
     if (currentUrl.startsWith('/dashboard')) return 'dashboard';
     return 'dashboard';
@@ -56,13 +61,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
     const routes: Record<string, string> = {
       'dashboard': '/dashboard',
       'students': '/admin/students',
-      'enrolled-students': '/admin/enrolled-students',
+      'enrolled-students': user?.role === 'sales_advisor' ? '/sales-advisor/enrolled-students' : '/admin/enrolled-students',
       'teachers': '/admin/teachers',
       'groups': '/admin/groups',
       'academic-levels': '/admin/academic-levels',
       'payment-plans': '/admin/payment-plans',
       'payments': '/admin/payments',
       'payment-control': '/student/payment-control',
+      'cashier-payment-control': '/cashier/payment-control',
+      'payment-reports': '/cashier/payment-reports',
       'analytics': '/admin/analytics',
       'settings': '/settings',
     };
@@ -116,12 +123,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
         return [
           ...baseItems,
           { id: 'students', label: 'Mis Prospectos', icon: Users },
+          { id: 'enrolled-students', label: 'Matriculados Verificados', icon: GraduationCap },
         ];
       case 'cashier':
         return [
           ...baseItems,
-          { id: 'students', label: 'Verificación de Pagos', icon: FileText },
-          { id: 'payments', label: 'Control de Pagos', icon: PieChart },
+           { id: 'students', label: 'Prospectos', icon: Users },
+          { id: 'cashier-payment-control', label: 'Control de Pagos', icon: CreditCard },
+          { id: 'payment-reports', label: 'Reportes', icon: BarChart3 },
         ];
       default:
         return baseItems;
