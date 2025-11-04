@@ -348,7 +348,7 @@ class StudentController extends Controller
         $user = \App\Models\User::create([
             'name' => trim("{$validated['first_name']} {$validated['paternal_last_name']} {$validated['maternal_last_name']}"),
             'email' => $validated['email'],
-            'password' => bcrypt('password'), // Default password
+            'password' => bcrypt($validated['email']), // Default password
             'role' => 'student',
         ]);
 

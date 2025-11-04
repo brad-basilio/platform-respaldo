@@ -8,13 +8,46 @@ import { usePage, router } from '@inertiajs/react';
 import { User } from '@/types/models';
 
 interface SidebarProps {
-  activeView: string;
+  activeView?: string;
   onViewChange: (view: string) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
-  const { auth } = usePage<{ auth: { user: User } }>().props;
-  const user = auth.user;
+const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
+  const page = usePage();
+  const user = page.props.auth?.user as User;
+  
+  console.log('📍 Full Inertia Page:', page); // Debug completo
+  
+  // Obtener URL y component del objeto page
+  const currentUrl = page.url || '';
+  const currentComponent = page.component || '';
+
+  // Determinar la vista activa basándose en la URL actual
+  const getActiveViewFromUrl = () => {
+    console.log('🔍 Current URL:', currentUrl); // Debug
+    console.log('🔍 Current Component:', currentComponent); // Debug
+    
+    if (!currentUrl) return 'dashboard';
+    
+    // Usar component como respaldo si la URL no coincide
+    if (currentComponent === 'Student/PaymentControl') return 'payment-control';
+    
+    if (currentUrl.startsWith('/admin/students')) return 'students';
+    if (currentUrl.startsWith('/admin/enrolled-students')) return 'enrolled-students';
+    if (currentUrl.startsWith('/admin/teachers')) return 'teachers';
+    if (currentUrl.startsWith('/admin/groups')) return 'groups';
+    if (currentUrl.startsWith('/admin/academic-levels')) return 'academic-levels';
+    if (currentUrl.startsWith('/admin/payment-plans')) return 'payment-plans';
+    if (currentUrl.startsWith('/admin/payments')) return 'payments';
+    if (currentUrl.startsWith('/admin/analytics')) return 'analytics';
+    if (currentUrl.startsWith('/student/payment-control')) return 'payment-control';
+    if (currentUrl.startsWith('/settings')) return 'settings';
+    if (currentUrl.startsWith('/dashboard')) return 'dashboard';
+    return 'dashboard';
+  };
+
+  const currentActiveView = getActiveViewFromUrl();
+  console.log('✅ Active view:', currentActiveView); // Debug
 
   const handleNavigation = (view: string) => {
     onViewChange(view);
@@ -29,6 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
       'academic-levels': '/admin/academic-levels',
       'payment-plans': '/admin/payment-plans',
       'payments': '/admin/payments',
+      'payment-control': '/student/payment-control',
       'analytics': '/admin/analytics',
       'settings': '/settings',
     };
@@ -72,6 +106,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
           ...baseItems,
           { id: 'classes', label: 'Clases', icon: BookOpen },
           { id: 'workshops', label: 'Talleres', icon: Video },
+          { id: 'payment-control', label: 'Control de Pagos', icon: CreditCard },
           { id: 'forums', label: 'Foros', icon: MessageSquare },
           { id: 'exams', label: 'Exámenes', icon: FileText },
           { id: 'progress', label: 'Progreso', icon: BarChart3 },
@@ -99,7 +134,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
         <nav className="space-y-1.5">
           {getMenuItems().map((item) => {
             const Icon = item.icon;
-            const isActive = activeView === item.id;
+            const isActive = currentActiveView === item.id;
 
             return (
               <button

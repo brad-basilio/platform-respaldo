@@ -33,7 +33,17 @@ class DashboardController extends Controller
 
     protected function studentDashboard($user): Response
     {
-        $student = $user->student->load(['groups', 'badges', 'certificates']);
+        $student = $user->student->load([
+            'groups', 
+            'badges', 
+            'certificates',
+            'activeEnrollment.verifiedBy'
+        ]);
+
+        // Rename activeEnrollment to enrollment for frontend consistency
+        if ($student->activeEnrollment) {
+            $student->enrollment = $student->activeEnrollment;
+        }
 
         $studentData = array_merge($student->toArray(), [
             'name' => $user->name,

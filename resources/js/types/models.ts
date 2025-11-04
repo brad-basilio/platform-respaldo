@@ -96,6 +96,9 @@ export interface Student extends User {
   };
   enrollmentVerifiedAt?: string;
   enrollmentVerified?: boolean; // Control anti-fraude para comisiones
+  
+  // Matrícula activa
+  enrollment?: Enrollment;
 }
 
 export interface Teacher extends User {
@@ -319,6 +322,7 @@ export interface Enrollment {
   enrollment_fee: number;
   enrollment_voucher_path?: string;
   enrollment_voucher_url?: string;
+  enrollment_fee_verified?: boolean; // ✅ Añadido: verificación de cuota de matrícula
   status: 'active' | 'paused' | 'completed' | 'cancelled';
   notes?: string;
   verified_by?: string;

@@ -14,6 +14,7 @@ use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\InstallmentController;
 use App\Http\Controllers\InstallmentVoucherController;
 use App\Http\Controllers\VoucherVerificationController;
+use App\Http\Controllers\Student\StudentPaymentController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -125,6 +126,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/settings', function () {
         return inertia('settings/index');
     })->name('settings');
+    
+    // Student routes
+    Route::middleware('can:student')->group(function () {
+        Route::get('/student/payment-control', function () {
+            return inertia('Student/PaymentControl');
+        })->name('student.payment-control');
+        
+        Route::get('/api/student/enrollment', [StudentPaymentController::class, 'getEnrollment'])->name('api.student.enrollment');
+        Route::post('/api/student/upload-voucher', [StudentPaymentController::class, 'uploadVoucher'])->name('api.student.upload-voucher');
+    });
 });
 
 require __DIR__.'/settings.php';

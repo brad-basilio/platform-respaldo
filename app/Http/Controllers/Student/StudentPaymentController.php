@@ -1,0 +1,235 @@
+<?php
+
+namespace App\Http\Controllers\Student;
+
+use App\Http\Controllers\Controller;
+use App\Models\Enrollment;
+use App\Models\InstallmentVoucher;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+
+class StudentPaymentController extends Controller
+{
+    /**
+     * Obtener el enrollment activo del estudiante autenticado
+     */
+    public function getEnrollment()
+    {
+        $user = Auth::user();
+        
+        // Obtener el estudiante asociado al usuario
+        $student = $user->student;
+        
+        if (!$student) {
+            return response()->json([
+                'message' => 'No se encontró información de estudiante asociada a tu cuenta'
+            ], 404);
+        }
+        
+        // Obtener enrollment activo
+        $enrollment = Enrollment::with([
+            'paymentPlan',
+            'installments.vouchers.uploadedBy',
+            'installments.vouchers.reviewedBy',
+            'student'
+        ])
+        ->where('student_id', $student->id)
+        ->where('status', 'active')
+        ->first();
+        
+        if (!$enrollment) {
+            return response()->json([
+                'message' => 'No tienes una matrícula activa',
+                'enrollment' => null
+            ], 200);
+        }
+        
+        // Formatear datos del enrollment
+        return response()->json([
+            'enrollment' => [
+                'id' => $enrollment->id,
+                'studentId' => $enrollment->student_id,
+                'enrollmentFee' => $enrollment->enrollment_fee,
+                'enrollmentDate' => $enrollment->enrollment_date->format('Y-m-d'),
+                'status' => $enrollment->status,
+                'paymentProgress' => $enrollment->payment_progress,
+                'totalPaid' => $enrollment->total_paid,
+                'totalPending' => $enrollment->total_pending,
+                'paymentPlan' => [
+                    'id' => $enrollment->paymentPlan->id,
+                    'name' => $enrollment->paymentPlan->name,
+                    'totalAmount' => $enrollment->paymentPlan->total_amount,
+                    'installmentsCount' => $enrollment->paymentPlan->installments_count,
+                    'monthlyAmount' => $enrollment->paymentPlan->monthly_amount,
+                ],
+                'installments' => $enrollment->installments->map(function ($installment) use ($enrollment) {
+                    return [
+                        'id' => $installment->id,
+                        'installmentNumber' => $installment->installment_number,
+                        'dueDate' => $installment->due_date->format('Y-m-d'),
+                        'amount' => $installment->amount,
+                        'lateFee' => $installment->late_fee,
+                        'totalDue' => $installment->total_due,
+                        'paidAmount' => $installment->paid_amount,
+                        'paidDate' => $installment->paid_date?->format('Y-m-d'),
+                        'status' => $installment->status,
+                        'isOverdue' => $installment->is_overdue,
+                        'daysLate' => $installment->days_late,
+                        'notes' => $installment->notes,
+                        'vouchers' => $installment->vouchers->map(function ($voucher) use ($enrollment) {
+                            $raw = $voucher->voucher_path;
+                            $studentId = $enrollment->student_id;
+
+                            // Construir URL pública del voucher
+                            try {
+                                if ($raw && (str_starts_with($raw, '/storage') || str_starts_with($raw, 'http'))) {
+                                    $publicUrl = $raw;
+                                } elseif ($raw && str_starts_with($raw, 'enrollment/')) {
+                                    $publicUrl = Storage::url($raw);
+                                } elseif ($raw && str_starts_with($raw, 'payment_vouchers/')) {
+                                    $publicUrl = Storage::url($raw);
+                                } elseif ($raw && str_starts_with($raw, 'installment_vouchers/')) {
+                                    $publicUrl = Storage::url($raw);
+                                } elseif ($raw) {
+                                    if (Storage::disk('public')->exists("enrollment/{$studentId}/{$raw}")) {
+                                        $publicUrl = Storage::url("enrollment/{$studentId}/{$raw}");
+                                    } else {
+                                        $publicUrl = Storage::url('payment_vouchers/' . ltrim($raw, '/'));
+                                    }
+                                } else {
+                                    $publicUrl = null;
+                                }
+                            } catch (\Exception $e) {
+                                Log::error('Error construyendo voucher URL', ['raw' => $raw, 'error' => $e->getMessage()]);
+                                $publicUrl = null;
+                            }
+
+                            return [
+                                'id' => $voucher->id,
+                                'voucherPath' => $voucher->voucher_path,
+                                'voucherUrl' => $publicUrl,
+                                'declaredAmount' => $voucher->declared_amount,
+                                'paymentDate' => $voucher->payment_date?->format('Y-m-d'),
+                                'paymentMethod' => $voucher->payment_method,
+                                'status' => $voucher->status,
+                                'rejectionReason' => $voucher->rejection_reason,
+                                'uploadedBy' => $voucher->uploadedBy ? [
+                                    'id' => $voucher->uploadedBy->id,
+                                    'name' => $voucher->uploadedBy->name,
+                                ] : null,
+                                'reviewedBy' => $voucher->reviewedBy ? [
+                                    'id' => $voucher->reviewedBy->id,
+                                    'name' => $voucher->reviewedBy->name,
+                                ] : null,
+                                'reviewedAt' => $voucher->reviewed_at?->toISOString(),
+                            ];
+                        }),
+                    ];
+                }),
+            ]
+        ]);
+    }
+    
+    /**
+     * Subir voucher de pago para una cuota
+     */
+    public function uploadVoucher(Request $request)
+    {
+        $user = Auth::user();
+        $student = $user->student;
+        
+        if (!$student) {
+            return response()->json([
+                'message' => 'No se encontró información de estudiante'
+            ], 404);
+        }
+        
+        $validated = $request->validate([
+            'installment_id' => 'required|exists:installments,id',
+            'voucher_file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'declared_amount' => 'required|numeric|min:0',
+            'payment_date' => 'required|date',
+            'payment_method' => 'nullable|string|in:cash,transfer,deposit,card',
+            'notes' => 'nullable|string',
+        ]);
+        
+        // Verificar que la cuota pertenece al estudiante
+        $installment = \App\Models\Installment::with('enrollment')
+            ->findOrFail($validated['installment_id']);
+            
+        if ($installment->enrollment->student_id !== $student->id) {
+            return response()->json([
+                'message' => 'No tienes permiso para subir vouchers a esta cuota'
+            ], 403);
+        }
+        
+        DB::beginTransaction();
+        try {
+            // Subir archivo con estructura organizada por estudiante
+            $file = $request->file('voucher_file');
+            $fileName = 'installment_' . $installment->installment_number . '_' . time() . '.' . $file->getClientOriginalExtension();
+            
+            // Asegurar que el directorio del estudiante existe con permisos correctos
+            $studentDir = "enrollment/{$student->id}";
+            if (!Storage::disk('public')->exists($studentDir)) {
+                Storage::disk('public')->makeDirectory($studentDir, 0755, true);
+            }
+            
+            $path = $file->storeAs($studentDir, $fileName, 'public');
+            
+            // Crear voucher
+            $voucher = InstallmentVoucher::create([
+                'installment_id' => $installment->id,
+                'uploaded_by' => $user->id,
+                'voucher_path' => $path,
+                'declared_amount' => $validated['declared_amount'],
+                'payment_date' => $validated['payment_date'],
+                'payment_method' => $validated['payment_method'] ?? 'transfer',
+                'status' => 'pending',
+                'notes' => $validated['notes'] ?? 'Subido por el estudiante',
+            ]);
+            
+            // Actualizar estado de la cuota a "paid" (pendiente de verificación)
+            if ($installment->status === 'pending') {
+                $installment->update([
+                    'status' => 'paid',
+                    'paid_amount' => $validated['declared_amount'],
+                    'paid_date' => $validated['payment_date'],
+                ]);
+            }
+            
+            DB::commit();
+            
+            Log::info('Voucher subido por estudiante:', [
+                'voucher_id' => $voucher->id,
+                'student_id' => $student->id,
+                'installment_id' => $installment->id,
+            ]);
+            
+            return response()->json([
+                'message' => 'Voucher subido exitosamente',
+                'voucher' => [
+                    'id' => $voucher->id,
+                    'voucherPath' => $voucher->voucher_path,
+                    'voucherUrl' => Storage::url($path),
+                    'status' => $voucher->status,
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al subir voucher:', [
+                'error' => $e->getMessage(),
+                'student_id' => $student->id,
+            ]);
+            
+            return response()->json([
+                'message' => 'Error al subir el voucher',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+}
