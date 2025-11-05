@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vite';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
@@ -24,4 +24,10 @@ export default defineConfig({
     esbuild: {
         jsx: 'automatic',
     },
-});
+    define: mode === 'production' ? {
+        'import.meta.env.VITE_REVERB_HOST': JSON.stringify('159.89.157.68'),
+        'import.meta.env.VITE_REVERB_PORT': JSON.stringify('8080'),
+        'import.meta.env.VITE_REVERB_SCHEME': JSON.stringify('http'),
+        'import.meta.env.VITE_REVERB_APP_KEY': JSON.stringify('wmcehp1p9o91o5vqewm5'),
+    } : {},
+}));
