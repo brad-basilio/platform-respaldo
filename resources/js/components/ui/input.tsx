@@ -91,6 +91,11 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
               "focus:outline-none",
               "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400",
               "file:border-0 file:bg-transparent file:text-sm file:font-medium",
+              // Remove autocomplete background
+              "[&:-webkit-autofill]:bg-transparent",
+              "[&:-webkit-autofill]:[-webkit-box-shadow:0_0_0_30px_white_inset]",
+              "[&:-webkit-autofill:hover]:[-webkit-box-shadow:0_0_0_30px_white_inset]",
+              "[&:-webkit-autofill:focus]:[-webkit-box-shadow:0_0_0_30px_white_inset]",
               
               // Variant: Outlined
               variant === 'outlined' && [
@@ -108,6 +113,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                 "hover:bg-gray-100 hover:border-gray-900",
                 "focus:bg-gray-100 focus:border-blue-600",
                 error && "border-red-600 hover:border-red-700 focus:border-red-600",
+                // Autocomplete background for filled variant
+                "[&:-webkit-autofill]:[-webkit-box-shadow:0_0_0_30px_rgb(249_250_251)_inset]",
+                "[&:-webkit-autofill:hover]:[-webkit-box-shadow:0_0_0_30px_rgb(243_244_246)_inset]",
+                "[&:-webkit-autofill:focus]:[-webkit-box-shadow:0_0_0_30px_rgb(243_244_246)_inset]",
               ],
               
               icon && "pl-10",
@@ -225,6 +234,11 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
               "peer w-full text-base text-gray-900 transition-all duration-200 appearance-none cursor-pointer",
               "focus:outline-none",
               "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400",
+              // Remove autocomplete background
+              "[&:-webkit-autofill]:bg-transparent",
+              "[&:-webkit-autofill]:[-webkit-box-shadow:0_0_0_30px_white_inset]",
+              "[&:-webkit-autofill:hover]:[-webkit-box-shadow:0_0_0_30px_white_inset]",
+              "[&:-webkit-autofill:focus]:[-webkit-box-shadow:0_0_0_30px_white_inset]",
               
               // Variant: Outlined
               variant === 'outlined' && [
@@ -242,6 +256,10 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                 "hover:bg-gray-100 hover:border-gray-900",
                 "focus:bg-gray-100 focus:border-blue-600",
                 error && "border-red-600 hover:border-red-700 focus:border-red-600",
+                // Autocomplete background for filled variant
+                "[&:-webkit-autofill]:[-webkit-box-shadow:0_0_0_30px_rgb(249_250_251)_inset]",
+                "[&:-webkit-autofill:hover]:[-webkit-box-shadow:0_0_0_30px_rgb(243_244_246)_inset]",
+                "[&:-webkit-autofill:focus]:[-webkit-box-shadow:0_0_0_30px_rgb(243_244_246)_inset]",
               ],
               
               icon && "pl-10",

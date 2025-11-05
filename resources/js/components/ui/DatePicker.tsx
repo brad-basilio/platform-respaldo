@@ -210,6 +210,11 @@ export const DatePicker = React.forwardRef<HTMLDivElement, DatePickerProps>(
               "hover:border-gray-900",
               "focus:outline-none focus:border-2 focus:border-blue-600 focus:px-[11px] focus:pl-[39px]",
               "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-200",
+              // Remove autocomplete background
+              "[&:-webkit-autofill]:bg-transparent",
+              "[&:-webkit-autofill]:[-webkit-box-shadow:0_0_0_30px_white_inset]",
+              "[&:-webkit-autofill:hover]:[-webkit-box-shadow:0_0_0_30px_white_inset]",
+              "[&:-webkit-autofill:focus]:[-webkit-box-shadow:0_0_0_30px_white_inset]",
               error && "border-red-600 hover:border-red-700 focus:border-red-600",
               className
             )}
