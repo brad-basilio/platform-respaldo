@@ -12,8 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Modificar el enum para incluir 'pago_reportado'
-        DB::statement("ALTER TABLE students MODIFY COLUMN prospect_status ENUM('registrado', 'propuesta_enviada', 'pago_reportado', 'verificacion_pago', 'matriculado') DEFAULT 'registrado'");
+        // MIGRACIÓN DESACTIVADA - Ya no se usa 'pago_reportado'
+        // El nuevo flujo usa 'pago_por_verificar'
+        // Esta migración se mantiene solo para compatibilidad histórica
+        // Ver: 2025_11_05_000001_fix_prospect_status_enum_final.php
     }
 
     /**
@@ -21,7 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revertir al enum original
-        DB::statement("ALTER TABLE students MODIFY COLUMN prospect_status ENUM('registrado', 'propuesta_enviada', 'verificacion_pago', 'matriculado') DEFAULT 'registrado'");
+        // MIGRACIÓN DESACTIVADA - Ver up() method
     }
 };
