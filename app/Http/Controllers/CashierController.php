@@ -182,6 +182,16 @@ class CashierController extends Controller
             ], 404);
         }
 
+        // ✅ Calcular mora automáticamente para todas las cuotas pendientes
+        foreach ($enrollment->installments as $installment) {
+            if ($installment->status === 'pending') {
+                $installment->calculateLateFee();
+            }
+        }
+
+        // Refrescar las cuotas después de calcular la mora
+        $enrollment->load('installments');
+
         // Serializar enrollment con estructura normalizada
         $enrollmentData = [
             'id' => $enrollment->id,
@@ -198,15 +208,33 @@ class CashierController extends Controller
                 'totalAmount' => $enrollment->paymentPlan->total_amount,
                 'installmentsCount' => $enrollment->paymentPlan->installments_count,
                 'monthlyAmount' => $enrollment->paymentPlan->monthly_amount,
+                'grace_period_days' => $enrollment->paymentPlan->grace_period_days ?? 0, // ✅ Días de gracia
             ] : null,
-            'installments' => $enrollment->installments->map(function ($installment) {
+            'installments' => $enrollment->installments->map(function ($installment) use ($enrollment) {
+                // Calcular días hasta vencimiento y hasta límite de gracia (con signo)
+                $today = \Carbon\Carbon::today();
+                $dueDate = $installment->due_date;
+                $plan = $enrollment->paymentPlan;
+                $gracePeriod = $plan->grace_period_days ?? 0;
+
+                // daysUntilDue: positive if due in future, negative if past
+                $daysUntilDue = $today->diffInDays($dueDate, false);
+
+                $graceLimit = $dueDate->copy()->addDays($gracePeriod);
+                // daysUntilGraceLimit: positive if grace limit in future, negative if past
+                $daysUntilGraceLimit = $today->diffInDays($graceLimit, false);
+
                 return [
                     'id' => $installment->id,
                     'installment_number' => $installment->installment_number,
                     'due_date' => $installment->due_date->format('Y-m-d'),
                     'amount' => $installment->amount,
+                    'late_fee' => $installment->late_fee, // ✅ Mora calculada
+                    'total_due' => $installment->total_due, // ✅ Total con mora
                     'paid_amount' => $installment->paid_amount,
                     'status' => $installment->status,
+                    'daysUntilDue' => $daysUntilDue, // ✅ Días hasta vencimiento
+                    'daysUntilGraceLimit' => $daysUntilGraceLimit, // ✅ Días hasta fin de gracia
                     'verifiedBy' => $installment->verifiedBy ? [
                         'id' => $installment->verifiedBy->id,
                         'name' => $installment->verifiedBy->name,

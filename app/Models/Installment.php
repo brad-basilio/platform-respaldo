@@ -83,12 +83,14 @@ class Installment extends Model
             $dailyLateFee = ($this->amount * ($plan->late_fee_percentage / 100)) / 30;
             $this->late_fee = round($dailyLateFee * $daysLate, 2);
             
-            // Marcar como vencida
-            if ($this->status === 'pending') {
-                $this->status = 'overdue';
-            }
-            
+            // ✅ No cambiar el status, solo actualizar la mora
             $this->save();
+        } else {
+            // ✅ Si aún no pasó el período de gracia, asegurar que no haya mora
+            if ($this->late_fee > 0) {
+                $this->late_fee = 0;
+                $this->save();
+            }
         }
     }
 

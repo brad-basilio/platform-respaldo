@@ -22,6 +22,8 @@ interface Installment {
   isOverdue: boolean;
   daysLate: number;
   daysUntilDue?: number;
+  daysUntilGraceLimit?: number; // ✅ Días hasta que venza el período de gracia
+  gracePeriodDays?: number; // ✅ Días de gracia del plan
   notes: string | null;
   vouchers: Array<{
     id: string;
@@ -53,6 +55,7 @@ interface Enrollment {
     totalAmount: number;
     installmentsCount: number;
     monthlyAmount: number;
+    gracePeriodDays: number; // ✅ Días de gracia antes de aplicar mora
   };
   installments: Installment[];
 }
@@ -73,15 +76,44 @@ const PaymentControl: React.FC = () => {
       
       // Calcular días hasta vencimiento para cada cuota
       const enrollmentData = response.data.enrollment;
+      const gracePeriodDays = enrollmentData.paymentPlan.gracePeriodDays || 0;
+      
       enrollmentData.installments = enrollmentData.installments.map((inst: Installment) => {
+        // ✅ FIX: Crear fecha actual en zona horaria local (Perú)
         const today = new Date();
-        const dueDate = new Date(inst.dueDate);
-        const diffTime = dueDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const localToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        
+        console.log('🕐 Fecha del sistema:', today.toString());
+        console.log('🕐 Fecha local procesada:', localToday.toString());
+        console.log('🕐 Fecha ISO:', today.toISOString());
+        
+        // ✅ Parsear fecha de vencimiento correctamente (viene como YYYY-MM-DD)
+        const [year, month, day] = inst.dueDate.split('-').map(Number);
+        const dueDate = new Date(year, month - 1, day); // mes es 0-indexed
+        
+        // Calcular días hasta vencimiento (positivo = faltan días, negativo = ya pasó)
+        const diffTime = dueDate.getTime() - localToday.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+        
+        // Calcular fecha límite con días de gracia
+        const graceLimitDate = new Date(dueDate);
+        graceLimitDate.setDate(graceLimitDate.getDate() + gracePeriodDays);
+        
+        const daysUntilGraceLimit = Math.round((graceLimitDate.getTime() - localToday.getTime()) / (1000 * 60 * 60 * 24));
+        
+        console.log('📅 Cuota #' + inst.installmentNumber + ':', {
+          hoyLocal: localToday.toISOString().split('T')[0],
+          fechaVencimiento: inst.dueDate,
+          diffDays,
+          gracePeriodDays,
+          daysUntilGraceLimit
+        });
         
         return {
           ...inst,
-          daysUntilDue: diffDays
+          daysUntilDue: diffDays,
+          daysUntilGraceLimit: daysUntilGraceLimit,
+          gracePeriodDays: gracePeriodDays
         };
       });
       
@@ -176,19 +208,36 @@ const PaymentControl: React.FC = () => {
       );
     }
     
-    if (installment.isOverdue) {
+    // ✅ Verificar si está en período de gracia (vencido pero aún dentro del período de gracia)
+    const daysUntilDue = installment.daysUntilDue || 0;
+    const daysUntilGraceLimit = installment.daysUntilGraceLimit || 0;
+    const gracePeriodDays = installment.gracePeriodDays || 0;
+    
+    // Si ya pasó la fecha de vencimiento pero aún está dentro del período de gracia
+    if (daysUntilDue < 0 && daysUntilGraceLimit >= 0 && gracePeriodDays > 0) {
       return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
           <AlertCircle className="w-3 h-3 mr-1" />
-          Vencido ({installment.daysLate} días)
+          Período de Gracia ({daysUntilGraceLimit} días restantes)
         </span>
       );
     }
     
+    // Si ya pasó el período de gracia, mostrar como vencido con mora
+    if (installment.isOverdue || (daysUntilGraceLimit < 0 && installment.status === 'pending')) {
+      return (
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          <AlertCircle className="w-3 h-3 mr-1" />
+          Vencido con Mora ({Math.abs(daysUntilGraceLimit)} días)
+        </span>
+      );
+    }
+    
+    // Pendiente normal
     return (
       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
         <Clock className="w-3 h-3 mr-1" />
-        Pendiente ({installment.daysUntilDue! > 0 ? `${installment.daysUntilDue} días` : 'Hoy'})
+        Pendiente ({daysUntilDue > 0 ? `${daysUntilDue} días` : 'Vence hoy'})
       </span>
     );
   };
@@ -325,13 +374,34 @@ const PaymentControl: React.FC = () => {
                           {formatDate(installment.dueDate)}
                         </p>
                         {installment.daysUntilDue !== undefined && installment.status === 'pending' && (
-                          <p className={`text-xs mt-1 ${installment.daysUntilDue < 7 ? 'text-red-600' : 'text-slate-500'}`}>
-                            {installment.daysUntilDue > 0 
-                              ? `Faltan ${installment.daysUntilDue} días` 
-                              : installment.daysUntilDue === 0 
-                              ? '¡Vence hoy!' 
-                              : `Vencido hace ${Math.abs(installment.daysUntilDue)} días`}
-                          </p>
+                          <>
+                            <p className={`text-xs mt-1 ${installment.daysUntilDue < 7 && installment.daysUntilDue >= 0 ? 'text-orange-600 font-semibold' : installment.daysUntilDue < 0 ? 'text-red-600' : 'text-slate-500'}`}>
+                              {installment.daysUntilDue > 0 
+                                ? `Faltan ${installment.daysUntilDue} días` 
+                                : installment.daysUntilDue === 0 
+                                ? '¡Vence hoy!' 
+                                : `Vencido hace ${Math.abs(installment.daysUntilDue)} días`}
+                            </p>
+                            {/* Mostrar días de gracia si está vencido pero aún en período de gracia */}
+                            {installment.daysUntilDue < 0 && installment.daysUntilGraceLimit !== undefined && installment.daysUntilGraceLimit >= 0 && installment.gracePeriodDays && installment.gracePeriodDays > 0 && (
+                              <p className="text-xs mt-1 text-orange-600 font-semibold bg-orange-50 px-2 py-1 rounded inline-block">
+                                ⚠️ Período de gracia: {installment.daysUntilGraceLimit} días restantes
+                              </p>
+                            )}
+                            {/* Mostrar alerta de mora si ya pasó el período de gracia */}
+                            {installment.daysUntilGraceLimit !== undefined && installment.daysUntilGraceLimit < 0 && (
+                              <div className="mt-1 space-y-1">
+                                <p className="text-xs text-red-600 font-bold bg-red-50 px-2 py-1 rounded inline-block">
+                                  🚨 Mora aplicada ({Math.abs(installment.daysUntilGraceLimit)} días)
+                                </p>
+                                {installment.lateFee > 0 && (
+                                  <p className="text-xs text-red-700 font-bold bg-red-100 px-2 py-1 rounded inline-block">
+                                    💰 Recargo por mora: {formatCurrency(installment.lateFee)}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
 
@@ -339,7 +409,7 @@ const PaymentControl: React.FC = () => {
                         <p className="text-slate-500 mb-1">Monto</p>
                         <p className="font-bold text-slate-900">{formatCurrency(installment.amount)}</p>
                         {installment.lateFee > 0 && (
-                          <p className="text-xs text-red-600 mt-1">
+                          <p className="text-xs text-red-600 mt-1 font-semibold">
                             + {formatCurrency(installment.lateFee)} mora
                           </p>
                         )}
@@ -348,6 +418,11 @@ const PaymentControl: React.FC = () => {
                       <div>
                         <p className="text-slate-500 mb-1">Total a Pagar</p>
                         <p className="font-bold text-blue-600">{formatCurrency(installment.totalDue)}</p>
+                        {installment.lateFee > 0 && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            (Incluye mora)
+                          </p>
+                        )}
                       </div>
 
                       {installment.paidDate && (
@@ -434,14 +509,27 @@ const PaymentControl: React.FC = () => {
                   </div>
                 )}
 
-                {/* Upload Voucher - Solo si no hay vouchers o todos están rechazados */}
-                {installment.status === 'pending' && (!installment.vouchers.length || installment.vouchers.every(v => v.status === 'rejected')) && (
+                {/* Upload Voucher - Permitir subir si está pendiente, vencida con mora, o voucher rechazado */}
+                {(installment.status === 'pending' || installment.status === 'late' || installment.isOverdue) && 
+                 (!installment.vouchers.length || installment.vouchers.every(v => v.status === 'rejected')) && (
                   <div className="mt-4">
                     {installment.vouchers.some(v => v.status === 'rejected') && (
                       <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                         <p className="text-sm text-red-800 font-medium flex items-center">
                           <AlertCircle className="w-4 h-4 mr-2" />
                           Tu voucher anterior fue rechazado. Por favor, sube un nuevo comprobante válido.
+                        </p>
+                      </div>
+                    )}
+                    {/* Alerta cuando la cuota tiene mora */}
+                    {installment.lateFee > 0 && (
+                      <div className="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                        <p className="text-sm text-orange-800 font-bold flex items-center">
+                          <AlertCircle className="w-4 h-4 mr-2" />
+                          Esta cuota tiene mora. Debes pagar el total: {formatCurrency(installment.totalDue)}
+                        </p>
+                        <p className="text-xs text-orange-700 mt-1">
+                          Monto original: {formatCurrency(installment.amount)} + Mora: {formatCurrency(installment.lateFee)}
                         </p>
                       </div>
                     )}

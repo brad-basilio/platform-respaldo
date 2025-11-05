@@ -76,10 +76,12 @@ class Enrollment extends Model
         $paymentDate = $student->payment_date ? Carbon::parse($student->payment_date) : Carbon::parse($this->enrollment_date);
 
         for ($i = 1; $i <= $plan->installments_count; $i++) {
-            // Primera cuota vence 1 mes después del pago inicial
-            // Las siguientes cada mes más (mismo día del mes)
-            // Por ejemplo: pago el 1 de diciembre → vence el 1 de enero, luego 1 de febrero, etc.
-            $dueDate = $paymentDate->copy()->addMonths($i);
+            // ✅ Primera cuota vence el mismo mes del pago inicial
+            // Cuota #1: mismo mes (0 meses después)
+            // Cuota #2: 1 mes después
+            // Cuota #3: 2 meses después, etc.
+            // Ejemplo: pago el 2 de octubre → vence el 2 de octubre, luego 2 de noviembre, etc.
+            $dueDate = $paymentDate->copy()->addMonths($i - 1);
 
             Installment::create([
                 'enrollment_id' => $this->id,

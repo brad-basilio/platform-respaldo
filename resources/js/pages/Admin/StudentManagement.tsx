@@ -944,270 +944,10 @@ const StudentManagement: React.FC<Props> = ({
           {/* Contenido del Modal - Con scroll */}
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
             <div className="p-8 space-y-6 overflow-y-auto flex-1">
-              {isCashierEditing ? (
-                // VISTA SIMPLIFICADA PARA CAJERO - SOLO VERIFICACIÓN
-                <>
-                  {/* Información del Prospecto (Solo lectura) */}
-                  <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 shadow-sm">
-                    <h4 className="text-lg font-bold text-blue-900 mb-5 flex items-center gap-2">
-                      <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                      </svg>
-                      Información del Prospecto
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm hover:shadow-md transition-all">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Nombre Completo</p>
-                        <p className="text-base font-bold text-gray-900">{student?.name}</p>
-                      </div>
-                      <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm hover:shadow-md transition-all">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Correo Electrónico</p>
-                        <p className="text-sm font-bold text-gray-900 break-all">{student?.email}</p>
-                      </div>
-                      <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm hover:shadow-md transition-all">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Documento</p>
-                        <p className="text-base font-bold text-gray-900">
-                          {student?.documentType?.toUpperCase()}: {student?.documentNumber}
-                        </p>
-                      </div>
-                      <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm hover:shadow-md transition-all">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Teléfono</p>
-                        <p className="text-base font-bold text-gray-900">{student?.phoneNumber}</p>
-                      </div>
-                      <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm hover:shadow-md transition-all">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Nivel Académico</p>
-                        <p className="text-base font-bold text-gray-900">
-                          {student?.academicLevel?.name || 'Sin nivel asignado'}
-                        </p>
-                      </div>
-                      <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm hover:shadow-md transition-all">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Plan Contratado</p>
-                        <p className="text-base font-bold text-gray-900">
-                          {student?.paymentPlan?.name || 'Sin plan asignado'}
-                        </p>
-                        {student?.paymentPlan && (
-                          <p className="text-xs text-gray-600 mt-1">
-                            {student.paymentPlan.installments_count} cuotas • S/ {student.paymentPlan.total_amount.toFixed(2)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Datos de Pago (Solo lectura) */}
-                  <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6 shadow-sm">
-                    <h4 className="text-lg font-bold text-green-900 mb-5 flex items-center gap-2">
-                      <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-                        <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
-                      </svg>
-                      Datos de Pago Reportados
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="bg-white rounded-xl p-4 border border-green-100 shadow-sm hover:shadow-md transition-all">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Fecha de Pago</p>
-                        <p className="text-base font-bold text-gray-900">
-                          {student?.paymentDate ? new Date(student.paymentDate).toLocaleDateString('es-PE', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          }) : '-'}
-                        </p>
-                      </div>
-                      <div className="bg-white rounded-xl p-4 border border-green-100 shadow-sm hover:shadow-md transition-all">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Registrado por</p>
-                        <p className="text-base font-bold text-gray-900">{student?.registeredBy?.name || '-'}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Contrato PDF - Visible para Cajero */}
-                  {student?.contractFileName && (
-                    <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-6 shadow-sm">
-                      <h4 className="text-lg font-bold text-purple-900 mb-5 flex items-center gap-2">
-                        <svg className="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-                        </svg>
-                        Contrato Subido
-                      </h4>
-                      <div className="bg-white rounded-xl p-4 border border-purple-100 shadow-sm">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                              <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-                              </svg>
-                            </div>
-                            <div>
-                              <p className="font-bold text-gray-900">{student.contractFileName}</p>
-                              <p className="text-sm text-gray-500">Documento PDF del contrato</p>
-                            </div>
-                          </div>
-                          <a
-                            href={`/admin/students/${student.id}/contract`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            Ver PDF
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {!student?.contractFileName && (
-                    <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 shadow-sm">
-                      <div className="flex items-start gap-3">
-                        <svg className="w-6 h-6 text-yellow-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        <div>
-                          <p className="text-sm font-bold text-yellow-900">⚠️ Sin contrato</p>
-                          <p className="text-sm text-yellow-700 mt-1">
-                            El asesor de ventas aún no ha subido el contrato PDF.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ✅ NUEVO: Voucher de Pago - Visible para Cajero */}
-                  {student?.paymentVoucherFileName && (
-                    <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6 shadow-sm">
-                      <h4 className="text-lg font-bold text-green-900 mb-5 flex items-center gap-2">
-                        <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                        </svg>
-                        Voucher de Pago Subido
-                      </h4>
-                      <div className="bg-white rounded-xl p-4 border border-green-100 shadow-sm">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-14 h-14 bg-green-100 rounded-lg flex items-center justify-center">
-                              <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                              </svg>
-                            </div>
-                            <div>
-                              <p className="font-bold text-gray-900 text-lg">{student.paymentVoucherFileName}</p>
-                              <p className="text-sm text-gray-500">Comprobante de pago del estudiante</p>
-                            </div>
-                          </div>
-                          <a
-                            href={`/admin/students/${student.id}/payment-voucher`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-5 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            Ver Voucher
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {!student?.paymentVoucherFileName && (
-                    <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 shadow-sm">
-                      <div className="flex items-start gap-3">
-                        <svg className="w-6 h-6 text-yellow-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        <div>
-                          <h5 className="font-bold text-yellow-900 mb-1">⚠️ Sin voucher de pago</h5>
-                          <p className="text-sm text-yellow-800">
-                            El asesor de ventas debe subir el comprobante de pago antes de que puedas verificarlo.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Verificación de Pago - ACCIÓN PRINCIPAL DEL CAJERO */}
-                  <div className="p-6 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 rounded-2xl border-2 border-green-400 shadow-lg">
-                    <label className="flex items-start gap-4 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={formData.paymentVerified}
-                        onChange={(e) => setFormData({ ...formData, paymentVerified: e.target.checked })}
-                        className="w-7 h-7 text-green-600 focus:ring-4 focus:ring-green-300 rounded-lg border-2 border-gray-400 transition-all mt-1 cursor-pointer"
-                      />
-                      <div className="flex-1">
-                        <span className="text-xl font-bold text-gray-900 block mb-2 group-hover:text-green-700 transition-colors">
-                          ✓ Confirmar Verificación de Pago
-                        </span>
-                        <span className="text-sm text-gray-700 leading-relaxed">
-                          He verificado que el pago ha sido recibido correctamente.
-                          <span className="block mt-3 text-green-900 font-semibold bg-green-100 p-3 rounded-lg border-l-4 border-green-600">
-                            💡 Al confirmar, el estudiante será <strong>matriculado automáticamente</strong> en el sistema.
-                          </span>
-                        </span>
-                      </div>
-                      {formData.paymentVerified && (
-                        <div className="flex-shrink-0 animate-bounce">
-                          <svg className="w-12 h-12 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      )}
-                    </label>
-                  </div>
-
-                  {/* Mensaje informativo sobre matrícula */}
-                  {formData.paymentVerified && (
-                    <div className="p-5 bg-green-50 rounded-2xl border-l-4 border-green-500 shadow-sm animate-fade-in">
-                      <div className="flex items-start gap-3">
-                        <svg className="w-6 h-6 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        <div>
-                          <p className="text-sm font-bold text-green-900">✅ Pago verificado - Listo para matricular</p>
-                          <p className="text-sm text-green-700 mt-1">
-                            Al guardar, el estudiante será matriculado automáticamente y pasará al estado "Matriculado".
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Información de verificación de pago */}
-                  {student?.verifiedPaymentBy && (
-                    <div className="p-5 bg-green-50 rounded-xl border border-green-200 shadow-sm">
-                      <h5 className="text-sm font-bold text-green-900 mb-3 flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        Pago Verificado
-                      </h5>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="bg-white p-3 rounded-lg">
-                          <p className="text-gray-600 mb-1">Verificado por:</p>
-                          <p className="font-bold text-gray-900">{student.verifiedPaymentBy.name}</p>
-                        </div>
-                        <div className="bg-white p-3 rounded-lg">
-                          <p className="text-gray-600 mb-1">Fecha de verificación:</p>
-                          <p className="font-bold text-gray-900">
-                            {student.paymentVerifiedAt ? new Date(student.paymentVerifiedAt).toLocaleString('es-PE') : '-'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                // VISTA COMPLETA PARA ADMIN Y ASESOR DE VENTAS
-                <>
-                  {/* Sección: Datos Personales */}
-                  <div>
+              {/* VISTA UNIFICADA PARA TODOS LOS ROLES */}
+              <>
+                {/* Sección: Datos Personales */}
+                <div>
                     <div className="flex items-center mb-4 pb-2 border-b-2 border-blue-600">
                       <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
                         1
@@ -1221,6 +961,7 @@ const StudentManagement: React.FC<Props> = ({
                         value={formData.firstName}
                         onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                         required
+                        disabled={isCashierEditing}
                       />
 
                       <Input
@@ -1228,6 +969,7 @@ const StudentManagement: React.FC<Props> = ({
                         value={formData.paternalLastName}
                         onChange={(e) => setFormData({ ...formData, paternalLastName: e.target.value })}
                         required
+                        disabled={isCashierEditing}
                       />
 
                       <Input
@@ -1235,6 +977,7 @@ const StudentManagement: React.FC<Props> = ({
                         value={formData.maternalLastName}
                         onChange={(e) => setFormData({ ...formData, maternalLastName: e.target.value })}
                         required
+                        disabled={isCashierEditing}
                       />
                     </div>
 
@@ -1249,6 +992,7 @@ const StudentManagement: React.FC<Props> = ({
                         ]}
                         isSearchable={false}
                         isClearable={false}
+                        isDisabled={isCashierEditing}
                       />
 
                       <Input
@@ -1256,6 +1000,7 @@ const StudentManagement: React.FC<Props> = ({
                         value={formData.documentNumber}
                         onChange={(e) => setFormData({ ...formData, documentNumber: e.target.value })}
                         required
+                        disabled={isCashierEditing}
                       />
 
                       <DatePicker
@@ -1264,6 +1009,7 @@ const StudentManagement: React.FC<Props> = ({
                         onChange={(date) => setFormData({ ...formData, birthDate: date ? date.toISOString().split('T')[0] : '' })}
                         maxDate={new Date()}
                         required
+                        disabled={isCashierEditing}
                       />
                     </div>
 
@@ -1277,6 +1023,7 @@ const StudentManagement: React.FC<Props> = ({
                           { value: 'F', label: 'Femenino' }
                         ]}
                         isSearchable={false}
+                        isDisabled={isCashierEditing}
                       />
 
                       <Input
@@ -1285,6 +1032,7 @@ const StudentManagement: React.FC<Props> = ({
                         value={formData.phoneNumber}
                         onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                         required
+                        disabled={isCashierEditing}
                       />
 
                       <Select2
@@ -1298,6 +1046,7 @@ const StudentManagement: React.FC<Props> = ({
                           { value: 'universitario', label: 'Universitario' },
                           { value: 'postgrado', label: 'Postgrado' }
                         ]}
+                        isDisabled={isCashierEditing}
                       />
                     </div>
 
@@ -1308,11 +1057,13 @@ const StudentManagement: React.FC<Props> = ({
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         required
+                        disabled={isCashierEditing}
                       />
                     </div>
                   </div>
 
-                  {/* Sección: Datos Académicos */}
+                  {/* Sección: Datos Académicos - Solo visible cuando el prospecto ya avanzó de "Registrado" */}
+                  {student && student.prospectStatus !== 'registrado' && (
                   <div>
                     <div className="flex items-center mb-4 pb-2 border-b-2 border-green-600">
                       <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
@@ -1340,6 +1091,7 @@ const StudentManagement: React.FC<Props> = ({
                         selected={formData.paymentDate ? new Date(formData.paymentDate) : null}
                         onChange={(date) => handlePaymentDateChange(date ? date.toISOString().split('T')[0] : '')}
                         maxDate={new Date()}
+                        disabled={isCashierEditing}
                       />
 
                       <Select2
@@ -1354,6 +1106,7 @@ const StudentManagement: React.FC<Props> = ({
                         }))}
                         isSearchable={false}
                         isClearable={true}
+                        isDisabled={isCashierEditing}
                       />
                     </div>
 
@@ -1371,6 +1124,7 @@ const StudentManagement: React.FC<Props> = ({
                         }
                         isSearchable={false}
                         isClearable={true}
+                        isDisabled={isCashierEditing}
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         El plan de pago es independiente del nivel académico
@@ -1411,13 +1165,15 @@ const StudentManagement: React.FC<Props> = ({
                                 </svg>
                                 Ver
                               </a>
-                              <button
-                                type="button"
-                                onClick={() => setFormData({ ...formData, paymentVoucherFileName: '', paymentVoucherFile: null })}
-                                className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition-colors text-sm"
-                              >
-                                Cambiar
-                              </button>
+                              {!isCashierEditing && (
+                                <button
+                                  type="button"
+                                  onClick={() => setFormData({ ...formData, paymentVoucherFileName: '', paymentVoucherFile: null })}
+                                  className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition-colors text-sm"
+                                >
+                                  Cambiar
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1533,13 +1289,15 @@ const StudentManagement: React.FC<Props> = ({
                                   </svg>
                                   Ver
                                 </a>
-                                <button
-                                  type="button"
-                                  onClick={() => setFormData({ ...formData, contractFileName: '', contractFile: null })}
-                                  className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition-colors text-sm"
-                                >
-                                  Cambiar
-                                </button>
+                                {!isCashierEditing && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, contractFileName: '', contractFile: null })}
+                                    className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition-colors text-sm"
+                                  >
+                                    Cambiar
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1615,7 +1373,40 @@ const StudentManagement: React.FC<Props> = ({
                         )}
                       </div>
                     </div>
+
+                    {/* Verificación de Pago - ACCIÓN PRINCIPAL DEL CAJERO */}
+                    {isCashierEditing && (
+                      <div className="p-6 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 rounded-2xl border-2 border-green-400 shadow-lg mt-6">
+                        <label className="flex items-start gap-4 cursor-pointer group">
+                          <input
+                            type="checkbox"
+                            checked={formData.paymentVerified}
+                            onChange={(e) => setFormData({ ...formData, paymentVerified: e.target.checked })}
+                            className="w-7 h-7 text-green-600 focus:ring-4 focus:ring-green-300 rounded-lg border-2 border-gray-400 transition-all mt-1 cursor-pointer"
+                          />
+                          <div className="flex-1">
+                            <span className="text-xl font-bold text-gray-900 block mb-2 group-hover:text-green-700 transition-colors">
+                              ✓ Confirmar Verificación de Pago
+                            </span>
+                            <span className="text-sm text-gray-700 leading-relaxed">
+                              He verificado que el pago ha sido recibido correctamente.
+                              <span className="block mt-3 text-green-900 font-semibold bg-green-100 p-3 rounded-lg border-l-4 border-green-600">
+                                💡 Al confirmar, el estudiante será <strong>matriculado automáticamente</strong> en el sistema.
+                              </span>
+                            </span>
+                          </div>
+                          {formData.paymentVerified && (
+                            <div className="flex-shrink-0 animate-bounce">
+                              <svg className="w-12 h-12 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                        </label>
+                      </div>
+                    )}
                   </div>
+                  )}
 
                   {/* Sección: Examen de Categorización */}
                   <div>
@@ -1633,11 +1424,11 @@ const StudentManagement: React.FC<Props> = ({
                           checked={formData.hasPlacementTest}
                           onChange={(e) => setFormData({ ...formData, hasPlacementTest: e.target.checked })}
                           className="w-5 h-5 text-purple-600 focus:ring-purple-500 rounded"
+                          disabled={isCashierEditing}
                         />
                         <span className="text-sm font-medium text-gray-700">El prospecto realizó examen de categorización</span>
                       </label>
                     </div>
-
                     {formData.hasPlacementTest && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-8">
                         <DatePicker
@@ -1646,6 +1437,7 @@ const StudentManagement: React.FC<Props> = ({
                           onChange={(date) => setFormData({ ...formData, testDate: date ? date.toISOString().split('T')[0] : '' })}
                           maxDate={new Date()}
                           required={formData.hasPlacementTest}
+                          disabled={isCashierEditing}
                         />
 
                         <Input
@@ -1657,6 +1449,7 @@ const StudentManagement: React.FC<Props> = ({
                           min="0"
                           max="20"
                           step="0.1"
+                          disabled={isCashierEditing}
                         />
                       </div>
                     )}
@@ -1676,12 +1469,14 @@ const StudentManagement: React.FC<Props> = ({
                         label="Nombre Completo del Titular"
                         value={formData.guardianName}
                         onChange={(e) => setFormData({ ...formData, guardianName: e.target.value })}
+                        disabled={isCashierEditing}
                       />
 
                       <Input
                         label="DNI del Titular"
                         value={formData.guardianDocumentNumber}
                         onChange={(e) => setFormData({ ...formData, guardianDocumentNumber: e.target.value })}
+                        disabled={isCashierEditing}
                       />
                     </div>
 
@@ -1691,6 +1486,7 @@ const StudentManagement: React.FC<Props> = ({
                         type="email"
                         value={formData.guardianEmail}
                         onChange={(e) => setFormData({ ...formData, guardianEmail: e.target.value })}
+                        disabled={isCashierEditing}
                       />
 
                       <DatePicker
@@ -1698,6 +1494,7 @@ const StudentManagement: React.FC<Props> = ({
                         selected={formData.guardianBirthDate ? new Date(formData.guardianBirthDate) : null}
                         onChange={(date) => setFormData({ ...formData, guardianBirthDate: date ? date.toISOString().split('T')[0] : '' })}
                         maxDate={new Date()}
+                        disabled={isCashierEditing}
                       />
                     </div>
 
@@ -1707,17 +1504,18 @@ const StudentManagement: React.FC<Props> = ({
                         type="tel"
                         value={formData.guardianPhone}
                         onChange={(e) => setFormData({ ...formData, guardianPhone: e.target.value })}
+                        disabled={isCashierEditing}
                       />
 
                       <Input
                         label="Dirección del Titular"
                         value={formData.guardianAddress}
                         onChange={(e) => setFormData({ ...formData, guardianAddress: e.target.value })}
+                        disabled={isCashierEditing}
                       />
                     </div>
                   </div>
                 </>
-              )}
             </div>
 
             {/* Footer con Botones */}

@@ -69,36 +69,104 @@ const PaymentScheduleModal: React.FC<{
   };
 
   const getStatusBadge = (installment: Installment) => {
-    switch (installment.status) {
-      case 'verified':
+    // Si ya está verificado
+    if (installment.status === 'verified') {
+      return (
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Verificado
+        </span>
+      );
+    }
+    
+    // Si está en verificación (voucher subido)
+    if (installment.status === 'paid') {
+      return (
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 animate-pulse">
+          <Clock className="w-3 h-3 mr-1" />
+          Pendiente Verificación
+        </span>
+      );
+    }
+    
+    // Para pendientes, verificar días de gracia y mora
+    if (installment.status === 'pending' || installment.status === 'overdue') {
+      // Parse due date safely to avoid UTC shift when JS parses YYYY-MM-DD as UTC
+      const dueDateStr = (installment as any).due_date || (installment as any).dueDate || '';
+      let dueDate: Date;
+      if (typeof dueDateStr === 'string' && dueDateStr.includes('-')) {
+        const [y, m, d] = dueDateStr.split('-').map(Number);
+        dueDate = new Date(y, (m || 1) - 1, d || 1);
+      } else {
+        dueDate = new Date(dueDateStr);
+      }
+
+      const today = new Date();
+      const localToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+      // Prefer server-provided values when available (authoritative, avoids TZ issues)
+      const serverDaysUntilDue = (installment as any).daysUntilDue;
+      const serverDaysUntilGraceLimit = (installment as any).daysUntilGraceLimit;
+
+      let daysUntilDue = typeof serverDaysUntilDue === 'number' ? serverDaysUntilDue : Math.round((dueDate.getTime() - localToday.getTime()) / (1000 * 60 * 60 * 24));
+
+      // Obtener días de gracia del plan (server uses snake_case or camelCase)
+      const gracePeriodDays = enrollment.paymentPlan?.gracePeriodDays || (enrollment.paymentPlan as any)?.grace_period_days || 0;
+
+      let daysUntilGraceLimit = typeof serverDaysUntilGraceLimit === 'number' ? serverDaysUntilGraceLimit : (function(){
+        const graceLimitDate = new Date(dueDate);
+        graceLimitDate.setDate(graceLimitDate.getDate() + gracePeriodDays);
+        return Math.round((graceLimitDate.getTime() - localToday.getTime()) / (1000 * 60 * 60 * 24));
+      })();
+      
+      // 🔍 Debug logs para verificar (server or local) cálculos
+      console.log('🔍 Cashier Debug - Cuota:', {
+        dueDateStr,
+        dueDate: dueDate.toISOString().split('T')[0],
+        today: localToday.toISOString().split('T')[0],
+        gracePeriodDays,
+        daysUntilDue,
+        daysUntilGraceLimit,
+        moraEnDias: Math.abs(daysUntilGraceLimit),
+        usingServer: typeof serverDaysUntilGraceLimit === 'number'
+      });
+      
+      // Si ya pasó la fecha pero está en período de gracia
+      if (daysUntilDue < 0 && daysUntilGraceLimit >= 0 && gracePeriodDays > 0) {
         return (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Verificado
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Período de Gracia ({daysUntilGraceLimit}d)
           </span>
         );
-      case 'paid':
-        return (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 animate-pulse">
-            <Clock className="w-3 h-3 mr-1" />
-            Pendiente Verificación
-          </span>
-        );
-      case 'overdue':
+      }
+      
+      // Si ya pasó el período de gracia - VENCIDO CON MORA
+      if (daysUntilGraceLimit < 0) {
         return (
           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
             <XCircle className="w-3 h-3 mr-1" />
-            Vencido
+            Vencido con Mora ({Math.abs(daysUntilGraceLimit)}d)
           </span>
         );
-      default:
-        return (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-            <AlertCircle className="w-3 h-3 mr-1" />
-            Pendiente
-          </span>
-        );
+      }
+      
+      // Pendiente normal (aún no vence)
+      return (
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+          <AlertCircle className="w-3 h-3 mr-1" />
+          Pendiente ({daysUntilDue > 0 ? `${daysUntilDue}d` : 'Vence hoy'})
+        </span>
+      );
     }
+    
+    // Fallback
+    return (
+      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+        <AlertCircle className="w-3 h-3 mr-1" />
+        Desconocido
+      </span>
+    );
   };
 
   return (
@@ -185,7 +253,13 @@ const PaymentScheduleModal: React.FC<{
                       Fecha Vencimiento
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Monto
+                      Monto Base
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Mora
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Total a Pagar
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Pagado
@@ -206,8 +280,16 @@ const PaymentScheduleModal: React.FC<{
                     enrollment.installments.map((installment) => {
                       // Normalizar campos (soportar tanto camelCase como snake_case)
                       const installmentNumber = (installment as any).installment_number || (installment as any).installmentNumber || 0;
-                      const dueDate = (installment as any).due_date || (installment as any).dueDate || '';
+                      const dueDateStr = (installment as any).due_date || (installment as any).dueDate || '';
+                      // Parse due date safely to avoid timezone shift (YYYY-MM-DD -> local date)
+                      let dueDateParsed = new Date(dueDateStr);
+                      if (typeof dueDateStr === 'string' && dueDateStr.includes('-')) {
+                        const [y, m, d] = dueDateStr.split('-').map(Number);
+                        dueDateParsed = new Date(y, (m || 1) - 1, d || 1);
+                      }
                       const paidAmount = (installment as any).paid_amount || (installment as any).paidAmount || 0;
+                      const lateFee = (installment as any).late_fee || (installment as any).lateFee || 0;
+                      const totalDue = (installment as any).total_due || (installment as any).totalDue || installment.amount + lateFee;
                       const verifiedBy = (installment as any).verifiedBy || (installment as any).verified_by;
                       const vouchers = installment.vouchers || [];
                       
@@ -228,7 +310,7 @@ const PaymentScheduleModal: React.FC<{
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center text-sm text-gray-900">
                             <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                            {new Date(dueDate).toLocaleDateString('es-PE', {
+                            {dueDateParsed.toLocaleDateString('es-PE', {
                               year: 'numeric',
                               month: 'short',
                               day: 'numeric'
@@ -239,6 +321,27 @@ const PaymentScheduleModal: React.FC<{
                           <span className="text-sm font-semibold text-gray-900">
                             S/ {installment.amount.toFixed(2)}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {lateFee > 0 ? (
+                            <span className="text-sm font-bold text-red-600">
+                              + S/ {lateFee.toFixed(2)}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex flex-col">
+                            <span className={`text-sm font-bold ${lateFee > 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                              S/ {totalDue.toFixed(2)}
+                            </span>
+                            {lateFee > 0 && (
+                              <span className="text-xs text-red-500 italic">
+                                (incluye mora)
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="text-sm font-semibold text-green-600">
@@ -333,7 +436,7 @@ const PaymentScheduleModal: React.FC<{
                     )})
                   ) : (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
                         No hay cuotas registradas
                       </td>
                     </tr>

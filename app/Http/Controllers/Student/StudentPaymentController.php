@@ -50,6 +50,16 @@ class StudentPaymentController extends Controller
             ], 200);
         }
         
+        // ✅ Calcular mora automáticamente para todas las cuotas pendientes
+        foreach ($enrollment->installments as $installment) {
+            if ($installment->status === 'pending') {
+                $installment->calculateLateFee();
+            }
+        }
+        
+        // Refrescar las cuotas después de calcular la mora
+        $enrollment->load('installments');
+        
         // Formatear datos del enrollment
         return response()->json([
             'enrollment' => [
@@ -67,8 +77,22 @@ class StudentPaymentController extends Controller
                     'totalAmount' => $enrollment->paymentPlan->total_amount,
                     'installmentsCount' => $enrollment->paymentPlan->installments_count,
                     'monthlyAmount' => $enrollment->paymentPlan->monthly_amount,
+                    'gracePeriodDays' => $enrollment->paymentPlan->grace_period_days ?? 0, // ✅ Días de gracia del plan
                 ],
                 'installments' => $enrollment->installments->map(function ($installment) use ($enrollment) {
+                    // Calcular días hasta vencimiento y hasta límite de gracia (con signo)
+                    $today = \Carbon\Carbon::today();
+                    $dueDate = $installment->due_date;
+                    $plan = $enrollment->paymentPlan;
+                    $gracePeriod = $plan->grace_period_days ?? 0;
+
+                    // daysUntilDue: positive if due in future, negative if past
+                    $daysUntilDue = $today->diffInDays($dueDate, false);
+
+                    $graceLimit = $dueDate->copy()->addDays($gracePeriod);
+                    // daysUntilGraceLimit: positive if grace limit in future, negative if past
+                    $daysUntilGraceLimit = $today->diffInDays($graceLimit, false);
+
                     return [
                         'id' => $installment->id,
                         'installmentNumber' => $installment->installment_number,
@@ -81,6 +105,8 @@ class StudentPaymentController extends Controller
                         'status' => $installment->status,
                         'isOverdue' => $installment->is_overdue,
                         'daysLate' => $installment->days_late,
+                        'daysUntilDue' => $daysUntilDue,
+                        'daysUntilGraceLimit' => $daysUntilGraceLimit,
                         'notes' => $installment->notes,
                         'vouchers' => $installment->vouchers->map(function ($voucher) use ($enrollment) {
                             $raw = $voucher->voucher_path;
