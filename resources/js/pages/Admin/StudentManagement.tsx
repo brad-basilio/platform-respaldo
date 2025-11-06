@@ -1650,7 +1650,7 @@ const StudentManagement: React.FC<Props> = ({
   return (
     <AuthenticatedLayout>
       <div className="p-6 space-y-6">
-        {/* Alerta Elegante */}
+        {/* Alerta Elegante mejorado*/}
         {showAlert && (
           <div className="fixed top-4 right-4 z-50 animate-slide-in">
             <div className="bg-white border-l-4 border-red-500 rounded-lg shadow-lg p-4 max-w-md">
