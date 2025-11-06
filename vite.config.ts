@@ -26,8 +26,8 @@ export default defineConfig(({ mode }) => ({
     },
     define: mode === 'production' ? {
         'import.meta.env.VITE_REVERB_HOST': JSON.stringify('unced.online'),
-        'import.meta.env.VITE_REVERB_PORT': JSON.stringify('6001'),
-        'import.meta.env.VITE_REVERB_SCHEME': JSON.stringify('wss'),
+        'import.meta.env.VITE_REVERB_PORT': JSON.stringify('443'),
+        'import.meta.env.VITE_REVERB_SCHEME': JSON.stringify('https'),
         'import.meta.env.VITE_REVERB_APP_KEY': JSON.stringify('wmcehp1p9o91o5vqewm5'),
     } : {},
 }));
