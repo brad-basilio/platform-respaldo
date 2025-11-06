@@ -25,9 +25,9 @@ export default defineConfig(({ mode }) => ({
         jsx: 'automatic',
     },
     define: mode === 'production' ? {
-        'import.meta.env.VITE_REVERB_HOST': JSON.stringify('159.89.157.68'),
+        'import.meta.env.VITE_REVERB_HOST': JSON.stringify('unced.online'),
         'import.meta.env.VITE_REVERB_PORT': JSON.stringify('8080'),
-        'import.meta.env.VITE_REVERB_SCHEME': JSON.stringify('http'),
+        'import.meta.env.VITE_REVERB_SCHEME': JSON.stringify('https'),
         'import.meta.env.VITE_REVERB_APP_KEY': JSON.stringify('wmcehp1p9o91o5vqewm5'),
     } : {},
 }));
