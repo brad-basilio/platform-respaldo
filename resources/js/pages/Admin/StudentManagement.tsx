@@ -109,10 +109,10 @@ const StudentManagement: React.FC<Props> = ({
 
   const getProspectStatusColor = (status: string) => {
     switch (status) {
-      case 'registrado': return 'bg-blue-100 text-blue-800';
-      case 'propuesta_enviada': return 'bg-yellow-100 text-yellow-800';
-      case 'pago_por_verificar': return 'bg-orange-100 text-orange-800';
-      case 'matriculado': return 'bg-green-100 text-green-800';
+      case 'registrado': return 'bg-[#073372]/10 text-[#073372] border border-[#073372]/30';
+      case 'propuesta_enviada': return 'bg-[#F98613]/10 text-[#F98613] border border-[#F98613]/30';
+      case 'pago_por_verificar': return 'bg-orange-100 text-orange-700 border border-orange-300';
+      case 'matriculado': return 'bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -494,7 +494,7 @@ const StudentManagement: React.FC<Props> = ({
           const student = params.data;
           return (
             <div className="flex items-center py-2 w-full h-full">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 bg-gradient-to-r from-[#073372] to-[#17BC91] rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-white text-sm font-semibold">
                   {student.name.split(' ').map((n: string) => n[0]).join('')}
                 </span>
@@ -539,7 +539,7 @@ const StudentManagement: React.FC<Props> = ({
               onChange={(e) => {
                 handleProspectStatusChange(student.id, e.target.value);
               }}
-              className={`text-xs font-medium px-2.5 py-1 rounded-full border-0 focus:ring-2 focus:ring-blue-500 cursor-pointer w-full ${getProspectStatusColor(student.prospectStatus || 'registrado')}`}
+              className={`text-xs font-medium px-2.5 py-1 rounded-full border-0 focus:ring-2 focus:ring-[#073372] cursor-pointer w-full ${getProspectStatusColor(student.prospectStatus || 'registrado')}`}
               disabled={
                 (userRole === 'sales_advisor' && (student.prospectStatus !== 'registrado' && student.prospectStatus !== 'propuesta_enviada')) ||
                 (userRole === 'cashier' && student.prospectStatus !== 'pago_por_verificar')
@@ -681,7 +681,7 @@ const StudentManagement: React.FC<Props> = ({
                 <>
                   <button
                     onClick={() => setEditingStudent(student)}
-                    className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+                    className="text-[#073372] hover:text-[#17BC91] p-1 hover:bg-[#17BC91]/10 rounded transition-colors"
                     title="Editar prospecto"
                   >
                     <Edit className="h-4 w-4" />
@@ -698,7 +698,7 @@ const StudentManagement: React.FC<Props> = ({
               {userRole === 'cashier' && (
                 <button
                   onClick={() => setEditingStudent(student)}
-                  className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+                  className="text-[#073372] hover:text-[#17BC91] p-1 hover:bg-[#17BC91]/10 rounded transition-colors"
                   title="Ver detalles"
                 >
                   <Eye className="h-4 w-4" />
@@ -722,7 +722,7 @@ const StudentManagement: React.FC<Props> = ({
           if (student.registeredBy) {
             return (
               <div className="flex items-center w-full h-full">
-                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full flex items-center justify-center mr-2 flex-shrink-0">
+                <div className="w-8 h-8 bg-gradient-to-r from-[#F98613] to-[#17BC91] rounded-full flex items-center justify-center mr-2 flex-shrink-0">
                   <span className="text-white text-xs font-semibold">
                     {student.registeredBy.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                   </span>
@@ -743,10 +743,10 @@ const StudentManagement: React.FC<Props> = ({
   }, [userRole]);
 
   const kanbanColumns = [
-    { id: 'registrado', title: 'Registrado', color: 'border-blue-500 bg-blue-50' },
-    { id: 'propuesta_enviada', title: 'Propuesta Enviada', color: 'border-yellow-500 bg-yellow-50' },
+    { id: 'registrado', title: 'Registrado', color: 'border-[#073372] bg-[#073372]/5' },
+    { id: 'propuesta_enviada', title: 'Propuesta Enviada', color: 'border-[#F98613] bg-[#F98613]/5' },
     { id: 'pago_por_verificar', title: 'Pago Por Verificar', color: 'border-orange-500 bg-orange-50' },
-    { id: 'matriculado', title: 'Matriculado', color: 'border-green-500 bg-green-50' },
+    { id: 'matriculado', title: 'Matriculado', color: 'border-[#17BC91] bg-[#17BC91]/5' },
   ];
 
   // Filtrar columnas según el rol
@@ -898,7 +898,7 @@ const StudentManagement: React.FC<Props> = ({
 
     return (
       <div
-        className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-sm animate-fade-in flex items-center justify-center p-4"
+        className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm animate-fade-in flex items-center justify-center p-4"
         onClick={onCancel}
         style={{ height: '100vh', width: '100vw' }}
       >
@@ -908,7 +908,7 @@ const StudentManagement: React.FC<Props> = ({
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header del Modal */}
-          <div className="relative bg-blue-600 px-8 py-6 rounded-t-3xl flex-shrink-0">
+          <div className="relative bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6 rounded-t-3xl flex-shrink-0">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-2xl font-bold text-white mb-1">
@@ -948,8 +948,8 @@ const StudentManagement: React.FC<Props> = ({
               <>
                 {/* Sección: Datos Personales */}
                 <div>
-                    <div className="flex items-center mb-4 pb-2 border-b-2 border-blue-600">
-                      <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                    <div className="flex items-center mb-4 pb-2 border-b-2 border-[#073372]">
+                      <div className="w-8 h-8 bg-[#073372] text-white rounded-full flex items-center justify-center font-bold mr-3">
                         1
                       </div>
                       <h4 className="text-lg font-semibold text-gray-900">Datos Personales del Prospecto</h4>
@@ -1065,8 +1065,8 @@ const StudentManagement: React.FC<Props> = ({
                   {/* Sección: Datos Académicos - Solo visible cuando el prospecto ya avanzó de "Registrado" */}
                   {student && student.prospectStatus !== 'registrado' && (
                   <div>
-                    <div className="flex items-center mb-4 pb-2 border-b-2 border-green-600">
-                      <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                    <div className="flex items-center mb-4 pb-2 border-b-2 border-[#17BC91]">
+                      <div className="w-8 h-8 bg-[#17BC91] text-white rounded-full flex items-center justify-center font-bold mr-3">
                         2
                       </div>
                       <h4 className="text-lg font-semibold text-gray-900">Datos Académicos y de Matrícula</h4>
@@ -1410,8 +1410,8 @@ const StudentManagement: React.FC<Props> = ({
 
                   {/* Sección: Examen de Categorización */}
                   <div>
-                    <div className="flex items-center mb-4 pb-2 border-b-2 border-purple-600">
-                      <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                    <div className="flex items-center mb-4 pb-2 border-b-2 border-[#F98613]">
+                      <div className="w-8 h-8 bg-[#F98613] text-white rounded-full flex items-center justify-center font-bold mr-3">
                         3
                       </div>
                       <h4 className="text-lg font-semibold text-gray-900">Examen de Categorización</h4>
@@ -1423,7 +1423,7 @@ const StudentManagement: React.FC<Props> = ({
                           type="checkbox"
                           checked={formData.hasPlacementTest}
                           onChange={(e) => setFormData({ ...formData, hasPlacementTest: e.target.checked })}
-                          className="w-5 h-5 text-purple-600 focus:ring-purple-500 rounded"
+                          className="w-5 h-5 text-[#F98613] focus:ring-[#F98613] rounded"
                           disabled={isCashierEditing}
                         />
                         <span className="text-sm font-medium text-gray-700">El prospecto realizó examen de categorización</span>
@@ -1457,8 +1457,8 @@ const StudentManagement: React.FC<Props> = ({
 
                   {/* Sección: Datos del Apoderado/Titular */}
                   <div>
-                    <div className="flex items-center mb-4 pb-2 border-b-2 border-orange-600">
-                      <div className="w-8 h-8 bg-orange-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                    <div className="flex items-center mb-4 pb-2 border-b-2 border-[#073372]">
+                      <div className="w-8 h-8 bg-[#073372] text-white rounded-full flex items-center justify-center font-bold mr-3">
                         4
                       </div>
                       <h4 className="text-lg font-semibold text-gray-900">Datos del Apoderado o Titular de la Cuenta</h4>
@@ -1629,7 +1629,7 @@ const StudentManagement: React.FC<Props> = ({
                     disabled={isCashierEditing && !formData.paymentVerified}
                     className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm flex items-center gap-2 ${isCashierEditing && !formData.paymentVerified
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-[#073372] hover:bg-[#17BC91] text-white'
                       }`}
                   >
                     {isCashierEditing
@@ -1736,7 +1736,7 @@ const StudentManagement: React.FC<Props> = ({
             {(userRole === 'admin' || userRole === 'sales_advisor') && (
               <button
                 onClick={() => setShowCreateForm(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+                className="bg-[#073372] hover:bg-[#17BC91] text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
               >
                 <Plus className="h-5 w-5" />
                 <span>Agregar Prospecto</span>
