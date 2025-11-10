@@ -387,14 +387,14 @@ const UserManagement: React.FC<Props> = ({ users }) => {
         {/* Search Bar */}
         <div className="relative">
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
+            <Input
               type="text"
               value={quickFilterText}
               onChange={(e) => setQuickFilterText(e.target.value)}
-              placeholder="Buscar por nombre, email o rol..."
-              className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17BC91] focus:border-transparent transition-all"
-            />
+              label="Buscar por nombre, email o rol..."
+            icon={<Search className="w-4 h-4" />}
+ className="pr-10"          
+          />
             {quickFilterText && (
               <button
                 onClick={() => setQuickFilterText('')}
