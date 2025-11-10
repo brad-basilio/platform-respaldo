@@ -111,13 +111,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
             section: 'PROSPECTOS',
             items: [
               { id: 'students', label: 'Prospectos', icon: RiGroupLine },
-              { id: 'enrolled-students', label: 'Alumnos Matriculados', icon: RiGraduationCapLine },
+              { id: 'enrolled-students', label: 'Participantes Inscritos', icon: RiGraduationCapLine },
             ]
           },
           {
             section: 'CONFIGURACIÓN',
             items: [
-              { id: 'teachers', label: 'Docentes', icon: RiUserStarLine },
+              { id: 'teachers', label: 'Asesores', icon: RiUserStarLine },
               //{ id: 'groups', label: 'Creación de grupos', icon: RiTeamLine },
               { id: 'academic-levels', label: 'Niveles Académicos', icon: RiGraduationCapLine },
               { id: 'payment-plans', label: 'Planes de Pago', icon: RiSecurePaymentLine },
@@ -153,7 +153,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
               { id: 'classes', label: 'Clases', icon: RiBookOpenLine },
               { id: 'workshops', label: 'Talleres', icon: RiVideoLine },
               { id: 'evaluations', label: 'Evaluaciones', icon: RiFileTextLine },
-              { id: 'students', label: 'Mis Estudiantes', icon: RiTeamLine },
+              { id: 'students', label: 'Mis Participantes', icon: RiTeamLine },
             ]
           },
           {
@@ -206,7 +206,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
             section: 'VENTAS',
             items: [
               { id: 'students', label: 'Mis Prospectos', icon: RiTeamLine },
-              { id: 'enrolled-students', label: 'Matriculados Verificados', icon: RiGraduationCapLine },
+              { id: 'enrolled-students', label: 'Inscritos Verificados', icon: RiGraduationCapLine },
             ]
           },
         ];
