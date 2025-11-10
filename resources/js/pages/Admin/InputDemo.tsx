@@ -41,15 +41,15 @@ const InputDemo: React.FC = () => {
       <div className="py-12">
         <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-2xl p-8 text-white">
+          <div className="bg-gradient-to-r from-[#073372] via-[#17BC91] to-[#F98613] rounded-t-2xl p-8 text-white">
             <h3 className="text-3xl font-bold mb-2">Nuevo Diseño de Inputs - Material Design 3</h3>
-            <p className="text-blue-100">Basado en Material Design 3 de Google - Professional UI Components</p>
+            <p className="text-white/90">Basado en Material Design 3 de Google - Professional UI Components</p>
           </div>
 
           <div className="bg-white rounded-b-2xl shadow-xl p-8">
             {/* Variant Outlined */}
             <div className="mb-12">
-              <h4 className="text-2xl font-bold text-gray-900 mb-6 pb-2 border-b-2 border-blue-600">
+              <h4 className="text-2xl font-bold text-gray-900 mb-6 pb-2 border-b-2 border-[#073372]">
                 Variant: Outlined (Predeterminado)
               </h4>
               
@@ -119,7 +119,7 @@ const InputDemo: React.FC = () => {
 
             {/* DatePicker y Select2 */}
             <div className="mb-12">
-              <h4 className="text-2xl font-bold text-gray-900 mb-6 pb-2 border-b-2 border-purple-600">
+              <h4 className="text-2xl font-bold text-gray-900 mb-6 pb-2 border-b-2 border-[#17BC91]">
                 DatePicker & Select2 (React Select)
               </h4>
               
@@ -159,7 +159,7 @@ const InputDemo: React.FC = () => {
 
             {/* Estados de Error */}
             <div>
-              <h4 className="text-2xl font-bold text-gray-900 mb-6 pb-2 border-b-2 border-red-600">
+              <h4 className="text-2xl font-bold text-gray-900 mb-6 pb-2 border-b-2 border-[#F98613]">
                 Estados de Validación y Error
               </h4>
               
@@ -202,39 +202,39 @@ const InputDemo: React.FC = () => {
             </div>
 
             {/* Feature List */}
-            <div className="mt-12 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-8">
-              <h4 className="text-xl font-bold text-gray-900 mb-4">🎨 Características del Nuevo Diseño:</h4>
+            <div className="mt-12 bg-gradient-to-r from-[#073372]/5 via-[#17BC91]/5 to-[#F98613]/5 rounded-xl p-8 border border-[#17BC91]/20">
+              <h4 className="text-xl font-bold text-[#073372] mb-4">🎨 Características del Nuevo Diseño:</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
                 <div className="flex items-start gap-2">
-                  <span className="text-blue-600">✓</span>
+                  <span className="text-[#17BC91]">✓</span>
                   <span><strong>Floating Labels:</strong> Etiquetas que se mueven suavemente</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="text-blue-600">✓</span>
+                  <span className="text-[#17BC91]">✓</span>
                   <span><strong>Dos Variantes:</strong> Outlined y Filled</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="text-blue-600">✓</span>
+                  <span className="text-[#17BC91]">✓</span>
                   <span><strong>Estados Dinámicos:</strong> Hover, Focus, Error, Disabled</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="text-blue-600">✓</span>
+                  <span className="text-[#17BC91]">✓</span>
                   <span><strong>Iconos Animados:</strong> Cambio de color en focus</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="text-blue-600">✓</span>
+                  <span className="text-[#17BC91]">✓</span>
                   <span><strong>Helper Text:</strong> Mensajes de ayuda y validación</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="text-blue-600">✓</span>
+                  <span className="text-[#17BC91]">✓</span>
                   <span><strong>Material Design 3:</strong> Siguiendo estándares de Google</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="text-blue-600">✓</span>
+                  <span className="text-[#17BC91]">✓</span>
                   <span><strong>Transiciones Suaves:</strong> Animaciones de 200ms</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="text-blue-600">✓</span>
+                  <span className="text-[#17BC91]">✓</span>
                   <span><strong>Accesibilidad:</strong> Colores AAA-compliant</span>
                 </div>
               </div>

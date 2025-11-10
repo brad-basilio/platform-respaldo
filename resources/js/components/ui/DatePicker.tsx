@@ -29,7 +29,7 @@ const datePickerStyles = `
   }
   
   .react-datepicker__header {
-    background-color: #bebebeff !important;
+    background-color: #073372 !important;
     border-bottom: none !important;
     border-radius: 0.75rem 0.75rem 0 0 !important;
     padding: 1rem !important;
@@ -58,12 +58,13 @@ const datePickerStyles = `
   
   .react-datepicker__month-option:hover,
   .react-datepicker__year-option:hover {
-    background-color: #dbeafe !important;
+    background-color: #17BC91 !important;
+    color: #ffffff !important;
   }
   
   .react-datepicker__month-option--selected,
   .react-datepicker__year-option--selected {
-    background-color: #2563eb !important;
+    background-color: #073372 !important;
     color: #ffffff !important;
   }
   
@@ -74,12 +75,13 @@ const datePickerStyles = `
   }
   
   .react-datepicker__day:hover {
-    background-color: #dbeafe !important;
+    background-color: #17BC91 !important;
+    color: #ffffff !important;
   }
   
   .react-datepicker__day--selected,
   .react-datepicker__day--keyboard-selected {
-    background-color: #2563eb !important;
+    background-color: #073372 !important;
     color: #ffffff !important;
     font-weight: 600 !important;
   }
@@ -166,7 +168,7 @@ export const DatePicker = React.forwardRef<HTMLDivElement, DatePickerProps>(
                 isLabelFloating
                   ? "top-0 -translate-y-1/2 text-xs px-1 bg-white font-medium"
                   : "top-1/2 -translate-y-1/2 text-base left-10",
-                isFocused && !error && "text-blue-600",
+                isFocused && !error && "text-[#073372]",
                 error && "text-red-600",
                 disabled && "text-gray-400"
               )}
@@ -179,7 +181,7 @@ export const DatePicker = React.forwardRef<HTMLDivElement, DatePickerProps>(
           {/* Calendar Icon */}
           <div className={cn(
             "absolute left-3 top-1/2 -translate-y-1/2 z-10 transition-colors duration-200 pointer-events-none",
-            isFocused ? "text-blue-600" : "text-gray-400",
+            isFocused ? "text-[#073372]" : "text-gray-400",
             error && "text-red-600",
             disabled && "text-gray-300"
           )}>
@@ -208,7 +210,7 @@ export const DatePicker = React.forwardRef<HTMLDivElement, DatePickerProps>(
               "h-14 px-3 pt-4 pb-1 pl-10 bg-white",
               "border border-gray-300 rounded-md",
               "hover:border-gray-900",
-              "focus:outline-none focus:border-2 focus:border-blue-600 focus:px-[11px] focus:pl-[39px]",
+              "focus:outline-none focus:border-2 focus:border-[#073372] focus:px-[11px] focus:pl-[39px]",
               "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-200",
               // Remove autocomplete background and keep text color
               "[&:-webkit-autofill]:bg-transparent",

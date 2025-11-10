@@ -1,9 +1,21 @@
 import React from 'react';
 import { 
-  Home, Users, BookOpen, Video, MessageSquare, 
-  BarChart3, Award, FileText, Settings,
-  GraduationCap, UserCheck, PieChart, CreditCard
-} from 'lucide-react';
+  RiHome5Line, 
+  RiTeamLine, 
+  RiBookOpenLine, 
+  RiVideoLine, 
+  RiMessage3Line,
+  RiBarChartBoxLine, 
+  RiAwardLine, 
+  RiFileTextLine, 
+  RiSettings4Line,
+  RiGraduationCapLine, 
+  RiUserStarLine, 
+  RiPieChartLine, 
+  RiSecurePaymentLine,
+  RiDashboard2Line,
+  RiGroupLine
+} from 'react-icons/ri';
 import { usePage, router } from '@inertiajs/react';
 import { User } from '@/types/models';
 
@@ -90,37 +102,37 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
           {
             section: 'GESTIÓN',
             items: [
-              { id: 'dashboard', label: 'Panel Principal', icon: Home },
+              { id: 'dashboard', label: 'Panel Principal', icon: RiDashboard2Line },
             ]
           },
           {
             section: 'PROSPECTOS',
             items: [
-              { id: 'students', label: 'Prospectos', icon: Users },
-              { id: 'enrolled-students', label: 'Alumnos Matriculados', icon: GraduationCap },
+              { id: 'students', label: 'Prospectos', icon: RiGroupLine },
+              { id: 'enrolled-students', label: 'Alumnos Matriculados', icon: RiGraduationCapLine },
             ]
           },
           {
             section: 'CONFIGURACIÓN',
             items: [
-              //{ id: 'teachers', label: 'Docentes', icon: UserCheck },
-              //{ id: 'groups', label: 'Creación de grupos', icon: Users },
-              { id: 'academic-levels', label: 'Niveles Académicos', icon: GraduationCap },
-              { id: 'payment-plans', label: 'Planes de Pago', icon: CreditCard },
+              { id: 'teachers', label: 'Docentes', icon: RiUserStarLine },
+              //{ id: 'groups', label: 'Creación de grupos', icon: RiTeamLine },
+              { id: 'academic-levels', label: 'Niveles Académicos', icon: RiGraduationCapLine },
+              { id: 'payment-plans', label: 'Planes de Pago', icon: RiSecurePaymentLine },
             ]
           },
           {
             section: 'FINANZAS',
             items: [
         
-              { id: 'admin-payment-control', label: 'Gestión de Pagos', icon: CreditCard },
+              { id: 'admin-payment-control', label: 'Gestión de Pagos', icon: RiSecurePaymentLine },
             ]
           },
          /* {
             section: 'REPORTES',
             items: [
-              { id: 'analytics', label: 'Estadísticas', icon: PieChart },
-              { id: 'settings', label: 'Configuración', icon: Settings },
+              { id: 'analytics', label: 'Estadísticas', icon: RiPieChartLine },
+              { id: 'settings', label: 'Configuración', icon: RiSettings4Line },
             ]
           },*/
         ];
@@ -129,22 +141,22 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
           {
             section: 'GESTIÓN',
             items: [
-              { id: 'dashboard', label: 'Panel Principal', icon: Home },
+              { id: 'dashboard', label: 'Panel Principal', icon: RiHome5Line },
             ]
           },
           {
             section: 'ACADÉMICO',
             items: [
-              { id: 'classes', label: 'Clases', icon: BookOpen },
-              { id: 'workshops', label: 'Talleres', icon: Video },
-              { id: 'evaluations', label: 'Evaluaciones', icon: FileText },
-              { id: 'students', label: 'Mis Estudiantes', icon: Users },
+              { id: 'classes', label: 'Clases', icon: RiBookOpenLine },
+              { id: 'workshops', label: 'Talleres', icon: RiVideoLine },
+              { id: 'evaluations', label: 'Evaluaciones', icon: RiFileTextLine },
+              { id: 'students', label: 'Mis Estudiantes', icon: RiTeamLine },
             ]
           },
           {
             section: 'COMUNICACIÓN',
             items: [
-              { id: 'forums', label: 'Foros', icon: MessageSquare },
+              { id: 'forums', label: 'Foros', icon: RiMessage3Line },
             ]
           },
         ];
@@ -153,29 +165,29 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
           {
             section: 'GESTIÓN',
             items: [
-              { id: 'dashboard', label: 'Panel Principal', icon: Home },
+              { id: 'dashboard', label: 'Panel Principal', icon: RiHome5Line },
             ]
           },
     /*      {
             section: 'ACADÉMICO',
             items: [
-          //    { id: 'classes', label: 'Clases', icon: BookOpen },
-           //   { id: 'workshops', label: 'Talleres', icon: Video },
-            //  { id: 'exams', label: 'Exámenes', icon: FileText },
-             // { id: 'progress', label: 'Progreso', icon: BarChart3 },
-             // { id: 'certificates', label: 'Certificados', icon: Award },
+          //    { id: 'classes', label: 'Clases', icon: RiBookOpenLine },
+           //   { id: 'workshops', label: 'Talleres', icon: RiVideoLine },
+            //  { id: 'exams', label: 'Exámenes', icon: RiFileTextLine },
+             // { id: 'progress', label: 'Progreso', icon: RiBarChartBoxLine },
+             // { id: 'certificates', label: 'Certificados', icon: RiAwardLine },
             ]
           },*/
           {
             section: 'FINANZAS',
             items: [
-              { id: 'payment-control', label: 'Control de Pagos', icon: CreditCard },
+              { id: 'payment-control', label: 'Control de Pagos', icon: RiSecurePaymentLine },
             ]
           },
          /* {
             section: 'COMUNICACIÓN',
             items: [
-              { id: 'forums', label: 'Foros', icon: MessageSquare },
+              { id: 'forums', label: 'Foros', icon: RiMessage3Line },
             ]
           },*/
         ];
@@ -184,14 +196,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
           {
             section: 'GESTIÓN',
             items: [
-              { id: 'dashboard', label: 'Panel Principal', icon: Home },
+              { id: 'dashboard', label: 'Panel Principal', icon: RiHome5Line },
             ]
           },
           {
             section: 'VENTAS',
             items: [
-              { id: 'students', label: 'Mis Prospectos', icon: Users },
-              { id: 'enrolled-students', label: 'Matriculados Verificados', icon: GraduationCap },
+              { id: 'students', label: 'Mis Prospectos', icon: RiTeamLine },
+              { id: 'enrolled-students', label: 'Matriculados Verificados', icon: RiGraduationCapLine },
             ]
           },
         ];
@@ -200,15 +212,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
           {
             section: 'GESTIÓN',
             items: [
-              { id: 'dashboard', label: 'Panel Principal', icon: Home },
+              { id: 'dashboard', label: 'Panel Principal', icon: RiHome5Line },
             ]
           },
           {
             section: 'FINANZAS',
             items: [
-              { id: 'students', label: 'Prospectos', icon: Users },
-              { id: 'cashier-payment-control', label: 'Control de Pagos', icon: CreditCard },
-            //  { id: 'payment-reports', label: 'Reportes', icon: BarChart3 },
+              { id: 'students', label: 'Prospectos', icon: RiTeamLine },
+              { id: 'cashier-payment-control', label: 'Control de Pagos', icon: RiSecurePaymentLine },
+            //  { id: 'payment-reports', label: 'Reportes', icon: RiBarChartBoxLine },
             ]
           },
         ];
@@ -217,7 +229,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
           {
             section: 'GESTIÓN',
             items: [
-              { id: 'dashboard', label: 'Panel Principal', icon: Home },
+              { id: 'dashboard', label: 'Panel Principal', icon: RiHome5Line },
             ]
           },
         ];
@@ -225,13 +237,22 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
   };
 
   return (
-    <div className="bg-white w-64 border-r border-slate-200 flex flex-col overflow-hidden">
+    <div className="bg-[#073372] w-64 border-r border-[#073372]/20 flex flex-col overflow-hidden shadow-xl">
+      {/* Logo en el Sidebar */}
+      <div className="p-6 border-b border-white/10">
+        <img 
+          src="/logo-white.png" 
+          alt="InglésProf Logo" 
+          className="h-12 w-auto mx-auto"
+        />
+      </div>
+
       <div className="flex-1 overflow-y-auto p-4 sidebar-scroll">
         <nav className="space-y-6">
           {getMenuItems().map((section, sectionIndex) => (
             <div key={sectionIndex} className="space-y-1.5">
               {/* Título de la sección */}
-              <h3 className="px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              <h3 className="px-4 text-xs font-semibold text-white/60 uppercase tracking-wider">
                 {section.section}
               </h3>
               
@@ -246,12 +267,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
                     onClick={() => handleNavigation(item.id)}
                     className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group ${
                       isActive
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                        ? 'bg-[#17BC91] text-white shadow-lg shadow-[#17BC91]/25'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
                     }`}
                   >
                     <Icon className={`mr-3 h-5 w-5 transition-transform group-hover:scale-110 ${
-                      isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
+                      isActive ? 'text-white' : 'text-white/70 group-hover:text-white'
                     }`} />
                     <span className="truncate">{item.label}</span>
                   </button>

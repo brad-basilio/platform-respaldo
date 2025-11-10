@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Teacher;
 use App\Models\TimeSlot;
+use App\Models\Group;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -13,6 +14,11 @@ class TeacherController extends Controller
     public function index(): Response
     {
         $teachers = Teacher::with(['user', 'groups', 'timeSlots'])->get()->map(function ($teacher) {
+            // Check if user exists
+            if (!$teacher->user) {
+                return null; // Skip teachers without users
+            }
+            
             return array_merge($teacher->toArray(), [
                 'name' => $teacher->user->name,
                 'email' => $teacher->user->email,
@@ -28,10 +34,13 @@ class TeacherController extends Controller
                 'assignedGroupIds' => $teacher->groups->pluck('id')->toArray(),
                 'availableSchedule' => $teacher->timeSlots->toArray(),
             ]);
-        });
+        })->filter(); // Remove null values
+
+        $groups = Group::all(['id', 'name', 'type']);
 
         return Inertia::render('Admin/TeacherManagement', [
-            'teachers' => $teachers,
+            'teachers' => $teachers->values(), // Re-index array after filtering
+            'groups' => $groups,
         ]);
     }
 

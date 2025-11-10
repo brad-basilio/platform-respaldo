@@ -7,9 +7,86 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* 🔤 TIPOGRAFÍAS OFICIALES UNCED */
+
+/* Avenir LT Std 95 Black - Tipografía Principal para Títulos */
+@font-face {
+    font-family: 'Avenir Black';
+    src: url('/fonts/avenir/Avenir LT Std 95 Black.otf') format('opentype');
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Aeonik - Tipografía Secundaria para Cuerpo de Texto */
+@font-face {
+    font-family: 'Aeonik';
+    src: url('/fonts/aeonik/Aeonik-Light.woff2') format('woff2');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Aeonik';
+    src: url('/fonts/aeonik/Aeonik-LightItalic.woff2') format('woff2');
+    font-weight: 300;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Aeonik';
+    src: url('/fonts/aeonik/Aeonik-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Aeonik';
+    src: url('/fonts/aeonik/Aeonik-RegularItalic.woff2') format('woff2');
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Aeonik';
+    src: url('/fonts/aeonik/Aeonik-Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Aeonik';
+    src: url('/fonts/aeonik/Aeonik-MediumItalic.woff2') format('woff2');
+    font-weight: 500;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Aeonik';
+    src: url('/fonts/aeonik/Aeonik-Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Aeonik';
+    src: url('/fonts/aeonik/Aeonik-BoldItalic.woff2') format('woff2');
+    font-weight: 700;
+    font-style: italic;
+    font-display: swap;
+}
+
 @theme {
-    --font-sans:
-        'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 
+    /* Tipografías UNCED - Manual de Marca */
+    --font-heading: 'Avenir Black', 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-sans: 'Aeonik', 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 
         'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 
         'Droid Sans', 'Helvetica Neue', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
@@ -64,39 +141,56 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.87 0 0);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
+    /* 🎨 COLORES DE MARCA UNCED */
+    /* Catalina Blue - Color Principal Corporativo */
+    --unced-blue: #073372;
+    --unced-blue-light: #0a4599;
+    --unced-blue-dark: #051f45;
+    
+    /* Pradera de Montaña - Verde Turquesa Principal */
+    --unced-green: #17BC91;
+    --unced-green-light: #2dd4a8;
+    --unced-green-dark: #129b75;
+    
+    /* Beer Orange - Color de Acento */
+    --unced-orange: #F98613;
+    --unced-orange-light: #ffa03d;
+    --unced-orange-dark: #d96f0a;
+    
+    /* Sistema de colores basado en marca */
+    --background: #ffffff;
+    --foreground: #1e293b;
+    --card: #ffffff;
+    --card-foreground: #1e293b;
+    --popover: #ffffff;
+    --popover-foreground: #1e293b;
+    --primary: var(--unced-blue);
+    --primary-foreground: #ffffff;
+    --secondary: var(--unced-green);
+    --secondary-foreground: #ffffff;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --accent: var(--unced-orange);
+    --accent-foreground: #ffffff;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: #e2e8f0;
+    --input: #e2e8f0;
+    --ring: var(--unced-blue);
+    --chart-1: var(--unced-blue);
+    --chart-2: var(--unced-green);
+    --chart-3: var(--unced-orange);
+    --chart-4: #0a4599;
+    --chart-5: #2dd4a8;
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.87 0 0);
+    --sidebar: #f8fafc;
+    --sidebar-foreground: #1e293b;
+    --sidebar-primary: var(--unced-blue);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: var(--unced-green);
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: #e2e8f0;
+    --sidebar-ring: var(--unced-blue);
 }
 
 .dark {
@@ -144,6 +238,12 @@
         @apply antialiased;
 
         font-feature-settings: 'kern' 1, 'liga' 1;
+    }
+
+    /* Aplicar tipografías según manual de marca */
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Avenir Black', 'Aeonik', sans-serif;
+        font-weight: 900;
     }
 }
 
@@ -201,83 +301,41 @@
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
 }
 
-/* Modern Scrollbar Styles */
-/* Para navegadores Webkit (Chrome, Safari, Edge) */
+/* Custom Scrollbar Styling - UNCED Brand Colors */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+    width: 10px;
+    height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 10px;
+    background: linear-gradient(
+        to bottom,
+        #f0f0f0,
+        #e0e0e0
+    );
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%);
-  border-radius: 10px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-  transition: all 0.3s ease;
+    background: linear-gradient(
+        to bottom,
+        var(--unced-blue),
+        var(--unced-green),
+        var(--unced-blue-dark)
+    );
+    border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
-  border-radius: 10px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+    background: linear-gradient(
+        to bottom,
+        var(--unced-blue-light),
+        var(--unced-green-light),
+        var(--unced-blue)
+    );
 }
 
-::-webkit-scrollbar-thumb:active {
-  background: linear-gradient(180deg, #64748b 0%, #475569 100%);
-}
-
-/* Para Firefox */
+/* Firefox */
 * {
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
-}
-
-/* Scrollbar específico para el sidebar */
-.sidebar-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar-scroll::-webkit-scrollbar-track {
-  background: transparent;
-  margin: 8px 0;
-}
-
-.sidebar-scroll::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
-  border-radius: 10px;
-}
-
-.sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%);
-}
-
-/* Scrollbar específico para el contenido principal */
-.main-scroll::-webkit-scrollbar {
-  width: 10px;
-}
-
-.main-scroll::-webkit-scrollbar-track {
-  background: #f8fafc;
-  border-radius: 10px;
-}
-
-.main-scroll::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
-  border-radius: 10px;
-  border: 2px solid #f8fafc;
-  background-clip: padding-box;
-}
-
-.main-scroll::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
-}
-
-.main-scroll::-webkit-scrollbar-thumb:active {
-  background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+    scrollbar-width: thin;
+    scrollbar-color: var(--unced-blue) #f0f0f0;
 }

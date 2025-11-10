@@ -52,7 +52,7 @@ export const Select2: React.FC<Select2Props> = ({
         borderColor: error 
           ? '#dc2626'
           : state.isFocused 
-            ? '#2563eb' 
+            ? '#073372' 
             : state.isDisabled
               ? '#e5e7eb'
               : '#d1d5db',
@@ -61,7 +61,7 @@ export const Select2: React.FC<Select2Props> = ({
         transition: 'all 0.2s',
         cursor: 'pointer',
         '&:hover': {
-          borderColor: error ? '#b91c1c' : state.isFocused ? '#2563eb' : '#111827',
+          borderColor: error ? '#b91c1c' : state.isFocused ? '#073372' : '#111827',
         },
       }),
       valueContainer: (base) => ({
@@ -103,11 +103,11 @@ export const Select2: React.FC<Select2Props> = ({
       option: (base, state) => ({
         ...base,
         backgroundColor: state.isSelected 
-          ? '#2563eb' 
+          ? '#073372' 
           : state.isFocused 
-            ? '#eff6ff' 
+            ? '#17BC91' 
             : 'transparent',
-        color: state.isSelected ? 'white' : '#111827',
+        color: state.isSelected || state.isFocused ? 'white' : '#111827',
         cursor: 'pointer',
         padding: '12px 16px',
         borderRadius: '6px',
@@ -116,7 +116,7 @@ export const Select2: React.FC<Select2Props> = ({
         fontWeight: state.isSelected ? '500' : '400',
         transition: 'all 0.15s',
         '&:active': {
-          backgroundColor: '#2563eb',
+          backgroundColor: '#073372',
           color: 'white',
         },
       }),
@@ -128,11 +128,11 @@ export const Select2: React.FC<Select2Props> = ({
         color: error 
           ? '#dc2626'
           : state.isFocused 
-            ? '#2563eb' 
+            ? '#073372' 
             : '#9ca3af',
         transition: 'all 0.2s',
         '&:hover': {
-          color: error ? '#b91c1c' : '#2563eb',
+          color: error ? '#b91c1c' : '#073372',
         },
       }),
       clearIndicator: (base) => ({
@@ -161,7 +161,7 @@ export const Select2: React.FC<Select2Props> = ({
                 isLabelFloating
                   ? "top-0 -translate-y-1/2 text-xs px-1 bg-white font-medium"
                   : "top-1/2 -translate-y-1/2 text-base",
-                isFocused && !error && "text-blue-600",
+                isFocused && !error && "text-[#073372]",
                 error && "text-red-600",
                 isDisabled && "text-gray-400",
                 icon && !isLabelFloating && "left-10"
@@ -176,7 +176,7 @@ export const Select2: React.FC<Select2Props> = ({
           {icon && (
             <div className={cn(
               "absolute left-3 top-1/2 -translate-y-1/2 z-10 transition-colors duration-200 pointer-events-none",
-              isFocused ? "text-blue-600" : "text-gray-400",
+              isFocused ? "text-[#073372]" : "text-gray-400",
               error && "text-red-600",
               isDisabled && "text-gray-300"
             )}>

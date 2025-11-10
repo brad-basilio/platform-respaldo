@@ -56,7 +56,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                 isLabelFloating
                   ? "top-0 -translate-y-1/2 text-xs px-1 bg-white font-medium"
                   : "top-1/2 -translate-y-1/2 text-base",
-                isFocused && !error && "text-blue-600",
+                isFocused && !error && "text-[#073372]",
                 error && "text-red-600",
                 icon && !isLabelFloating && "left-10",
                 variant === 'filled' && isLabelFloating && "bg-transparent"
@@ -71,7 +71,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           {icon && (
             <div className={cn(
               "absolute left-3 top-1/2 -translate-y-1/2 transition-colors duration-200",
-              isFocused ? "text-blue-600" : "text-gray-400",
+              isFocused ? "text-[#073372]" : "text-gray-400",
               error && "text-red-600"
             )}>
               {icon}
@@ -103,7 +103,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                 "h-14 px-3 pt-4 pb-1 bg-transparent",
                 "border border-gray-300 rounded-md",
                 "hover:border-gray-900",
-                "focus:border-2 focus:border-blue-600 focus:px-[11px]",
+                "focus:border-2 focus:border-[#073372] focus:px-[11px]",
                 error && "border-red-600 hover:border-red-700 focus:border-red-600",
               ],
               
@@ -112,7 +112,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                 "h-14 px-3 pt-6 pb-2 bg-gray-50",
                 "border-b-2 border-gray-400 rounded-t-md",
                 "hover:bg-gray-100 hover:border-gray-900",
-                "focus:bg-gray-100 focus:border-blue-600",
+                "focus:bg-gray-100 focus:border-[#073372]",
                 error && "border-red-600 hover:border-red-700 focus:border-red-600",
                 // Autocomplete background for filled variant
                 "[&:-webkit-autofill]:[-webkit-text-fill-color:#111827]",
@@ -204,7 +204,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                 isLabelFloating
                   ? "top-0 -translate-y-1/2 text-xs px-1 bg-white font-medium"
                   : "top-1/2 -translate-y-1/2 text-base",
-                isFocused && !error && "text-blue-600",
+                isFocused && !error && "text-[#073372]",
                 error && "text-red-600",
                 icon && !isLabelFloating && "left-10",
                 variant === 'filled' && isLabelFloating && "bg-transparent"
@@ -219,7 +219,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           {icon && (
             <div className={cn(
               "absolute left-3 top-1/2 -translate-y-1/2 z-10 transition-colors duration-200",
-              isFocused ? "text-blue-600" : "text-gray-400",
+              isFocused ? "text-[#073372]" : "text-gray-400",
               error && "text-red-600"
             )}>
               {icon}
@@ -248,7 +248,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                 "h-14 px-3 pt-4 pb-1 bg-transparent",
                 "border border-gray-300 rounded-md",
                 "hover:border-gray-900",
-                "focus:border-2 focus:border-blue-600 focus:px-[11px]",
+                "focus:border-2 focus:border-[#073372] focus:px-[11px]",
                 error && "border-red-600 hover:border-red-700 focus:border-red-600",
               ],
               
@@ -257,7 +257,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                 "h-14 px-3 pt-6 pb-2 bg-gray-50",
                 "border-b-2 border-gray-400 rounded-t-md",
                 "hover:bg-gray-100 hover:border-gray-900",
-                "focus:bg-gray-100 focus:border-blue-600",
+                "focus:bg-gray-100 focus:border-[#073372]",
                 error && "border-red-600 hover:border-red-700 focus:border-red-600",
                 // Autocomplete background for filled variant
                 "[&:-webkit-autofill]:[-webkit-text-fill-color:#111827]",
@@ -279,7 +279,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           {/* Dropdown Icon */}
           <div className={cn(
             "absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-200",
-            isFocused ? "text-blue-600" : "text-gray-400",
+            isFocused ? "text-[#073372]" : "text-gray-400",
             error && "text-red-600"
           )}>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
