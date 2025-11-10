@@ -152,7 +152,7 @@ const StudentManagement: React.FC<Props> = ({
       ];
       if (!allowedTransitions.some(t => t)) {
         toast.error('Transición no permitida', {
-          description: 'Como asesor de ventas solo puedes: Registrado ↔ Propuesta Enviada → Pago Por Verificar',
+          description: 'Como asesor de ventas solo puedes: Registrado ↔ Reunión Realizada → Pago Por Verificar',
           duration: 5000,
         });
         return;
@@ -250,7 +250,7 @@ const StudentManagement: React.FC<Props> = ({
         ];
         if (!allowedTransitions.some(t => t)) {
           toast.error('Transición no permitida', {
-            description: 'Como asesor de ventas solo puedes: Registrado ↔ Propuesta Enviada → Pago Por Verificar',
+            description: 'Como asesor de ventas solo puedes: Registrado ↔ Reunión Realizada → Pago Por Verificar',
             duration: 5000,
           });
           setDraggedStudent(null);
@@ -548,7 +548,7 @@ const StudentManagement: React.FC<Props> = ({
               {userRole === 'admin' && (
                 <>
                   <option value="registrado">Registrado</option>
-                  <option value="propuesta_enviada">Propuesta Enviada</option>
+                  <option value="propuesta_enviada">Reunión Realizada</option>
                   <option value="pago_por_verificar">Pago Por Verificar</option>
                   <option value="matriculado">Matriculado</option>
                 </>
@@ -558,7 +558,7 @@ const StudentManagement: React.FC<Props> = ({
                   {(student.prospectStatus === 'registrado' || student.prospectStatus === 'propuesta_enviada') ? (
                     <>
                       <option value="registrado">Registrado</option>
-                      <option value="propuesta_enviada">Propuesta Enviada</option>
+                      <option value="propuesta_enviada">Reunión Realizada</option>
                       <option value="pago_por_verificar">Pago Por Verificar</option>
                     </>
                   ) : (
@@ -744,7 +744,7 @@ const StudentManagement: React.FC<Props> = ({
 
   const kanbanColumns = [
     { id: 'registrado', title: 'Registrado', color: 'border-[#073372] bg-[#073372]/5' },
-    { id: 'propuesta_enviada', title: 'Propuesta Enviada', color: 'border-[#F98613] bg-[#F98613]/5' },
+    { id: 'propuesta_enviada', title: 'Reunión Realizada', color: 'border-[#F98613] bg-[#F98613]/5' },
     { id: 'pago_por_verificar', title: 'Pago Por Verificar', color: 'border-orange-500 bg-orange-50' },
     { id: 'matriculado', title: 'Matriculado', color: 'border-[#17BC91] bg-[#17BC91]/5' },
   ];
