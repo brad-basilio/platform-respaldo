@@ -2,7 +2,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'teacher' | 'student' | 'sales_advisor' | 'cashier';
+  role: 'admin' | 'teacher' | 'student' | 'sales_advisor' | 'cashier' | 'verifier';
   avatar?: string;
   createdAt: Date;
 }

@@ -16,6 +16,7 @@ use App\Http\Controllers\InstallmentVoucherController;
 use App\Http\Controllers\VoucherVerificationController;
 use App\Http\Controllers\Student\StudentPaymentController;
 use App\Http\Controllers\CashierController;
+use App\Http\Controllers\UserController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -92,6 +93,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Admin-only routes
     Route::middleware('can:admin')->group(function () {
       
+        // User Management (sales_advisor, cashier, verifier)
+        Route::get('/admin/users', [UserController::class, 'index'])->name('admin.users');
+        Route::post('/admin/users', [UserController::class, 'store'])->name('admin.users.store');
+        Route::put('/admin/users/{user}', [UserController::class, 'update'])->name('admin.users.update');
+        Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.users.destroy');
+        
         // Enrolled Students
         Route::get('/admin/enrolled-students', [StudentController::class, 'enrolledStudents'])->name('admin.enrolled-students');
         Route::post('/admin/students/{student}/verify-enrollment', [StudentController::class, 'verifyEnrollment'])->name('admin.students.verify-enrollment');

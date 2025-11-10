@@ -40,6 +40,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('cashier', function ($user) {
             return $user->role === 'cashier';
         });
+
+        Gate::define('verifier', function ($user) {
+            return $user->role === 'verifier';
+        });
     }
 }
 

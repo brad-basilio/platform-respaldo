@@ -19,6 +19,7 @@ const Header: React.FC = () => {
       case 'student': return 'bg-[#073372]/10 text-[#073372] border border-[#073372]/30';
       case 'sales_advisor': return 'bg-purple-50 text-purple-700 border border-purple-200';
       case 'cashier': return 'bg-cyan-50 text-cyan-700 border border-cyan-200';
+      case 'verifier': return 'bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30';
       default: return 'bg-slate-50 text-slate-700 border border-slate-200';
     }
   };
@@ -30,6 +31,7 @@ const Header: React.FC = () => {
       case 'student': return 'Estudiante';
       case 'sales_advisor': return 'Asesor de Ventas';
       case 'cashier': return 'Cajero';
+      case 'verifier': return 'Verificador';
       default: return 'Usuario';
     }
   };

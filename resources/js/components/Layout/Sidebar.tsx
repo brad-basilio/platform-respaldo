@@ -14,7 +14,8 @@ import {
   RiPieChartLine, 
   RiSecurePaymentLine,
   RiDashboard2Line,
-  RiGroupLine
+  RiGroupLine,
+  RiShieldUserLine
 } from 'react-icons/ri';
 import { usePage, router } from '@inertiajs/react';
 import { User } from '@/types/models';
@@ -87,6 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
       'payment-reports': '/cashier/payment-reports',
       'analytics': '/admin/analytics',
       'settings': '/settings',
+      'users': '/admin/users',
     };
 
     const route = routes[view];
@@ -119,6 +121,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
               //{ id: 'groups', label: 'Creación de grupos', icon: RiTeamLine },
               { id: 'academic-levels', label: 'Niveles Académicos', icon: RiGraduationCapLine },
               { id: 'payment-plans', label: 'Planes de Pago', icon: RiSecurePaymentLine },
+              { id: 'users', label: 'Usuarios', icon: RiShieldUserLine },
             ]
           },
           {
