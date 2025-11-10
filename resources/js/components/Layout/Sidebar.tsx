@@ -63,6 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
     if (currentUrl.startsWith('/cashier/payment-reports')) return 'payment-reports';
     if (currentUrl.startsWith('/settings')) return 'settings';
     if (currentUrl.startsWith('/dashboard')) return 'dashboard';
+    if (currentUrl.startsWith('/admin/users')) return 'users';
     return 'dashboard';
   };
 
