@@ -253,7 +253,7 @@ const AcademicLevelsIndex: React.FC<Props> = ({ academicLevels: initialLevels })
           <div className="flex items-center justify-center space-x-2 h-full">
             <button
               onClick={() => handleEdit(level)}
-              className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+              className="text-[#073372] hover:text-[#17BC91] p-1 hover:bg-[#17BC91]/10 rounded transition-colors"
               title="Editar nivel"
             >
               <Edit className="h-4 w-4" />
@@ -321,7 +321,7 @@ const AcademicLevelsIndex: React.FC<Props> = ({ academicLevels: initialLevels })
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <GraduationCap className="w-7 h-7 text-blue-600" />
+              <GraduationCap className="w-7 h-7 text-[#073372]" />
               Niveles Académicos
             </h1>
             <p className="text-gray-600 mt-1">
@@ -403,7 +403,7 @@ const AcademicLevelsIndex: React.FC<Props> = ({ academicLevels: initialLevels })
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header del Modal */}
-              <div className="relative bg-blue-600 px-8 py-6 rounded-t-3xl flex-shrink-0">
+              <div className="relative bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6 rounded-t-3xl flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-2xl font-bold text-white mb-1">
@@ -493,7 +493,7 @@ const AcademicLevelsIndex: React.FC<Props> = ({ academicLevels: initialLevels })
                     </button>
                     <button
                       type="submit"
-                      className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm bg-blue-600 hover:bg-blue-700 text-white"
+                      className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm bg-[#073372] hover:bg-[#17BC91] text-white"
                     >
                       {editingLevel ? 'Actualizar Nivel' : 'Crear Nivel'}
                     </button>

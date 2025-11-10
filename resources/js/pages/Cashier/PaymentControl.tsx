@@ -72,7 +72,7 @@ const PaymentScheduleModal: React.FC<{
     // Si ya está verificado
     if (installment.status === 'verified') {
       return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30">
           <CheckCircle className="w-3 h-3 mr-1" />
           Verificado
         </span>
@@ -82,7 +82,7 @@ const PaymentScheduleModal: React.FC<{
     // Si está en verificación (voucher subido)
     if (installment.status === 'paid') {
       return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 animate-pulse">
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#073372]/10 text-[#073372] border border-[#073372]/30 animate-pulse">
           <Clock className="w-3 h-3 mr-1" />
           Pendiente Verificación
         </span>
@@ -134,7 +134,7 @@ const PaymentScheduleModal: React.FC<{
       // Si ya pasó la fecha pero está en período de gracia
       if (daysUntilDue < 0 && daysUntilGraceLimit >= 0 && gracePeriodDays > 0) {
         return (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-300">
             <AlertCircle className="w-3 h-3 mr-1" />
             Período de Gracia ({daysUntilGraceLimit}d)
           </span>
@@ -144,7 +144,7 @@ const PaymentScheduleModal: React.FC<{
       // Si ya pasó el período de gracia - VENCIDO CON MORA
       if (daysUntilGraceLimit < 0) {
         return (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-300">
             <XCircle className="w-3 h-3 mr-1" />
             Vencido con Mora ({Math.abs(daysUntilGraceLimit)}d)
           </span>
@@ -153,7 +153,7 @@ const PaymentScheduleModal: React.FC<{
       
       // Pendiente normal (aún no vence)
       return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#F98613]/10 text-[#F98613] border border-[#F98613]/30">
           <AlertCircle className="w-3 h-3 mr-1" />
           Pendiente ({daysUntilDue > 0 ? `${daysUntilDue}d` : 'Vence hoy'})
         </span>
@@ -172,10 +172,10 @@ const PaymentScheduleModal: React.FC<{
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-8 py-6 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-white">Cronograma de Pagos</h2>
-            <p className="text-emerald-100 text-sm">{student.name} - {student.enrollmentCode}</p>
+            <p className="text-white/90 text-sm">{student.name} - {student.enrollmentCode}</p>
           </div>
           <button
             onClick={onClose}
@@ -599,7 +599,7 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
         const student = params.data!;
         return (
           <div className="flex items-center py-2 w-full h-full">
-            <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-gradient-to-r from-[#073372] to-[#17BC91] rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-white text-sm font-semibold">
                 {student.name.split(' ').map((n: string) => n[0]).join('')}
               </span>
@@ -657,7 +657,7 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
                 className={`h-2 rounded-full transition-all ${
-                  progress === 100 ? 'bg-green-500' : progress >= 50 ? 'bg-blue-500' : 'bg-yellow-500'
+                  progress === 100 ? 'bg-[#17BC91]' : progress >= 50 ? 'bg-[#073372]' : 'bg-[#F98613]'
                 }`}
                 style={{ width: `${progress}%` }}
               />
@@ -677,7 +677,7 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
         return (
           <div className="flex items-center justify-center h-full">
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-              pendingCount === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+              pendingCount === 0 ? 'bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30' : 'bg-[#F98613]/10 text-[#F98613] border border-[#F98613]/30'
             }`}>
               {pendingCount} {pendingCount === 1 ? 'cuota' : 'cuotas'}
             </span>
@@ -696,7 +696,7 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
         return (
           <div className="flex items-center justify-center h-full">
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-              toVerifyCount === 0 ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-800 animate-pulse'
+              toVerifyCount === 0 ? 'bg-gray-100 text-gray-600' : 'bg-[#073372]/10 text-[#073372] border border-[#073372]/30 animate-pulse'
             }`}>
               <Clock className="w-3 h-3 mr-1" />
               {toVerifyCount} {toVerifyCount === 1 ? 'voucher' : 'vouchers'}
@@ -716,11 +716,11 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
           <div className="flex items-center justify-center space-x-2 h-full">
             <button
               onClick={() => handleViewSchedule(student)}
-              className="inline-flex items-center px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
-              title="Ver cronograma"
+              className="inline-flex items-center px-3 py-1.5 bg-[#073372] hover:bg-[#17BC91] text-white text-sm font-medium rounded-lg transition-colors"
+              title="Ver y verificar cronograma"
             >
               <Eye className="h-4 w-4 mr-1" />
-              Cronograma
+              Ver
             </button>
           </div>
         );
@@ -740,7 +740,7 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
             <h1 className="text-2xl font-bold text-gray-900">Control de Pagos</h1>
             <p className="text-gray-600">Gestiona y verifica los pagos de estudiantes matriculados</p>
           </div>
-          <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-6 py-3 rounded-xl shadow-lg">
+          <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] text-white px-6 py-3 rounded-xl shadow-lg">
             <div className="text-center">
               <div className="text-3xl font-bold">{verifiedStudents.length}</div>
               <div className="text-sm opacity-90">Estudiantes</div>
@@ -822,7 +822,7 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
               onClick={() => setActiveTab('all')}
               className={`px-6 py-3 rounded-lg font-medium transition-all ${
                 activeTab === 'all'
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md'
+                  ? 'bg-gradient-to-r from-[#073372] to-[#17BC91] text-white shadow-md'
                   : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
@@ -839,7 +839,7 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
               onClick={() => setActiveTab('pending')}
               className={`px-6 py-3 rounded-lg font-medium transition-all ${
                 activeTab === 'pending'
-                  ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-md'
+                  ? 'bg-gradient-to-r from-[#F98613] to-orange-500 text-white shadow-md'
                   : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
@@ -856,7 +856,7 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
               onClick={() => setActiveTab('completed')}
               className={`px-6 py-3 rounded-lg font-medium transition-all ${
                 activeTab === 'completed'
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md'
+                  ? 'bg-gradient-to-r from-[#17BC91] to-teal-500 text-white shadow-md'
                   : 'text-gray-600 hover:bg-gray-50'
               }`}
             >

@@ -139,7 +139,7 @@ const PaymentPlansIndex: React.FC<Props> = ({
           <div className="flex items-center py-2 h-full">
             <div 
               className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: '#3B82F6' }}
+              style={{ backgroundColor: '#073372' }}
             >
               <CreditCard className="w-5 h-5 text-white" />
             </div>
@@ -160,7 +160,7 @@ const PaymentPlansIndex: React.FC<Props> = ({
       cellRenderer: (params: any) => {
         return (
           <div className="flex items-center justify-center h-full">
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#073372]/10 text-[#073372] border border-[#073372]/30">
               {params.value}
             </span>
           </div>
@@ -204,11 +204,11 @@ const PaymentPlansIndex: React.FC<Props> = ({
         return (
           <div className="flex items-center justify-center h-full">
             {parseFloat(interestPercentage) > 0 ? (
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800">
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#F98613]/10 text-[#F98613] border border-[#F98613]/30">
                 +{interestPercentage}%
               </span>
             ) : (
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30">
                 Sin interés
               </span>
             )}
@@ -237,7 +237,7 @@ const PaymentPlansIndex: React.FC<Props> = ({
         return (
           <div className="flex items-center justify-center h-full">
             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-              count > 0 ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-600'
+              count > 0 ? 'bg-[#073372]/10 text-[#073372] border border-[#073372]/30' : 'bg-gray-100 text-gray-600'
             }`}>
               {count} {count === 1 ? 'estudiante' : 'estudiantes'}
             </span>
@@ -318,7 +318,7 @@ const PaymentPlansIndex: React.FC<Props> = ({
           <div className="flex items-center justify-center space-x-2 h-full">
             <button
               onClick={() => handleEdit(plan)}
-              className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+              className="text-[#073372] hover:text-[#17BC91] p-1 hover:bg-[#17BC91]/10 rounded transition-colors"
               title="Editar plan"
             >
               <Edit className="h-4 w-4" />
@@ -407,7 +407,7 @@ const PaymentPlansIndex: React.FC<Props> = ({
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <CreditCard className="w-7 h-7 text-blue-600" />
+              <CreditCard className="w-7 h-7 text-[#073372]" />
               Planes de Pago
             </h1>
             <p className="text-gray-600 mt-1">
@@ -488,7 +488,7 @@ const PaymentPlansIndex: React.FC<Props> = ({
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header del Modal */}
-              <div className="relative bg-blue-600 px-8 py-6 rounded-t-3xl flex-shrink-0">
+              <div className="relative bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6 rounded-t-3xl flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-2xl font-bold text-white mb-1">
@@ -595,16 +595,16 @@ const PaymentPlansIndex: React.FC<Props> = ({
                     <div>
                       {/* Mostrar cálculo de interés */}
                       {formData.total_amount > 1800 && (
-                        <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                          <p className="text-sm text-orange-800">
+                        <div className="p-3 bg-[#F98613]/10 border border-[#F98613]/30 rounded-lg">
+                          <p className="text-sm text-[#F98613]">
                             <strong>Interés aplicado:</strong> +{(((formData.total_amount - 1800) / 1800) * 100).toFixed(1)}%
                             (S/ {(formData.total_amount - 1800).toFixed(2)} sobre el precio base)
                           </p>
                         </div>
                       )}
                       {formData.total_amount === 1800 && formData.installments_count === 1 && (
-                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                          <p className="text-sm text-green-800">
+                        <div className="p-3 bg-[#17BC91]/10 border border-[#17BC91]/30 rounded-lg">
+                          <p className="text-sm text-[#17BC91]">
                             <strong>✓ Sin interés</strong> - Pago al contado al precio base
                           </p>
                         </div>
@@ -649,7 +649,7 @@ const PaymentPlansIndex: React.FC<Props> = ({
                     </button>
                     <button
                       type="submit"
-                      className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm bg-blue-600 hover:bg-blue-700 text-white"
+                      className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm bg-[#073372] hover:bg-[#17BC91] text-white"
                     >
                       {editingPlan ? 'Actualizar Plan' : 'Crear Plan'}
                     </button>

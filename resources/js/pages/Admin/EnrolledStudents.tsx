@@ -29,7 +29,7 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-white">Detalles del Alumno</h2>
             <p className="text-blue-100 text-sm">Información completa del estudiante matriculado</p>
@@ -405,7 +405,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
         const student = params.data!;
         return (
           <div className="flex items-center py-2 w-full h-full">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-gradient-to-r from-[#073372] to-[#17BC91] rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-white text-sm font-semibold">
                 {student.name.split(' ').map((n: string) => n[0]).join('')}
               </span>
@@ -444,7 +444,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
         return (
         <div className='flex items-center space-x-2 w-full h-full'>
             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-            status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            status === 'active' ? 'bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30' : 'bg-red-100 text-red-800'
           }`}>
             {status === 'active' ? <UserCheck className="w-3 h-3 mr-1" /> : <UserX className="w-3 h-3 mr-1" />}
             {status === 'active' ? 'Activo' : 'Inactivo'}
@@ -460,9 +460,9 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       filter: 'agTextColumnFilter',
   cellRenderer: (params: ICellRendererParams<Student>) => {
         const level = params.value;
-        const colorClass = level === 'basic' ? 'bg-green-100 text-green-800' :
-                         level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
-                         'bg-red-100 text-red-800';
+        const colorClass = level === 'basic' ? 'bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30' :
+                         level === 'intermediate' ? 'bg-[#F98613]/10 text-[#F98613] border border-[#F98613]/30' :
+                         'bg-[#073372]/10 text-[#073372] border border-[#073372]/30';
         return (
         <div className='flex items-center space-x-2 w-full h-full'>
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>
@@ -483,13 +483,13 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
         return (
           <div className="flex items-center justify-between h-full gap-2">
             {isVerified ? (
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30">
                 <CheckCircle className="w-3 h-3 mr-1" />
-                Verificada
+                Verificado
               </span>
             ) : (
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                <AlertCircle className="w-3 h-3 mr-1" />
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#F98613]/10 text-[#F98613] border border-[#F98613]/30">
+                <Clock className="w-3 h-3 mr-1" />
                 Pendiente
               </span>
             )}

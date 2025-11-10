@@ -46,14 +46,14 @@ const Header: React.FC = () => {
 
             <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-slate-200">
               <div className="flex items-center space-x-3">
-                <div className="h-10 w-10 bg-gradient-to-br from-[#073372] to-[#17BC91] rounded-xl flex items-center justify-center shadow-md">
+                <div className="h-10 w-10 bg-gradient-to-br from-[#073372] to-[#17BC91] rounded-full flex items-center justify-center shadow-md">
                   <span className="text-white text-sm font-semibold">
                     {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                   </span>
                 </div>
                 <div className="hidden md:block">
                   <p className="text-sm font-semibold text-slate-900">{user?.name}</p>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium ${getRoleColor(user?.role || '')}`}>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(user?.role || '')}`}>
                     {getRoleLabel(user?.role || '')}
                   </span>
                 </div>

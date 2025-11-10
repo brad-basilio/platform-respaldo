@@ -192,7 +192,7 @@ const PaymentControl: React.FC = () => {
   const getStatusBadge = (installment: Installment) => {
     if (installment.status === 'verified') {
       return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30">
           <CheckCircle className="w-3 h-3 mr-1" />
           Verificado
         </span>
@@ -201,7 +201,7 @@ const PaymentControl: React.FC = () => {
     
     if (installment.status === 'paid') {
       return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#073372]/10 text-[#073372] border border-[#073372]/30">
           <Clock className="w-3 h-3 mr-1" />
           En Verificación
         </span>
@@ -216,7 +216,7 @@ const PaymentControl: React.FC = () => {
     // Si ya pasó la fecha de vencimiento pero aún está dentro del período de gracia
     if (daysUntilDue < 0 && daysUntilGraceLimit >= 0 && gracePeriodDays > 0) {
       return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-300">
           <AlertCircle className="w-3 h-3 mr-1" />
           Período de Gracia ({daysUntilGraceLimit} días restantes)
         </span>
@@ -226,7 +226,7 @@ const PaymentControl: React.FC = () => {
     // Si ya pasó el período de gracia, mostrar como vencido con mora
     if (installment.isOverdue || (daysUntilGraceLimit < 0 && installment.status === 'pending')) {
       return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-300">
           <AlertCircle className="w-3 h-3 mr-1" />
           Vencido con Mora ({Math.abs(daysUntilGraceLimit)} días)
         </span>
@@ -235,7 +235,7 @@ const PaymentControl: React.FC = () => {
     
     // Pendiente normal
     return (
-      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#F98613]/10 text-[#F98613] border border-[#F98613]/30">
         <Clock className="w-3 h-3 mr-1" />
         Pendiente ({daysUntilDue > 0 ? `${daysUntilDue} días` : 'Vence hoy'})
       </span>
@@ -297,7 +297,7 @@ const PaymentControl: React.FC = () => {
 
         {/* Estadísticas */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-2xl p-6 shadow-lg">
+          <div className="bg-gradient-to-br from-[#073372] to-[#17BC91] text-white rounded-2xl p-6 shadow-lg">
             <div className="flex items-center justify-between mb-2">
               <DollarSign className="w-8 h-8 opacity-80" />
               <TrendingUp className="w-5 h-5 opacity-60" />
@@ -308,16 +308,16 @@ const PaymentControl: React.FC = () => {
 
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200">
             <div className="flex items-center justify-between mb-2">
-              <CheckCircle className="w-8 h-8 text-green-600" />
+              <CheckCircle className="w-8 h-8 text-[#17BC91]" />
             </div>
             <p className="text-sm text-slate-600 mb-1">Pagado</p>
             <p className="text-2xl font-bold text-slate-900">{formatCurrency(enrollment.totalPaid)}</p>
-            <p className="text-xs text-green-600 mt-1">{enrollment.paymentProgress.toFixed(0)}% completado</p>
+            <p className="text-xs text-[#17BC91] mt-1">{enrollment.paymentProgress.toFixed(0)}% completado</p>
           </div>
 
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200">
             <div className="flex items-center justify-between mb-2">
-              <Clock className="w-8 h-8 text-orange-600" />
+              <Clock className="w-8 h-8 text-[#F98613]" />
             </div>
             <p className="text-sm text-slate-600 mb-1">Pendiente</p>
             <p className="text-2xl font-bold text-slate-900">{formatCurrency(enrollment.totalPending)}</p>
@@ -325,7 +325,7 @@ const PaymentControl: React.FC = () => {
 
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200">
             <div className="flex items-center justify-between mb-2">
-              <FileText className="w-8 h-8 text-violet-600" />
+              <FileText className="w-8 h-8 text-[#073372]" />
             </div>
             <p className="text-sm text-slate-600 mb-1">Plan de Pago</p>
             <p className="text-xl font-bold text-slate-900">{enrollment.paymentPlan.installmentsCount} cuotas</p>
