@@ -740,59 +740,6 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
             <h1 className="text-2xl font-bold text-gray-900">Control de Pagos</h1>
             <p className="text-gray-600">Gestiona y verifica los pagos de estudiantes matriculados</p>
           </div>
-          <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] text-white px-6 py-3 rounded-xl shadow-lg">
-            <div className="text-center">
-              <div className="text-3xl font-bold">{verifiedStudents.length}</div>
-              <div className="text-sm opacity-90">Estudiantes</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Estadísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Total Estudiantes</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{verifiedStudents.length}</p>
-              </div>
-              <Users className="h-10 w-10 text-emerald-600" />
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Pagos Pendientes</p>
-                <p className="text-3xl font-bold text-yellow-600 mt-1">{pendingPayments.length}</p>
-              </div>
-              <AlertCircle className="h-10 w-10 text-yellow-600" />
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Pagos Completos</p>
-                <p className="text-3xl font-bold text-green-600 mt-1">{completedPayments.length}</p>
-              </div>
-              <CheckCircle className="h-10 w-10 text-green-600" />
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Por Verificar</p>
-                <p className="text-3xl font-bold text-blue-600 mt-1">
-                  {students.reduce((acc, s) => 
-                    acc + (s.enrollment?.installments?.filter(i => i.status === 'paid').length || 0), 0
-                  )}
-                </p>
-              </div>
-              <Clock className="h-10 w-10 text-blue-600" />
-            </div>
-          </div>
         </div>
 
         {/* Barra de búsqueda */}

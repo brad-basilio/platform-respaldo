@@ -141,7 +141,15 @@ class Student extends Model
     }
 
     /**
-     * Matrícula activa actual
+     * Matrícula activa actual (singular para uso común)
+     */
+    public function enrollment()
+    {
+        return $this->hasOne(Enrollment::class)->where('status', 'active')->latest();
+    }
+
+    /**
+     * Matrícula activa actual (alias)
      */
     public function activeEnrollment()
     {

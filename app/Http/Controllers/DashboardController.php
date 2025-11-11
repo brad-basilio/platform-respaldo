@@ -238,7 +238,36 @@ class DashboardController extends Controller
 
     protected function cashierDashboard($user): Response
     {
+        // Estudiantes verificados (matriculados y verificados)
+        $verifiedStudents = Student::where('prospect_status', 'matriculado')
+            ->where('enrollment_verified', true)
+            ->with(['enrollment.installments'])
+            ->get();
+
+        // Contar estudiantes con pagos pendientes
+        $pendingPayments = $verifiedStudents->filter(function ($student) {
+            return $student->enrollment && ($student->enrollment->paymentProgress ?? 0) < 100;
+        })->count();
+
+        // Contar estudiantes con pagos completos
+        $completedPayments = $verifiedStudents->filter(function ($student) {
+            return $student->enrollment && $student->enrollment->paymentProgress == 100;
+        })->count();
+
+        // Contar vouchers pendientes de verificación
+        $vouchersToVerify = 0;
+        foreach ($verifiedStudents as $student) {
+            if ($student->enrollment && $student->enrollment->installments) {
+                $vouchersToVerify += $student->enrollment->installments->filter(function ($installment) {
+                    return $installment->status === 'paid';
+                })->count();
+            }
+        }
+
+        // Estadísticas generales
         $stats = [
+            'totalProspects' => Student::count(),
+            'totalVerifiedStudents' => $verifiedStudents->count(),
             'pagosPendientes' => Student::where('prospect_status', 'pago_por_verificar')->count(),
             'verificadosHoy' => Student::where('prospect_status', 'matriculado')
                 ->whereDate('updated_at', today())
@@ -247,10 +276,70 @@ class DashboardController extends Controller
                 ->whereYear('updated_at', now()->year)
                 ->whereMonth('updated_at', now()->month)
                 ->count(),
+            'totalMatriculados' => Student::where('prospect_status', 'matriculado')->count(),
+            'enProceso' => Student::whereIn('prospect_status', ['propuesta_enviada', 'pago_por_verificar'])->count(),
+            'pendingPayments' => $pendingPayments,
+            'completedPayments' => $completedPayments,
+            'vouchersToVerify' => $vouchersToVerify,
+        ];
+
+        // Prospectos verificados por día (últimos 30 días)
+        $dailyVerifications = Student::selectRaw('DATE(updated_at) as date, COUNT(*) as total')
+            ->where('prospect_status', 'matriculado')
+            ->where('updated_at', '>=', now()->subDays(30))
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'date' => \Carbon\Carbon::parse($item->date)->format('d/m'),
+                    'verificados' => $item->total,
+                ];
+            });
+
+        // Rellenar días sin datos
+        $dailyData = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $dateKey = $date->format('d/m');
+            
+            $existing = $dailyVerifications->firstWhere('date', $dateKey);
+            
+            $dailyData[] = [
+                'date' => $dateKey,
+                'verificados' => $existing ? $existing['verificados'] : 0,
+            ];
+        }
+
+        // Distribución de estados de pago
+        $paymentDistribution = [
+            [
+                'name' => 'Pago Por Verificar',
+                'value' => Student::where('prospect_status', 'pago_por_verificar')->count(),
+                'color' => '#F98613', // Beer Orange
+            ],
+            [
+                'name' => 'Matriculado',
+                'value' => Student::where('prospect_status', 'matriculado')->count(),
+                'color' => '#17BC91', // Pradera
+            ],
+            [
+                'name' => 'Propuesta Enviada',
+                'value' => Student::where('prospect_status', 'propuesta_enviada')->count(),
+                'color' => '#073372', // Catalina
+            ],
         ];
 
         return Inertia::render('Dashboard', [
+            'cashier' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => 'cashier',
+            ],
             'stats' => $stats,
+            'dailyVerifications' => $dailyData,
+            'paymentDistribution' => $paymentDistribution,
         ]);
     }
 }
