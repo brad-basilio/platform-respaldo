@@ -1,5 +1,5 @@
 ﻿import React, { useState, useMemo, useCallback } from 'react';
-import { Users, Eye, UserCheck, UserX, Phone, BookOpen, GraduationCap, Calendar, XCircle, CheckCircle, AlertCircle, Search } from 'lucide-react';
+import { Users, Eye, UserCheck, UserX, Phone, BookOpen, GraduationCap, Calendar, XCircle, CheckCircle, AlertCircle, Search, Clock } from 'lucide-react';
 import { Student, Group } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import { AgGridReact } from 'ag-grid-react';
@@ -403,13 +403,23 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       filter: 'agTextColumnFilter',
       cellRenderer: (params: ICellRendererParams<Student>) => {
         const student = params.data!;
+        const hasAvatar = student.avatar;
+        
         return (
           <div className="flex items-center py-2 w-full h-full">
-            <div className="w-10 h-10 bg-gradient-to-r from-[#073372] to-[#17BC91] rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-sm font-semibold">
-                {student.name.split(' ').map((n: string) => n[0]).join('')}
-              </span>
-            </div>
+            {hasAvatar ? (
+              <img
+                src={`/storage/${student.avatar}`}
+                alt={student.name}
+                className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-white shadow-md"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-gradient-to-r from-[#073372] to-[#17BC91] rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-sm font-semibold">
+                  {student.name.split(' ').map((n: string) => n[0]).join('')}
+                </span>
+              </div>
+            )}
             <div className="ml-3">
               <div className="text-sm font-medium text-gray-900">{student.name}</div>
               <div className="text-xs text-gray-500">{student.email}</div>

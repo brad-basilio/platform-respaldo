@@ -17,8 +17,8 @@ class CheckProspectAccess
     {
         $user = $request->user();
         
-        // Permitir acceso a admin, sales_advisor y cashier
-        if (!$user || !in_array($user->role, ['admin', 'sales_advisor', 'cashier'])) {
+        // Permitir acceso a admin, sales_advisor, cashier y verifier
+        if (!$user || !in_array($user->role, ['admin', 'sales_advisor', 'cashier', 'verifier'])) {
             abort(403, 'No tienes permiso para acceder a esta sección.');
         }
         

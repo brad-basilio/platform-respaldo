@@ -37,6 +37,7 @@ class StudentController extends Controller
                 return [
                     'id' => $student->id,
                     'name' => $student->user->name ?? '',
+                    'avatar' => $student->user->avatar ?? null,
                     'firstName' => $student->first_name,
                     'paternalLastName' => $student->paternal_last_name,
                     'maternalLastName' => $student->maternal_last_name,
@@ -76,6 +77,7 @@ class StudentController extends Controller
                         'id' => $student->registeredBy->id,
                         'name' => $student->registeredBy->name,
                         'email' => $student->registeredBy->email,
+                        'avatar' => $student->registeredBy->avatar,
                     ] : null,
                     'verifiedPaymentBy' => $student->verifiedPaymentBy ? [
                         'id' => $student->verifiedPaymentBy->id,
@@ -120,6 +122,7 @@ class StudentController extends Controller
                 return [
                     'id' => $student->id,
                     'name' => $student->user->name ?? '',
+                    'avatar' => $student->user->avatar ?? null,
                     'firstName' => $student->first_name,
                     'paternalLastName' => $student->paternal_last_name,
                     'maternalLastName' => $student->maternal_last_name,
@@ -255,6 +258,7 @@ class StudentController extends Controller
                         'id' => $student->registeredBy->id,
                         'name' => $student->registeredBy->name,
                         'email' => $student->registeredBy->email,
+                        'avatar' => $student->registeredBy->avatar,
                     ] : null,
                     'verifiedPaymentBy' => $student->verifiedPaymentBy ? [
                         'id' => $student->verifiedPaymentBy->id,
@@ -385,6 +389,7 @@ class StudentController extends Controller
                         'id' => $student->registeredBy->id,
                         'name' => $student->registeredBy->name,
                         'email' => $student->registeredBy->email,
+                        'avatar' => $student->registeredBy->avatar,
                     ] : null,
                     'verifiedPaymentBy' => $student->verifiedPaymentBy ? [
                         'id' => $student->verifiedPaymentBy->id,
@@ -1115,8 +1120,8 @@ class StudentController extends Controller
      */
     public function verifyEnrollment(Request $request, Student $student)
     {
-        // Validar que solo admins puedan verificar matrículas
-        if (!auth()->user()->isAdmin()) {
+        // Validar que solo admins y verifiers puedan verificar matrículas
+        if (!auth()->user()->isAdminOrVerifier()) {
             return response()->json([
                 'success' => false,
                 'message' => 'No tienes permisos para verificar matrículas'
@@ -1178,8 +1183,8 @@ class StudentController extends Controller
      */
     public function unverifyEnrollment(Request $request, Student $student)
     {
-        // Validar que solo admins puedan remover verificación
-        if (!auth()->user()->isAdmin()) {
+        // Validar que solo admins y verifiers puedan remover verificación
+        if (!auth()->user()->isAdminOrVerifier()) {
             return response()->json([
                 'success' => false,
                 'message' => 'No tienes permisos para modificar verificaciones'

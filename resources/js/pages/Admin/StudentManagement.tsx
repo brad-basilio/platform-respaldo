@@ -379,8 +379,8 @@ const StudentManagement: React.FC<Props> = ({
       if (formData.academicLevelId) data.append('academic_level_id', formData.academicLevelId.toString());  // ✅ Actualizado
       if (formData.paymentPlanId) data.append('payment_plan_id', formData.paymentPlanId.toString());        // ✅ Actualizado
 
-      // Solo admin puede verificar pagos desde el formulario de edición
-      if (userRole === 'admin') {
+      // Solo admin y verifier pueden verificar pagos desde el formulario de edición
+      if (userRole === 'admin' || userRole === 'verifier') {
         data.append('payment_verified', formData.paymentVerified ? '1' : '0');
       }
 
@@ -545,7 +545,7 @@ const StudentManagement: React.FC<Props> = ({
                 (userRole === 'cashier' && student.prospectStatus !== 'pago_por_verificar')
               }
             >
-              {userRole === 'admin' && (
+              {(userRole === 'admin' || userRole === 'verifier') && (
                 <>
                   <option value="registrado">Registrado</option>
                   <option value="propuesta_enviada">Reunión Realizada</option>
@@ -641,33 +641,7 @@ const StudentManagement: React.FC<Props> = ({
           );
         }
       },
-      {
-        headerName: 'Grupo',
-        field: 'assignedGroupId',
-        width: 150,
-        filter: 'agTextColumnFilter',
-        cellRenderer: (params: any) => {
-          return (
-            <div className='flex items-center space-x-2 w-full h-full'>
-              <span className="text-sm text-gray-900">{getGroupName(params.value)}</span>
-            </div>
-          );
-        }
-      },
-      {
-        headerName: 'Puntos',
-        field: 'points',
-        width: 100,
-        filter: 'agNumberColumnFilter',
-        cellRenderer: (params: any) => {
-          return (
-            <div className="flex items-center justify-end h-full">
-              <span className="text-sm font-medium text-gray-900">{params.value.toLocaleString()}</span>
-            </div>
-          );
-        },
-        type: 'rightAligned'
-      },
+   
       {
         headerName: 'Acciones',
         width: 120,
@@ -677,7 +651,7 @@ const StudentManagement: React.FC<Props> = ({
           const student = params.data;
           return (
             <div className="flex items-center space-x-2 w-full h-full">
-              {(userRole === 'admin' || userRole === 'sales_advisor') && (
+              {(userRole === 'admin' || userRole === 'sales_advisor' || userRole === 'verifier') && (
                 <>
                   <button
                     onClick={() => setEditingStudent(student)}
@@ -710,8 +684,8 @@ const StudentManagement: React.FC<Props> = ({
       }
     ];
 
-    // Agregar columna "Registrado Por" solo para admin
-    if (userRole === 'admin') {
+    // Agregar columna "Registrado Por" solo para admin y verifier
+    if (userRole === 'admin' || userRole === 'verifier') {
       columns.splice(3, 0, {
         headerName: 'Registrado Por',
         field: 'registeredBy.name',
@@ -720,13 +694,22 @@ const StudentManagement: React.FC<Props> = ({
         cellRenderer: (params: any) => {
           const student = params.data;
           if (student.registeredBy) {
+            const hasAvatar = student.registeredBy.avatar;
             return (
               <div className="flex items-center w-full h-full">
-                <div className="w-8 h-8 bg-gradient-to-r from-[#F98613] to-[#17BC91] rounded-full flex items-center justify-center mr-2 flex-shrink-0">
-                  <span className="text-white text-xs font-semibold">
-                    {student.registeredBy.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
-                  </span>
-                </div>
+                {hasAvatar ? (
+                  <img
+                    src={`/storage/${student.registeredBy.avatar}`}
+                    alt={student.registeredBy.name}
+                    className="w-8 h-8 rounded-full object-cover mr-2 flex-shrink-0 border-2 border-white shadow-sm"
+                  />
+                ) : (
+                  <div className="w-8 h-8 bg-gradient-to-r from-[#F98613] to-[#17BC91] rounded-full flex items-center justify-center mr-2 flex-shrink-0">
+                    <span className="text-white text-xs font-semibold">
+                      {student.registeredBy.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                    </span>
+                  </div>
+                )}
                 <div>
                   <div className="text-sm font-medium text-gray-900">{student.registeredBy.name}</div>
                   <div className="text-xs text-gray-500">{student.registeredBy.email}</div>
@@ -1354,8 +1337,8 @@ const StudentManagement: React.FC<Props> = ({
                           </div>
                         )}
 
-                        {/* Verificación de pago - solo para admin */}
-                        {userRole === 'admin' && (
+                        {/* Verificación de pago - solo para admin y verifier */}
+                        {(userRole === 'admin' || userRole === 'verifier') && (
                           <div className="flex items-center">
                             <label className="flex items-center space-x-3 cursor-pointer bg-white p-4 rounded-xl border border-slate-200 hover:border-blue-300 transition-all w-full">
                               <input
@@ -1733,7 +1716,7 @@ const StudentManagement: React.FC<Props> = ({
               </button>
             </div>
 
-            {(userRole === 'admin' || userRole === 'sales_advisor') && (
+            {(userRole === 'admin' || userRole === 'sales_advisor' || userRole === 'verifier') && (
               <button
                 onClick={() => setShowCreateForm(true)}
                 className="bg-[#073372] hover:bg-[#17BC91] text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
@@ -1799,6 +1782,7 @@ const StudentManagement: React.FC<Props> = ({
                             // El cajero NO puede arrastrar - solo puede verificar desde el modal
                             const isDraggable =
                               userRole === 'admin' ||
+                              userRole === 'verifier' ||
                               (userRole === 'sales_advisor' && (student.prospectStatus === 'registrado' || student.prospectStatus === 'propuesta_enviada'));
 
                             return (
@@ -1872,7 +1856,7 @@ const StudentManagement: React.FC<Props> = ({
                                 {/* Footer Actions */}
                                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                                   <div className="flex items-center gap-1">
-                                    {(userRole === 'admin' || userRole === 'sales_advisor') && (
+                                    {(userRole === 'admin' || userRole === 'sales_advisor' || userRole === 'verifier') && (
                                       <>
                                         <button
                                           onClick={() => setEditingStudent(student)}

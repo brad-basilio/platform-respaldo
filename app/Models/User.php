@@ -78,6 +78,22 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if user is verifier
+     */
+    public function isVerifier(): bool
+    {
+        return $this->role === 'verifier';
+    }
+
+    /**
+     * Check if user is admin or verifier
+     */
+    public function isAdminOrVerifier(): bool
+    {
+        return $this->role === 'admin' || $this->role === 'verifier';
+    }
+
+    /**
      * Check if user is teacher
      */
     public function isTeacher(): bool

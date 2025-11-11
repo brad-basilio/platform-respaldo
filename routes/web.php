@@ -97,6 +97,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         })->name('admin.input-demo');
         
     
+    // Admin and Verifier routes (enrolled students & payment control)
+    Route::middleware('admin.or.verifier')->group(function () {
+        // Enrolled Students
+        Route::get('/admin/enrolled-students', [StudentController::class, 'enrolledStudents'])->name('admin.enrolled-students');
+        Route::post('/admin/students/{student}/verify-enrollment', [StudentController::class, 'verifyEnrollment'])->name('admin.students.verify-enrollment');
+        Route::post('/admin/students/{student}/unverify-enrollment', [StudentController::class, 'unverifyEnrollment'])->name('admin.students.unverify-enrollment');
+        
+        // Admin Payment Control
+        Route::get('/admin/payment-control', [CashierController::class, 'adminPaymentControl'])->name('admin.payment-control');
+        Route::get('/admin/students/{student}/enrollment', [CashierController::class, 'getStudentEnrollment'])->name('admin.students.enrollment');
+    });
+    
     // Admin-only routes
     Route::middleware('can:admin')->group(function () {
       
@@ -110,11 +122,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/admin/settings', [SettingController::class, 'index'])->name('admin.settings');
         Route::post('/admin/settings', [SettingController::class, 'update'])->name('admin.settings.update');
         Route::post('/admin/settings/single', [SettingController::class, 'updateSingle'])->name('admin.settings.update-single');
-        
-        // Enrolled Students
-        Route::get('/admin/enrolled-students', [StudentController::class, 'enrolledStudents'])->name('admin.enrolled-students');
-        Route::post('/admin/students/{student}/verify-enrollment', [StudentController::class, 'verifyEnrollment'])->name('admin.students.verify-enrollment');
-        Route::post('/admin/students/{student}/unverify-enrollment', [StudentController::class, 'unverifyEnrollment'])->name('admin.students.unverify-enrollment');
         
         // Academic Levels Management
         Route::resource('admin/academic-levels', AcademicLevelController::class)
@@ -158,10 +165,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/admin/payments', function () {
             return inertia('Admin/Payments');
         })->name('admin.payments');
-        
-        // Admin Payment Control
-        Route::get('/admin/payment-control', [CashierController::class, 'adminPaymentControl'])->name('admin.payment-control');
-        Route::get('/admin/students/{student}/enrollment', [CashierController::class, 'getStudentEnrollment'])->name('admin.students.enrollment');
         
         // Analytics
         Route::get('/admin/analytics', function () {

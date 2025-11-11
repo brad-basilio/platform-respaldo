@@ -230,6 +230,24 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
             ]
           },
         ];
+        case 'verifier':
+        return [
+          
+              {
+            section: 'PROSPECTOS',
+            items: [
+              { id: 'students', label: 'Prospectos', icon: RiGroupLine },
+              { id: 'enrolled-students', label: 'Participantes Inscritos', icon: RiGraduationCapLine },
+            ]
+          },
+          {
+            section: 'FINANZAS',
+            items: [
+        
+              { id: 'admin-payment-control', label: 'Gestión de Pagos', icon: RiSecurePaymentLine },
+            ]
+          },
+        ];
       default:
         return [
           {

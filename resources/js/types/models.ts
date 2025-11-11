@@ -78,6 +78,7 @@ export interface Student extends User {
     id: string;
     name: string;
     email: string;
+    avatar?: string;
   };
   
   // Datos de Verificación de Pago

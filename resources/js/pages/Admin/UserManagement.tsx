@@ -31,6 +31,7 @@ interface User {
   name: string;
   email: string;
   role: 'admin' | 'sales_advisor' | 'cashier' | 'verifier';
+  avatar?: string;
   created_at: string;
   updated_at: string;
 }
@@ -252,13 +253,23 @@ const UserManagement: React.FC<Props> = ({ users }) => {
       filter: 'agTextColumnFilter',
       cellRenderer: (params: ICellRendererParams<User>) => {
         const user = params.data!;
+        const hasAvatar = user.avatar;
+        
         return (
           <div className="flex items-center py-2 w-full h-full">
-            <div className="w-10 h-10 bg-gradient-to-r from-[#073372] to-[#17BC91] rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-sm font-semibold">
-                {user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-              </span>
-            </div>
+            {hasAvatar ? (
+              <img
+                src={`/storage/${user.avatar}`}
+                alt={user.name}
+                className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-white shadow-md"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-gradient-to-r from-[#073372] to-[#17BC91] rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-sm font-semibold">
+                  {user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                </span>
+              </div>
+            )}
             <div className="ml-3">
               <div className="text-sm font-medium text-gray-900">{user.name}</div>
               <div className="text-xs text-gray-500 flex items-center">
