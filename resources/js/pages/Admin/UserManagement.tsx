@@ -18,7 +18,7 @@ import {
   RiShieldCheckLine
 } from 'react-icons/ri';
 import { Search, XCircle } from 'lucide-react';
-import { Input, Select } from '@/components/ui/input';
+import { Input } from '@/components/ui/input';
 import { Select2 } from '@/components/ui/Select2';
 import { toast } from 'sonner';
 import Swal from 'sweetalert2';
@@ -44,6 +44,7 @@ const UserManagement: React.FC<Props> = ({ users }) => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [quickFilterText, setQuickFilterText] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'all' | 'admin' | 'sales_advisor' | 'cashier' | 'verifier'>('all');
   const gridRef = useRef<AgGridReact>(null);
 
   const { data, setData, post, put, processing, errors, reset } = useForm({
@@ -243,7 +244,7 @@ const UserManagement: React.FC<Props> = ({ users }) => {
     );
   };
 
-  const columnDefs = useMemo<ColDef<User>[]>(() => [
+  const columnDefs: ColDef<User>[] = [
     {
       headerName: 'Usuario',
       field: 'name',
@@ -291,13 +292,19 @@ const UserManagement: React.FC<Props> = ({ users }) => {
       filter: false,
       pinned: 'right',
     },
-  ], []);
+  ];
 
   const defaultColDef: ColDef = {
     sortable: true,
     resizable: true,
     filter: true,
   };
+
+  // Filtrar usuarios según el tab activo
+  const filteredUsers = useMemo(() => {
+    if (activeTab === 'all') return users;
+    return users.filter(u => u.role === activeTab);
+  }, [users, activeTab]);
 
   return (
     <AuthenticatedLayout>
@@ -325,65 +332,7 @@ const UserManagement: React.FC<Props> = ({ users }) => {
           </button>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Administradores</p>
-                <p className="text-3xl font-bold text-[#F98613] mt-1">
-                  {users.filter(u => u.role === 'admin').length}
-                </p>
-              </div>
-              <div className="p-3 bg-[#F98613]/10 rounded-lg">
-                <RiShieldUserLine className="w-8 h-8 text-[#F98613]" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Asesores de Ventas</p>
-                <p className="text-3xl font-bold text-purple-600 mt-1">
-                  {users.filter(u => u.role === 'sales_advisor').length}
-                </p>
-              </div>
-              <div className="p-3 bg-purple-50 rounded-lg">
-                <RiUserStarLine className="w-8 h-8 text-purple-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Cajeros</p>
-                <p className="text-3xl font-bold text-cyan-600 mt-1">
-                  {users.filter(u => u.role === 'cashier').length}
-                </p>
-              </div>
-              <div className="p-3 bg-cyan-50 rounded-lg">
-                <RiUserSettingsLine className="w-8 h-8 text-cyan-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Verificadores</p>
-                <p className="text-3xl font-bold text-[#17BC91] mt-1">
-                  {users.filter(u => u.role === 'verifier').length}
-                </p>
-              </div>
-              <div className="p-3 bg-[#17BC91]/10 rounded-lg">
-                <RiShieldCheckLine className="w-8 h-8 text-[#17BC91]" />
-              </div>
-            </div>
-          </div>
-        </div>
-
+   
         {/* Search Bar */}
         <div className="relative">
           <div className="relative">
@@ -405,6 +354,95 @@ const UserManagement: React.FC<Props> = ({ users }) => {
             )}
           </div>
         </div>
+     {/* Tabs de filtrado por rol */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1 inline-flex">
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                activeTab === 'all'
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <RiShieldUserLine className="h-4 w-4" />
+                <span>Todos</span>
+                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                  {users.length}
+                </span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('admin')}
+              className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                activeTab === 'admin'
+                  ? 'bg-gradient-to-r from-[#F98613] to-orange-600 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <RiShieldUserLine className="h-4 w-4" />
+                <span>Administradores</span>
+                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                  {users.filter(u => u.role === 'admin').length}
+                </span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('sales_advisor')}
+              className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                activeTab === 'sales_advisor'
+                  ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <RiUserStarLine className="h-4 w-4" />
+                <span>Asesores</span>
+                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                  {users.filter(u => u.role === 'sales_advisor').length}
+                </span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('cashier')}
+              className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                activeTab === 'cashier'
+                  ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <RiUserSettingsLine className="h-4 w-4" />
+                <span>Cajeros</span>
+                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                  {users.filter(u => u.role === 'cashier').length}
+                </span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('verifier')}
+              className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                activeTab === 'verifier'
+                  ? 'bg-gradient-to-r from-[#17BC91] to-emerald-500 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <RiShieldCheckLine className="h-4 w-4" />
+                <span>Verificadores</span>
+                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                  {users.filter(u => u.role === 'verifier').length}
+                </span>
+              </div>
+            </button>
+          </div>
+        </div>
 
         {/* AG Grid Table */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -412,7 +450,7 @@ const UserManagement: React.FC<Props> = ({ users }) => {
             <AgGridReact<User>
               ref={gridRef}
               theme={themeQuartz}
-              rowData={users}
+              rowData={filteredUsers}
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
               quickFilterText={quickFilterText}

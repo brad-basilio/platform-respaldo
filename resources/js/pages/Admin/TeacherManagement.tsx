@@ -1044,54 +1044,7 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
         />
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total de Profesores</p>
-              <p className="text-2xl font-semibold text-gray-900">{teachers.length}</p>
-            </div>
-            <UserCheck className="h-8 w-8 text-blue-600" />
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Profesores Activos</p>
-              <p className="text-2xl font-semibold text-green-600">
-                {teachers.filter(t => t.status === 'active').length}
-              </p>
-            </div>
-            <CheckCircle className="h-8 w-8 text-green-600" />
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Con Asignaciones</p>
-              <p className="text-2xl font-semibold text-blue-600">
-                {teachers.filter(t => t.assignedGroups.length > 0).length}
-              </p>
-            </div>
-            <Users className="h-8 w-8 text-blue-600" />
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Disponibles</p>
-              <p className="text-2xl font-semibold text-purple-600">
-                {teachers.filter((t: Teacher) => t.status === 'active' && (!t.assignedGroups || t.assignedGroups.length === 0)).length}
-              </p>
-            </div>
-            <Clock className="h-8 w-8 text-purple-600" />
-          </div>
-        </div>
-      </div>
+
       </div>
     </AuthenticatedLayout>
   );

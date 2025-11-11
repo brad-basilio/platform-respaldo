@@ -17,6 +17,7 @@ use App\Http\Controllers\VoucherVerificationController;
 use App\Http\Controllers\Student\StudentPaymentController;
 use App\Http\Controllers\CashierController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\SettingController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -98,6 +99,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/admin/users', [UserController::class, 'store'])->name('admin.users.store');
         Route::put('/admin/users/{user}', [UserController::class, 'update'])->name('admin.users.update');
         Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.users.destroy');
+        
+        // Settings Management
+        Route::get('/admin/settings', [SettingController::class, 'index'])->name('admin.settings');
+        Route::post('/admin/settings', [SettingController::class, 'update'])->name('admin.settings.update');
+        Route::post('/admin/settings/single', [SettingController::class, 'updateSingle'])->name('admin.settings.update-single');
         
         // Enrolled Students
         Route::get('/admin/enrolled-students', [StudentController::class, 'enrolledStudents'])->name('admin.enrolled-students');

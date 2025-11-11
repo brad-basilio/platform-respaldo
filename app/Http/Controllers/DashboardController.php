@@ -90,6 +90,7 @@ class DashboardController extends Controller
             'createdAt' => $user->created_at,
         ];
 
+        // Stats generales
         $stats = [
             'totalStudents' => Student::count(),
             'activeStudents' => Student::where('status', 'active')->count(),
@@ -97,11 +98,75 @@ class DashboardController extends Controller
             'activeTeachers' => Teacher::where('status', 'active')->count(),
             'totalGroups' => Group::count(),
             'activeGroups' => Group::where('status', 'active')->count(),
+            
+            // Stats de prospectos
+            'totalProspects' => Student::count(),
+            'registrados' => Student::where('prospect_status', 'registrado')->count(),
+            'propuestasEnviadas' => Student::where('prospect_status', 'propuesta_enviada')->count(),
+            'pagosPorVerificar' => Student::where('prospect_status', 'pago_por_verificar')->count(),
+            'matriculados' => Student::where('prospect_status', 'matriculado')->count(),
+            'verificados' => Student::where('prospect_status', 'matriculado')
+                ->where('enrollment_verified', true)->count(),
+            
+            // KPIs de hoy
+            'prospectosHoy' => Student::whereDate('created_at', today())->count(),
+            'verificadosHoy' => Student::where('prospect_status', 'matriculado')
+                ->where('enrollment_verified', true)
+                ->whereDate('enrollment_verified_at', today())->count(),
+            'enProceso' => Student::whereIn('prospect_status', ['propuesta_enviada', 'pago_por_verificar'])->count(),
+            
+            // Stats de usuarios del sistema
+            'totalUsers' => User::count(),
+            'admins' => User::where('role', 'admin')->count(),
+            'salesAdvisors' => User::where('role', 'sales_advisor')->count(),
+            'cashiers' => User::where('role', 'cashier')->count(),
+            'verifiers' => User::where('role', 'verifier')->count(),
         ];
+
+        // Datos para gráficos - Prospectos vs Matriculados Verificados (últimos 30 días)
+        $dailyStudents = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $dailyStudents[] = [
+                'date' => $date->format('d M'),
+                'prospectos' => Student::whereDate('created_at', $date->toDateString())->count(),
+                'verificados' => Student::where('prospect_status', 'matriculado')
+                    ->where('enrollment_verified', true)
+                    ->whereDate('enrollment_verified_at', $date->toDateString())->count(),
+            ];
+        }
+
+        // Distribución de prospectos por estado
+        $prospectDistribution = [
+            ['name' => 'Registrado', 'value' => $stats['registrados'], 'color' => '#073372'],
+            ['name' => 'Propuesta Enviada', 'value' => $stats['propuestasEnviadas'], 'color' => '#F98613'],
+            ['name' => 'Pago Por Verificar', 'value' => $stats['pagosPorVerificar'], 'color' => '#FFA726'],
+            ['name' => 'Matriculado', 'value' => $stats['matriculados'], 'color' => '#17BC91'],
+        ];
+
+        // Top asesores de ventas (por número de matriculados VERIFICADOS - solo cuentan para comisión)
+        $topSalesAdvisors = Student::selectRaw('registered_by, COUNT(*) as total')
+            ->where('prospect_status', 'matriculado')
+            ->where('enrollment_verified', true)
+            ->whereNotNull('registered_by')
+            ->groupBy('registered_by')
+            ->orderByDesc('total')
+            ->limit(5)
+            ->with('registeredBy:id,name')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'name' => $item->registeredBy->name ?? 'Desconocido',
+                    'total' => $item->total,
+                ];
+            });
 
         return Inertia::render('Dashboard/Admin', [
             'admin' => $adminData,
             'stats' => $stats,
+            'dailyStudents' => $dailyStudents,
+            'prospectDistribution' => $prospectDistribution,
+            'topSalesAdvisors' => $topSalesAdvisors,
         ]);
     }
 

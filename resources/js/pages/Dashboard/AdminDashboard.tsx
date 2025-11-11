@@ -1,193 +1,426 @@
 import React from 'react';
 import { 
-  Users, GraduationCap, DollarSign, BookOpen, 
-  TrendingUp, Activity, UserCheck, AlertTriangle,
-  PieChart, BarChart3, Calendar, Star, CheckCircle
+  Users, TrendingUp, Clock, Award, UserCheck
 } from 'lucide-react';
-import { Admin } from '../../types';
+import { Admin } from '@/types/models';
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend
+} from 'recharts';
+
+// Colores institucionales UNCED según manual de marca
+const COLORS = {
+  catalina: '#073372',    // Catalina Blue (Pantone 294 C)
+  pradera: '#17BC91',     // Pradera de montaña (Pantone 3395 C)
+  beer: '#F98613',        // Beer Orange (Hexachrome Orange C)
+};
+
+interface DailyData {
+  date: string;
+  prospectos: number;
+  verificados: number;
+}
+
+interface DistributionData {
+  name: string;
+  value: number;
+  color: string;
+}
+
+interface TopAdvisor {
+  name: string;
+  total: number;
+}
+
+interface Stats {
+  totalStudents: number;
+  activeStudents: number;
+  totalTeachers: number;
+  activeTeachers: number;
+  totalGroups: number;
+  activeGroups: number;
+  totalProspects: number;
+  registrados: number;
+  propuestasEnviadas: number;
+  pagosPorVerificar: number;
+  matriculados: number;
+  verificados: number;
+  prospectosHoy: number;
+  verificadosHoy: number;
+  enProceso: number;
+  totalUsers: number;
+  admins: number;
+  salesAdvisors: number;
+  cashiers: number;
+  verifiers: number;
+}
 
 interface AdminDashboardProps {
   admin: Admin;
+  stats: Stats;
+  dailyStudents: DailyData[];
+  prospectDistribution: DistributionData[];
+  topSalesAdvisors: TopAdvisor[];
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ admin }) => {
-  const stats = [
-    { label: 'Estudiantes Activos', value: '3', change: '+1', icon: Users, color: 'blue', gradient: 'from-blue-500 to-blue-600' },
-    { label: 'Profesores Activos', value: '3', change: '+1', icon: UserCheck, color: 'emerald', gradient: 'from-emerald-500 to-emerald-600' },
-    { label: 'Total de Grupos', value: '3', change: '+1', icon: BookOpen, color: 'violet', gradient: 'from-violet-500 to-violet-600' },
-    { label: 'Ocupación Promedio', value: '42%', change: '+5%', icon: BarChart3, color: 'amber', gradient: 'from-amber-500 to-amber-600' },
-  ];
-
-  const recentActivities = [
-    { id: '1', action: 'Estudiante inscrito en grupo', student: 'Juan Pérez', group: 'Teórico Básico A', time: 'hace 2 horas', type: 'enrollment' },
-    { id: '2', action: 'Nuevo grupo creado', group: 'Práctico Intermedio B', teacher: 'Mike Wilson', time: 'hace 3 horas', type: 'group_created' },
-    { id: '3', action: 'Profesor asignado a grupo', teacher: 'Sarah Johnson', group: 'Teórico Básico A', time: 'hace 5 horas', type: 'assignment' },
-    { id: '4', action: 'Estado de estudiante actualizado', student: 'Ahmed Hassan', status: 'Activo', time: 'hace 1 día', type: 'status_update' },
-  ];
-
-  const groupDistribution = [
-    { type: 'Teórico', groups: 2, students: 1, percentage: 67 },
-    { type: 'Práctico', groups: 1, students: 1, percentage: 33 },
-  ];
-
-  const upcomingTasks = [
-    { id: '1', task: 'Asignar profesor al Grupo Avanzado C', priority: 'high', due: 'Hoy' },
-    { id: '2', task: 'Revisar solicitudes de inscripción', priority: 'medium', due: 'Mañana' },
-    { id: '3', task: 'Actualizar horarios de grupos para el próximo mes', priority: 'low', due: 'Esta semana' },
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
+  admin, 
+  stats, 
+  dailyStudents, 
+  prospectDistribution, 
+  topSalesAdvisors 
+}) => {
+  // KPI Cards - Colores institucionales UNCED
+  const kpiCards = [
+    { 
+      label: 'Prospectos Hoy', 
+      value: stats.prospectosHoy, 
+      icon: Users, 
+      color: COLORS.catalina,
+      description: 'Nuevos registros del día'
+    },
+    { 
+      label: 'Verificados Hoy', 
+      value: stats.verificadosHoy, 
+      icon: UserCheck, 
+      color: COLORS.pradera,
+      description: 'Matriculados y verificados'
+    },
+    { 
+      label: 'En Proceso', 
+      value: stats.enProceso, 
+      icon: Clock, 
+      color: COLORS.beer,
+      description: 'Propuesta enviada o por verificar',
+      percentage: Math.round((stats.enProceso / stats.totalProspects) * 100)
+    },
+    { 
+      label: 'Total Verificados', 
+      value: stats.verificados, 
+      icon: Award, 
+      color: COLORS.pradera,
+      description: 'Matriculados y verificados total',
+      percentage: Math.round((stats.verificados / stats.totalProspects) * 100)
+    },
   ];
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Panel de Administración</h1>
-          <p className="text-slate-600 mt-1">Bienvenido de nuevo, <span className="font-semibold">{admin.name}</span></p>
-        </div>
-        <div className="bg-gradient-to-br from-amber-500 to-orange-600 text-white px-6 py-4 rounded-2xl shadow-lg shadow-amber-500/25">
-          <div className="text-center">
-            <div className="text-3xl font-bold">1</div>
-            <div className="text-sm opacity-90 font-medium">Sin Asignar</div>
+    <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto bg-gray-50">
+      {/* Header Minimalista */}
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">Panel de Administración</h1>
+            <p className="text-gray-500">Bienvenido, <span className="font-semibold text-gray-700">{admin.name}</span></p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
+      {/* KPI Cards - Data-Centric Design */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        {/* Total Prospectos - KPI Destacado */}
+        <div 
+          className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300"
+          style={{ backgroundColor: `${COLORS.catalina}05` }}
+        >
+          <div className="flex items-start justify-between mb-3">
+            <div 
+              className="p-3 rounded-lg"
+              style={{ backgroundColor: `${COLORS.catalina}15` }}
+            >
+              <Users className="h-7 w-7" style={{ color: COLORS.catalina }} />
+            </div>
+          </div>
+          
+          <div className="space-y-1">
+            <p className="text-5xl font-black text-gray-900">{stats.totalProspects}</p>
+            <p className="text-sm font-bold text-gray-700 mt-2">Total Prospectos</p>
+            <p className="text-xs text-gray-500">Acumulado general</p>
+          </div>
+        </div>
 
+        {/* Resto de KPIs */}
+        {kpiCards.map((card) => {
+          const Icon = card.icon;
           return (
-            <div key={stat.label} className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200 hover:shadow-xl transition-all duration-300 group">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-3.5 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg group-hover:scale-110 transition-transform`}>
-                  <Icon className="h-6 w-6 text-white" />
+            <div 
+              key={card.label} 
+              className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 relative overflow-hidden"
+              style={{ backgroundColor: `${card.color}03` }}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div 
+                  className="p-3 rounded-lg"
+                  style={{ backgroundColor: `${card.color}15` }}
+                >
+                  <Icon className="h-6 w-6" style={{ color: card.color }} />
                 </div>
-                <span className="text-emerald-600 text-sm font-semibold bg-emerald-50 px-3 py-1 rounded-lg">{stat.change}</span>
+                {card.percentage && (
+                  <div 
+                    className="px-2.5 py-1.5 rounded-lg text-xs font-bold"
+                    style={{ backgroundColor: card.color, color: 'white' }}
+                  >
+                    {card.percentage}%
+                  </div>
+                )}
               </div>
-              <div>
-                <p className="text-3xl font-bold text-slate-900 mb-1">{stat.value}</p>
-                <p className="text-sm text-slate-600 font-medium">{stat.label}</p>
+              
+              <div className="space-y-1">
+                <p className="text-5xl font-black text-gray-900">{card.value}</p>
+                <p className="text-sm font-bold text-gray-700 mt-2">{card.label}</p>
+                <p className="text-xs text-gray-500">{card.description}</p>
               </div>
             </div>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-slate-900">Distribución de Grupos</h2>
-            <PieChart className="h-5 w-5 text-slate-400" />
-          </div>
-          <div className="space-y-4">
-            {groupDistribution.map((item, index) => (
-              <div key={item.type} className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-4 h-4 rounded-full ${
-                    index === 0 ? 'bg-blue-500' : 'bg-purple-500'
-                  }`}></div>
-                  <span className="text-sm font-medium text-gray-900">{item.type}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-600">{item.groups} grupos, {item.students} estudiantes</span>
-                  <span className="text-sm font-semibold text-gray-900">({item.percentage}%)</span>
-                </div>
-              </div>
-            ))}
+      {/* Gráfica de Área - Tendencia (Últimos 30 días) */}
+      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Tendencia de Estudiantes
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">Últimos 30 días - Prospectos vs Verificados</p>
+            </div>
+            <TrendingUp className="h-6 w-6" style={{ color: COLORS.catalina }} />
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-slate-900">Tareas Pendientes</h2>
-            <Calendar className="h-5 w-5 text-slate-400" />
+        <ResponsiveContainer width="100%" height={420}>
+          <AreaChart data={dailyStudents} margin={{ top: 10, right: 30, left: 0, bottom: 70 }}>
+            <defs>
+              <linearGradient id="colorProspectos" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={COLORS.catalina} stopOpacity={0.3}/>
+                <stop offset="95%" stopColor={COLORS.catalina} stopOpacity={0}/>
+              </linearGradient>
+              <linearGradient id="colorVerificados" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={COLORS.pradera} stopOpacity={0.3}/>
+                <stop offset="95%" stopColor={COLORS.pradera} stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+            <XAxis 
+              dataKey="date" 
+              stroke="#9ca3af"
+              style={{ fontSize: '11px', fontWeight: 500 }}
+              angle={-45}
+              textAnchor="end"
+              height={80}
+              tick={{ fill: '#6b7280' }}
+            />
+            <YAxis 
+              stroke="#9ca3af" 
+              style={{ fontSize: '12px', fontWeight: 600 }}
+              tick={{ fill: '#374151' }}
+            />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: 'white', 
+                border: 'none',
+                borderRadius: '12px',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                padding: '16px'
+              }}
+              labelStyle={{ fontWeight: 700, color: '#111827', marginBottom: '8px', fontSize: '13px' }}
+              itemStyle={{ fontWeight: 600, fontSize: '14px' }}
+            />
+            <Legend 
+              wrapperStyle={{ paddingTop: '24px', fontSize: '14px', fontWeight: 600 }}
+              iconType="rect"
+            />
+            <Area 
+              type="monotone" 
+              dataKey="prospectos" 
+              stroke={COLORS.catalina}
+              strokeWidth={3}
+              fillOpacity={1}
+              fill="url(#colorProspectos)"
+              name="Prospectos Registrados"
+              dot={{ fill: COLORS.catalina, r: 5, strokeWidth: 2, stroke: 'white' }}
+              activeDot={{ r: 7, strokeWidth: 2, stroke: 'white' }}
+            />
+            <Area 
+              type="monotone" 
+              dataKey="verificados" 
+              stroke={COLORS.pradera}
+              strokeWidth={3}
+              fillOpacity={1}
+              fill="url(#colorVerificados)"
+              name="Matriculados Verificados"
+              dot={{ fill: COLORS.pradera, r: 5, strokeWidth: 2, stroke: 'white' }}
+              activeDot={{ r: 7, strokeWidth: 2, stroke: 'white' }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+
+        {/* Resumen de totales */}
+        <div className="mt-8 grid grid-cols-2 gap-6">
+          <div className="rounded-xl p-5 shadow-md" style={{ backgroundColor: `${COLORS.catalina}08` }}>
+            <p className="text-xs font-bold text-gray-600 mb-2">TOTAL PROSPECTOS (30 DÍAS)</p>
+            <p className="text-4xl font-black" style={{ color: COLORS.catalina }}>
+              {dailyStudents.reduce((sum, day) => sum + day.prospectos, 0)}
+            </p>
           </div>
-          <div className="space-y-3">
-            {upcomingTasks.map((task) => (
-              <div key={task.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-2 h-2 rounded-full ${
-                    task.priority === 'high' ? 'bg-red-500' :
-                    task.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
-                  }`}></div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{task.task}</p>
-                    <p className="text-xs text-gray-600">Vence: {task.due}</p>
-                  </div>
-                </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  task.priority === 'high' ? 'bg-red-100 text-red-800' :
-                  task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-green-100 text-green-800'
-                }`}>
-                  {task.priority === 'high' ? 'alta' : task.priority === 'medium' ? 'media' : 'baja'}
-                </span>
-              </div>
-            ))}
+          <div className="rounded-xl p-5 shadow-md" style={{ backgroundColor: `${COLORS.pradera}08` }}>
+            <p className="text-xs font-bold text-gray-600 mb-2">TOTAL VERIFICADOS (30 DÍAS)</p>
+            <p className="text-4xl font-black" style={{ color: COLORS.pradera }}>
+              {dailyStudents.reduce((sum, day) => sum + day.verificados, 0)}
+            </p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-slate-900">Actividades Recientes</h2>
-          <Activity className="h-5 w-5 text-slate-400" />
-        </div>
-        <div className="space-y-4">
-          {recentActivities.map((activity) => (
-            <div key={activity.id} className="flex items-center space-x-4 p-4 hover:bg-gray-50 rounded-lg transition-colors">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                activity.type === 'enrollment' ? 'bg-blue-100 text-blue-600' :
-                activity.type === 'group_created' ? 'bg-green-100 text-green-600' :
-                activity.type === 'assignment' ? 'bg-purple-100 text-purple-600' :
-                'bg-orange-100 text-orange-600'
-              }`}>
-                {activity.type === 'enrollment' && <Users className="h-5 w-5" />}
-                {activity.type === 'group_created' && <BookOpen className="h-5 w-5" />}
-                {activity.type === 'assignment' && <UserCheck className="h-5 w-5" />}
-                {activity.type === 'status_update' && <CheckCircle className="h-5 w-5" />}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Top 5 Asesores - Gráfica de barras horizontal */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Top 5 Asesores
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">Por estudiantes verificados (comisión)</p>
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                <p className="text-sm text-gray-600">
-                  {activity.student && `Estudiante: ${activity.student}`}
-                  {activity.teacher && `Profesor: ${activity.teacher}`}
-                  {activity.group && ` - ${activity.group}`}
-                  {activity.status && ` - ${activity.status}`}
-                </p>
-              </div>
-              <span className="text-xs text-gray-500">{activity.time}</span>
+              <Award className="h-6 w-6" style={{ color: COLORS.pradera }} />
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl p-8 border border-slate-200">
-        <h2 className="text-xl font-bold text-slate-900 mb-6">Acciones Rápidas</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group">
-            <div className="p-3 bg-blue-50 rounded-xl mb-3 group-hover:bg-blue-100 transition-colors">
-              <Users className="h-7 w-7 text-blue-600" />
+          {topSalesAdvisors.length > 0 ? (
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={topSalesAdvisors} layout="vertical" margin={{ top: 5, right: 40, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                <XAxis 
+                  type="number"
+                  stroke="#9ca3af"
+                  style={{ fontSize: '12px', fontWeight: 600 }}
+                  tick={{ fill: '#374151' }}
+                />
+                <YAxis 
+                  dataKey="name" 
+                  type="category"
+                  width={160}
+                  stroke="#6b7280"
+                  style={{ fontSize: '14px', fontWeight: 700 }}
+                  tick={{ fill: '#111827' }}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: 'none',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    padding: '16px'
+                  }}
+                  cursor={{ fill: 'rgba(7, 51, 114, 0.03)' }}
+                  labelStyle={{ fontWeight: 700, color: '#111827', fontSize: '14px' }}
+                  itemStyle={{ fontWeight: 700 }}
+                />
+                <Bar 
+                  dataKey="total"
+                  radius={[0, 8, 8, 0]}
+                  barSize={36}
+                  name="Verificados"
+                >
+                  {topSalesAdvisors.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={index === 0 ? COLORS.pradera : COLORS.catalina}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[320px] flex items-center justify-center">
+              <p className="text-gray-400 text-center text-sm">No hay datos disponibles</p>
             </div>
-            <span className="text-sm font-semibold text-slate-900">Estudiantes</span>
-          </button>
-          <button className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group">
-            <div className="p-3 bg-emerald-50 rounded-xl mb-3 group-hover:bg-emerald-100 transition-colors">
-              <UserCheck className="h-7 w-7 text-emerald-600" />
+          )}
+        </div>
+
+        {/* Distribución de Prospectos - Gráfica de barras horizontal */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
+          <div className="mb-8">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Distribución de Prospectos
+              </h2>
+              <p className="text-sm text-gray-500">Pipeline de ventas actual</p>
             </div>
-            <span className="text-sm font-semibold text-slate-900">Profesores</span>
-          </button>
-          <button className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group">
-            <div className="p-3 bg-violet-50 rounded-xl mb-3 group-hover:bg-violet-100 transition-colors">
-              <BookOpen className="h-7 w-7 text-violet-600" />
+          </div>
+          
+          {prospectDistribution.length > 0 ? (
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={prospectDistribution} layout="vertical" margin={{ top: 5, right: 40, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                <XAxis 
+                  type="number"
+                  stroke="#9ca3af"
+                  style={{ fontSize: '12px', fontWeight: 600 }}
+                  tick={{ fill: '#374151' }}
+                />
+                <YAxis 
+                  dataKey="name" 
+                  type="category"
+                  width={160}
+                  stroke="#6b7280"
+                  style={{ fontSize: '14px', fontWeight: 700 }}
+                  tick={{ fill: '#111827' }}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: 'none',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    padding: '16px'
+                  }}
+                  cursor={{ fill: 'rgba(7, 51, 114, 0.03)' }}
+                  labelStyle={{ fontWeight: 700, color: '#111827', fontSize: '14px' }}
+                  itemStyle={{ fontWeight: 700 }}
+                  formatter={(value: number) => {
+                    const percentage = Math.round((value / stats.totalProspects) * 100);
+                    return `${value} (${percentage}%)`;
+                  }}
+                />
+                <Bar 
+                  dataKey="value"
+                  radius={[0, 8, 8, 0]}
+                  barSize={36}
+                  name="Prospectos"
+                >
+                  {prospectDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[320px] flex items-center justify-center">
+              <p className="text-gray-400 text-center text-sm">No hay datos disponibles</p>
             </div>
-            <span className="text-sm font-semibold text-slate-900">Grupos</span>
-          </button>
-          <button className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group">
-            <div className="p-3 bg-amber-50 rounded-xl mb-3 group-hover:bg-amber-100 transition-colors">
-              <BarChart3 className="h-7 w-7 text-amber-600" />
+          )}
+
+          {/* Total general */}
+          <div className="mt-6 pt-6 border-t-2 border-gray-200">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-gray-600 uppercase tracking-wide">Total Prospectos</span>
+              <span className="text-3xl font-black text-gray-900">
+                {stats.totalProspects}
+              </span>
             </div>
-            <span className="text-sm font-semibold text-slate-900">Estadísticas</span>
-          </button>
+          </div>
         </div>
       </div>
     </div>

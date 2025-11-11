@@ -61,6 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
     if (currentUrl.startsWith('/admin/payment-control')) return 'admin-payment-control';
     if (currentUrl.startsWith('/cashier/payment-control')) return 'cashier-payment-control';
     if (currentUrl.startsWith('/cashier/payment-reports')) return 'payment-reports';
+    if (currentUrl.startsWith('/admin/settings')) return 'settings';
     if (currentUrl.startsWith('/settings')) return 'settings';
     if (currentUrl.startsWith('/dashboard')) return 'dashboard';
     if (currentUrl.startsWith('/admin/users')) return 'users';
@@ -88,7 +89,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
       'cashier-payment-control': '/cashier/payment-control',
       'payment-reports': '/cashier/payment-reports',
       'analytics': '/admin/analytics',
-      'settings': '/settings',
+      'settings': '/admin/settings',
       'users': '/admin/users',
     };
 
@@ -123,6 +124,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
               { id: 'academic-levels', label: 'Niveles Académicos', icon: RiGraduationCapLine },
               { id: 'payment-plans', label: 'Planes de Pago', icon: RiSecurePaymentLine },
               { id: 'users', label: 'Usuarios', icon: RiShieldUserLine },
+              { id: 'settings', label: 'Configuraciones', icon: RiSettings4Line },
             ]
           },
           {

@@ -564,12 +564,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
             <h1 className="text-2xl font-bold text-gray-900">Alumnos Matriculados</h1>
             <p className="text-gray-600">Gestiona los estudiantes que ya han completado su matrícula</p>
           </div>
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl shadow-lg">
-            <div className="text-center">
-              <div className="text-3xl font-bold">{students.length}</div>
-              <div className="text-sm opacity-90">Matriculados</div>
-            </div>
-          </div>
+      
         </div>
 
           {/* Barra de búsqueda global */}
@@ -677,53 +672,6 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
           </div>
        
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Total Matriculados</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{students.length}</p>
-              </div>
-              <Users className="h-10 w-10 text-blue-600" />
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Verificadas</p>
-                <p className="text-3xl font-bold text-green-600 mt-1">
-                  {students.filter((s: Student) => s.enrollmentVerified).length}
-                </p>
-              </div>
-              <CheckCircle className="h-10 w-10 text-green-600" />
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Pendientes</p>
-                <p className="text-3xl font-bold text-yellow-600 mt-1">
-                  {students.filter((s: Student) => !s.enrollmentVerified).length}
-                </p>
-              </div>
-              <AlertCircle className="h-10 w-10 text-yellow-600" />
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Activos</p>
-                <p className="text-3xl font-bold text-purple-600 mt-1">
-                  {students.filter((s: Student) => s.status === 'active').length}
-                </p>
-              </div>
-              <UserCheck className="h-10 w-10 text-purple-600" />
-            </div>
-          </div>
-        </div>
    
       </div>
 
