@@ -18,6 +18,7 @@ use App\Http\Controllers\Student\StudentPaymentController;
 use App\Http\Controllers\CashierController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\ProfileController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -28,6 +29,11 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    
+    // ========================================
+    // PROFILE - Accessible to all authenticated users
+    // ========================================
+    Route::post('/profile/update-avatar', [ProfileController::class, 'updateAvatar'])->name('profile.update-avatar');
     
     // ========================================
     // NOTIFICATIONS - Accessible to all authenticated users
