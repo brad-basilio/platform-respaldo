@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { User, Settings, LogOut, Camera, X } from 'lucide-react';
 import { usePage, router, useForm } from '@inertiajs/react';
 import { User as UserType } from '@/types/models';
@@ -11,12 +12,25 @@ const UserProfileDropdown: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data, setData, processing } = useForm({
     avatar: null as File | null,
   });
+
+  // Calcular posición del dropdown
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 8,
+        right: window.innerWidth - rect.right,
+      });
+    }
+  }, [isOpen]);
 
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
@@ -128,9 +142,13 @@ const UserProfileDropdown: React.FC = () => {
 
   return (
     <>
-      <div className="relative" ref={dropdownRef}>
+      <div className="relative z-[100]" ref={dropdownRef}>
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          ref={buttonRef}
+          onClick={() => {
+            console.log('Button clicked! Current state:', isOpen);
+            setIsOpen(!isOpen);
+          }}
           className="flex items-center space-x-3 px-3 py-2 rounded-xl hover:bg-slate-50 transition-all"
         >
           {getAvatarUrl() ? (
@@ -155,9 +173,15 @@ const UserProfileDropdown: React.FC = () => {
           </div>
         </button>
 
-        {/* Dropdown Menu */}
-        {isOpen && (
-          <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-50">
+        {/* Dropdown Menu usando Portal */}
+        {isOpen && createPortal(
+          <div 
+            className="fixed w-64 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-[9999]"
+            style={{
+              top: `${dropdownPosition.top}px`,
+              right: `${dropdownPosition.right}px`,
+            }}
+          >
             <div className="px-4 py-3 border-b border-slate-100">
               <p className="text-sm font-semibold text-slate-900">{user?.name}</p>
               <p className="text-xs text-slate-500">{user?.email}</p>
@@ -194,7 +218,8 @@ const UserProfileDropdown: React.FC = () => {
                 Cerrar Sesión
               </button>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
 

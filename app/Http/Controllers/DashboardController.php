@@ -172,6 +172,13 @@ class DashboardController extends Controller
 
     protected function salesAdvisorDashboard($user): Response
     {
+        $salesAdvisorData = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => 'sales_advisor',
+        ];
+
         // Filtrar solo los prospectos registrados por este asesor de ventas
         $stats = [
             'totalProspects' => Student::where('registered_by', $user->id)->count(),
@@ -183,10 +190,49 @@ class DashboardController extends Controller
                 ->where('prospect_status', 'pago_por_verificar')->count(),
             'matriculados' => Student::where('registered_by', $user->id)
                 ->where('prospect_status', 'matriculado')->count(),
+            'verificados' => Student::where('registered_by', $user->id)
+                ->where('prospect_status', 'matriculado')
+                ->where('enrollment_verified', true)->count(),
+            
+            // KPIs de hoy
+            'prospectosHoy' => Student::where('registered_by', $user->id)
+                ->whereDate('created_at', today())->count(),
+            'verificadosHoy' => Student::where('registered_by', $user->id)
+                ->where('prospect_status', 'matriculado')
+                ->where('enrollment_verified', true)
+                ->whereDate('enrollment_verified_at', today())->count(),
+            'enProceso' => Student::where('registered_by', $user->id)
+                ->whereIn('prospect_status', ['propuesta_enviada', 'pago_por_verificar'])->count(),
+        ];
+
+        // Datos para gráficos - Prospectos vs Matriculados Verificados (últimos 30 días)
+        $dailyStudents = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $dailyStudents[] = [
+                'date' => $date->format('d M'),
+                'prospectos' => Student::where('registered_by', $user->id)
+                    ->whereDate('created_at', $date->toDateString())->count(),
+                'verificados' => Student::where('registered_by', $user->id)
+                    ->where('prospect_status', 'matriculado')
+                    ->where('enrollment_verified', true)
+                    ->whereDate('enrollment_verified_at', $date->toDateString())->count(),
+            ];
+        }
+
+        // Distribución de prospectos por estado
+        $prospectDistribution = [
+            ['name' => 'Registrado', 'value' => $stats['registrados'], 'color' => '#073372'],
+            ['name' => 'Propuesta Enviada', 'value' => $stats['propuestasEnviadas'], 'color' => '#F98613'],
+            ['name' => 'Pago Por Verificar', 'value' => $stats['pagosPorVerificar'], 'color' => '#FFA726'],
+            ['name' => 'Matriculado', 'value' => $stats['matriculados'], 'color' => '#17BC91'],
         ];
 
         return Inertia::render('Dashboard', [
+            'salesAdvisor' => $salesAdvisorData,
             'stats' => $stats,
+            'dailyStudents' => $dailyStudents,
+            'prospectDistribution' => $prospectDistribution,
         ]);
     }
 
