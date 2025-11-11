@@ -46,20 +46,11 @@ const Settings: React.FC<Props> = ({ settings }) => {
       variables: ['nombre_estudiante', 'nombre_asesor', 'email_asesor', 'telefono_asesor', 'fecha_registro', 'url_plataforma']
     },
     {
-      key: 'welcome_email',
-      label: 'Template de Bienvenida',
-      variables: ['nombre', 'email', 'fecha']
+      key: 'student_enrolled',
+      label: 'Email de Credenciales para Estudiantes Matriculados',
+      variables: ['nombre_estudiante', 'codigo_matricula', 'email', 'contrasena', 'url_plataforma', 'nivel_academico', 'plan_pago']
     },
-    {
-      key: 'payment_reminder',
-      label: 'Recordatorio de Pago',
-      variables: ['nombre', 'monto', 'fecha_vencimiento']
-    },
-    {
-      key: 'enrollment_confirmation',
-      label: 'Confirmación de Matrícula',
-      variables: ['nombre', 'codigo_matricula', 'nivel', 'plan']
-    }
+   
   ];
   
   // Form states por tab

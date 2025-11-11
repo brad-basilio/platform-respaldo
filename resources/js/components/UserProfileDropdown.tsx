@@ -14,6 +14,7 @@ const UserProfileDropdown: React.FC = () => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownMenuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -35,14 +36,24 @@ const UserProfileDropdown: React.FC = () => {
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+      const target = event.target as Node;
+      
+      // No cerrar si el click es en el botón o en el dropdown menu
+      if (
+        buttonRef.current?.contains(target) ||
+        dropdownMenuRef.current?.contains(target)
+      ) {
+        return;
       }
+      
+      setIsOpen(false);
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
 
   const logout = () => {
     router.post('/logout');
@@ -176,6 +187,7 @@ const UserProfileDropdown: React.FC = () => {
         {/* Dropdown Menu usando Portal */}
         {isOpen && createPortal(
           <div 
+            ref={dropdownMenuRef}
             className="fixed w-64 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-[9999]"
             style={{
               top: `${dropdownPosition.top}px`,
@@ -189,6 +201,7 @@ const UserProfileDropdown: React.FC = () => {
 
             <button
               onClick={() => {
+                console.log('Mi Perfil clicked');
                 setShowProfileModal(true);
                 setIsOpen(false);
               }}
@@ -200,6 +213,7 @@ const UserProfileDropdown: React.FC = () => {
 
             <button
               onClick={() => {
+                console.log('Configuración clicked');
                 router.visit('/settings');
                 setIsOpen(false);
               }}
@@ -211,7 +225,10 @@ const UserProfileDropdown: React.FC = () => {
 
             <div className="border-t border-slate-100 mt-2 pt-2">
               <button
-                onClick={logout}
+                onClick={() => {
+                  console.log('Cerrar Sesión clicked');
+                  logout();
+                }}
                 className="w-full flex items-center px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
               >
                 <LogOut className="h-4 w-4 mr-3" />
@@ -224,8 +241,8 @@ const UserProfileDropdown: React.FC = () => {
       </div>
 
       {/* Modal de Perfil */}
-      {showProfileModal && (
-        <div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm animate-fade-in flex items-center justify-center p-4">
+      {showProfileModal && createPortal(
+        <div className="fixed inset-0 z-[99999] bg-black/50 backdrop-blur-sm animate-fade-in flex items-center justify-center p-4">
           <div className="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col animate-scale-in">
             {/* Header del Modal - Con gradiente como los demás modales */}
             <div className="relative bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6 rounded-t-3xl flex-shrink-0">
@@ -414,7 +431,8 @@ const UserProfileDropdown: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

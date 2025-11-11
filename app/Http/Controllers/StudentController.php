@@ -8,6 +8,7 @@ use App\Models\AcademicLevel;
 use App\Models\PaymentPlan;
 use App\Models\Enrollment;
 use App\Mail\ProspectWelcomeMail;
+use App\Mail\StudentEnrolledMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -531,6 +532,9 @@ class StudentController extends Controller
                     'cashier_id' => $user->id,
                 ]);
                 
+                // 🆕 Enviar email con credenciales
+                $this->sendEnrollmentCredentials($student);
+                
                 // 🆕 El enrollment ya debería existir (creado cuando cambió a pago_por_verificar)
                 // Ahora solo verificamos la primera cuota si tiene voucher pendiente
                 $existingEnrollment = $student->enrollments()->where('status', 'active')->first();
@@ -846,6 +850,9 @@ class StudentController extends Controller
                 if (!$student->enrollment_date) {
                     $student->enrollment_date = $student->payment_date;
                 }
+                
+                // 🆕 Enviar email con credenciales cuando pasa a matriculado
+                $this->sendEnrollmentCredentials($student);
             }
         }
 
@@ -857,7 +864,7 @@ class StudentController extends Controller
         }
         
         // Recargar el estudiante con sus relaciones
-        $student->load(['registeredBy', 'verifiedPaymentBy']);
+        $student->load(['user', 'registeredBy', 'verifiedPaymentBy']);
 
         return response()->json([
             'message' => 'Estado actualizado exitosamente',
@@ -875,6 +882,55 @@ class StudentController extends Controller
         $random = str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
         
         return "MAT-{$year}{$month}-{$random}";
+    }
+
+    /**
+     * Enviar email con credenciales cuando el estudiante es matriculado
+     */
+    private function sendEnrollmentCredentials(Student $student): void
+    {
+        try {
+            // Recargar el estudiante con relaciones necesarias
+            $student->load(['user', 'academicLevel', 'paymentPlan']);
+            
+            // El usuario ya debe existir (se creó al registrar el prospecto)
+            $user = $student->user;
+            
+            if (!$user) {
+                Log::error('Usuario no encontrado para estudiante matriculado', [
+                    'student_id' => $student->id,
+                ]);
+                return;
+            }
+
+            // Usar el email como contraseña temporal
+            $temporaryPassword = $user->email;
+            
+            // Actualizar la contraseña del usuario
+            $user->update([
+                'password' => bcrypt($temporaryPassword),
+            ]);
+            
+            Log::info('Contraseña actualizada para estudiante matriculado', [
+                'student_id' => $student->id,
+                'user_id' => $user->id,
+            ]);
+
+            // Enviar el email con las credenciales
+            Mail::to($user->email)->send(new StudentEnrolledMail($student, $user, $temporaryPassword));
+            
+            Log::info('Email de credenciales enviado exitosamente', [
+                'student_id' => $student->id,
+                'user_email' => $user->email,
+            ]);
+            
+        } catch (\Exception $e) {
+            // No fallar el proceso si el email no se envía
+            Log::error('Error al enviar email de credenciales', [
+                'student_id' => $student->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

@@ -67,23 +67,105 @@ class SettingSeeder extends Seeder
 </div>',
                 'description' => 'Email de bienvenida para nuevos prospectos',
             ],
+           
+           
+           
             [
-                'key' => 'welcome_email',
+                'key' => 'student_enrolled',
                 'type' => 'mail',
-                'content' => '<h2>¡Bienvenido a UNCED English Academy!</h2><p>Estimado/a {{nombre}},</p><p>Gracias por unirte a nosotros. Estamos emocionados de ser parte de tu aprendizaje del inglés.</p><p>Tu cuenta ha sido creada exitosamente con el correo: <strong>{{email}}</strong></p><p>Fecha de registro: {{fecha}}</p><p>¡Comenzamos juntos este viaje!</p><br/><p>Saludos,<br/>El equipo de UNCED English Academy</p>',
-                'description' => 'Template de email de bienvenida para nuevos usuarios',
-            ],
-            [
-                'key' => 'payment_reminder',
-                'type' => 'mail',
-                'content' => '<h2>Recordatorio de Pago Pendiente</h2><p>Estimado/a {{nombre}},</p><p>Te recordamos que tienes un pago pendiente por el monto de: <strong>S/ {{monto}}</strong></p><p>Fecha de vencimiento: <strong>{{fecha_vencimiento}}</strong></p><p>Para continuar con tu programa de inglés sin interrupciones, por favor realiza tu pago a la brevedad posible.</p><br/><p>Si ya realizaste tu pago, por favor ignora este mensaje.</p><br/><p>Saludos,<br/>El equipo de UNCED English Academy</p>',
-                'description' => 'Template de recordatorio de pago pendiente',
-            ],
-            [
-                'key' => 'enrollment_confirmation',
-                'type' => 'mail',
-                'content' => '<h2>Confirmación de Matrícula</h2><p>Estimado/a {{nombre}},</p><p>¡Felicidades! Tu matrícula ha sido confirmada exitosamente.</p><p><strong>Detalles de tu matrícula:</strong></p><ul><li>Código de matrícula: <strong>{{codigo_matricula}}</strong></li><li>Nivel: <strong>{{nivel}}</strong></li><li>Plan contratado: <strong>{{plan}}</strong></li></ul><p>Pronto recibirás más información sobre el inicio de clases y tu horario.</p><br/><p>¡Bienvenido/a a UNCED English Academy!</p><br/><p>Saludos,<br/>El equipo de UNCED English Academy</p>',
-                'description' => 'Template de confirmación de matrícula',
+                'content' => '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
+    <div style="background: linear-gradient(135deg, #073372 0%, #17BC91 100%); padding: 40px 30px; border-radius: 15px 15px 0 0; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 32px; font-weight: bold;">¡Felicidades! 🎉</h1>
+        <p style="color: rgba(255,255,255,0.95); margin: 10px 0 0; font-size: 18px;">Ya tienes acceso al Aula Virtual</p>
+    </div>
+    
+    <div style="background-color: white; padding: 40px 30px; border-radius: 0 0 15px 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+        <p style="font-size: 18px; color: #333; line-height: 1.6; margin-bottom: 20px;">
+            Hola <strong style="color: #073372;">{{nombre_estudiante}}</strong>,
+        </p>
+        
+        <p style="font-size: 16px; color: #333; line-height: 1.6;">
+            ¡Estamos muy emocionados de darte la bienvenida oficialmente! Tu matrícula ha sido procesada exitosamente y ya puedes acceder al aula virtual.
+        </p>
+        
+        <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 5px solid #073372; padding: 25px; margin: 30px 0; border-radius: 10px; box-shadow: 0 2px 10px rgba(7, 51, 114, 0.1);">
+            <h3 style="color: #073372; margin: 0 0 20px 0; font-size: 20px; display: flex; align-items: center;">
+                <span style="background-color: #073372; color: white; width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 20px;">🔐</span>
+                Tus Credenciales de Acceso
+            </h3>
+            
+            <div style="background-color: white; padding: 20px; border-radius: 8px; margin-top: 15px;">
+                <div style="margin-bottom: 15px;">
+                    <p style="margin: 0 0 5px; color: #666; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Usuario (Email)</p>
+                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #073372; font-family: monospace; background-color: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">{{email}}</p>
+                </div>
+                
+                <div>
+                    <p style="margin: 0 0 5px; color: #666; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Contraseña Temporal</p>
+                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #17BC91; font-family: monospace; background-color: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">{{contrasena}}</p>
+                </div>
+            </div>
+            
+            <div style="background-color: #fef3c7; border-left: 3px solid #f59e0b; padding: 15px; margin-top: 20px; border-radius: 8px;">
+                <p style="margin: 0; font-size: 14px; color: #92400e; display: flex; align-items: start;">
+                    <span style="font-size: 18px; margin-right: 10px; flex-shrink: 0;">⚠️</span>
+                    <span><strong>Importante:</strong> Por seguridad, te recomendamos cambiar tu contraseña después del primer inicio de sesión.</span>
+                </p>
+            </div>
+        </div>
+        
+        <div style="background-color: #f8fafc; border-radius: 10px; padding: 20px; margin: 30px 0;">
+            <h3 style="color: #073372; margin-top: 0; font-size: 18px;">📚 Información de tu Matrícula</h3>
+            <div style="display: grid; gap: 10px;">
+                <div style="display: flex; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                    <span style="color: #666; font-weight: 600; min-width: 140px;">Código:</span>
+                    <span style="color: #073372; font-weight: bold;">{{codigo_matricula}}</span>
+                </div>
+                <div style="display: flex; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                    <span style="color: #666; font-weight: 600; min-width: 140px;">Nivel Académico:</span>
+                    <span style="color: #333;">{{nivel_academico}}</span>
+                </div>
+                <div style="display: flex;">
+                    <span style="color: #666; font-weight: 600; min-width: 140px;">Plan de Pago:</span>
+                    <span style="color: #333;">{{plan_pago}}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin: 35px 0;">
+            <a href="{{url_plataforma}}/login" style="background: linear-gradient(135deg, #073372 0%, #17BC91 100%); color: white; padding: 18px 50px; text-decoration: none; border-radius: 50px; display: inline-block; font-weight: bold; font-size: 16px; box-shadow: 0 4px 15px rgba(7, 51, 114, 0.3); transition: all 0.3s ease;">
+                🚀 Acceder al Aula Virtual
+            </a>
+        </div>
+        
+        <div style="background-color: #ecfdf5; border-left: 4px solid #17BC91; padding: 20px; border-radius: 8px; margin: 30px 0;">
+            <h4 style="color: #065f46; margin-top: 0; font-size: 16px;">🎯 Próximos Pasos</h4>
+            <ol style="color: #065f46; line-height: 1.8; margin: 0; padding-left: 20px;">
+                <li>Inicia sesión en el aula virtual con tus credenciales</li>
+                <li>Completa tu perfil y cambia tu contraseña</li>
+                <li>Revisa el material de tu nivel y el cronograma de clases</li>
+                <li>Prepárate para comenzar tu aventura de aprendizaje</li>
+            </ol>
+        </div>
+        
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+        
+        <p style="font-size: 14px; color: #666; text-align: center; line-height: 1.6;">
+            Si tienes alguna pregunta o necesitas ayuda, no dudes en contactarnos.<br>
+            <strong style="color: #073372;">¡Estamos aquí para apoyarte en cada paso! 💪</strong>
+        </p>
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <p style="font-size: 14px; color: #999; margin: 0;">
+                Gracias por confiar en <strong style="color: #073372;">InglésProf</strong>
+            </p>
+            <p style="font-size: 13px; color: #999; margin: 10px 0 0; font-style: italic;">
+                "Tu éxito es nuestro compromiso"
+            </p>
+        </div>
+    </div>
+</div>',
+                'description' => 'Email de bienvenida con credenciales para estudiantes matriculados',
             ],
             
             // WhatsApp Configuration
