@@ -62,6 +62,9 @@ Representa el propósito central de UNCED: no solo enseñar un idioma, sino **ca
 
 ### **Logotipo**
 
+EN ESTA URL: https://unced.online/logo-white.png
+            https://unced.online/logo.png
+
 #### Concepto
 El rebranding de UNCED busca reflejar **avance, flexibilidad y modernidad**.  
 El logotipo fue refinado con una tipografía más ligera y una flecha ajustada para mayor coherencia visual.

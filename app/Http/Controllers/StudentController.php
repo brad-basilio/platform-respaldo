@@ -7,11 +7,13 @@ use App\Models\Group;
 use App\Models\AcademicLevel;
 use App\Models\PaymentPlan;
 use App\Models\Enrollment;
+use App\Mail\ProspectWelcomeMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;  // ✅ NUEVO: Para manejar archivos
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -415,7 +417,7 @@ class StudentController extends Controller
     public function store(Request $request)
     {
         // Solo admin y sales_advisor pueden crear prospectos
-        if (!in_array(auth()->user()->role, ['admin', 'sales_advisor'])) {
+        if (!in_array(auth()->user()->role, ['admin', 'sales_advisor', 'verifier'])) {
             abort(403, 'No tienes permiso para crear prospectos.');
         }
 
@@ -434,24 +436,53 @@ class StudentController extends Controller
             'class_type' => 'required|in:theoretical,practical',
         ]);
 
-        // Create user
-        $user = \App\Models\User::create([
-            'name' => trim("{$validated['first_name']} {$validated['paternal_last_name']} {$validated['maternal_last_name']}"),
-            'email' => $validated['email'],
-            'password' => bcrypt($validated['email']), // Default password
-            'role' => 'student',
-        ]);
+        try {
+            DB::beginTransaction();
 
-        // Create student profile
-        $student = Student::create(array_merge($validated, [
-            'user_id' => $user->id,
-            'registered_by' => auth()->id(),
-            'registration_date' => now(),
-            'status' => 'active',
-            'prospect_status' => 'registrado',
-        ]));
+            // Create user
+            $user = \App\Models\User::create([
+                'name' => trim("{$validated['first_name']} {$validated['paternal_last_name']} {$validated['maternal_last_name']}"),
+                'email' => $validated['email'],
+                'password' => bcrypt($validated['email']), // Default password
+                'role' => 'student',
+            ]);
 
-        return redirect()->back()->with('success', 'Prospecto creado exitosamente');
+            // Create student profile
+            $student = Student::create(array_merge($validated, [
+                'user_id' => $user->id,
+                'registered_by' => auth()->id(),
+                'registration_date' => now(),
+                'status' => 'active',
+                'prospect_status' => 'registrado',
+            ]));
+
+            DB::commit();
+
+            // 📧 Enviar email de bienvenida al prospecto
+            try {
+                $salesAdvisor = auth()->user();
+                Mail::to($user->email)->send(new ProspectWelcomeMail($student, $salesAdvisor));
+                
+                Log::info('Email de bienvenida enviado', [
+                    'student_id' => $student->id,
+                    'student_email' => $user->email,
+                    'advisor_id' => $salesAdvisor->id,
+                ]);
+            } catch (\Exception $e) {
+                // Log el error pero no fallar la creación del prospecto
+                Log::error('Error al enviar email de bienvenida', [
+                    'student_id' => $student->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Prospecto creado exitosamente y email de bienvenida enviado');
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al crear prospecto:', ['error' => $e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => 'Error al crear el prospecto'])->withInput();
+        }
     }
 
     public function update(Request $request, Student $student)

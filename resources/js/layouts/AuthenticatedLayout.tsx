@@ -24,28 +24,36 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
 
     return (
         <div className="h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 flex overflow-hidden">
-            <Toaster 
-                position="top-right" 
-                richColors 
-                closeButton 
+            <Toaster
+                position="top-right"
+                richColors
+                closeButton
                 toastOptions={{
                     style: {
                         fontSize: '14px',
                     },
                 }}
             />
-            
+
             {/* Sidebar ocupa todo el alto */}
             <Sidebar activeView={activeView} onViewChange={setActiveView} />
-            
+
             {/* Contenedor de Header + Contenido */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Header solo en el área de contenido */}
                 <Header />
-                
+
                 {/* Contenido principal scrolleable */}
-                <main className="flex-1 overflow-y-auto main-scroll bg-white/40">
-                    <div className="animate-fade-in">
+                <main className="flex-1 relative overflow-y-auto main-scroll bg-white">
+                    {/* Wave SVG como marca de agua */}
+                    <div className="absolute w-full h-full opacity-20 z-0 pointer-events-none" >
+                        <img
+                            src="/wave.svg"
+                            alt=""
+                            className="absolute top-0 right-0 w-auto h-40 object-contain transform "
+                        />
+                    </div>
+                    <div className="relative z-10 animate-fade-in">
                         {children}
                     </div>
                 </main>

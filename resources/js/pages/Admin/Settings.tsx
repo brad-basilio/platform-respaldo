@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import { Editor } from '@tinymce/tinymce-react';
-import { Input } from '@/components/ui/input';
+import { Input, Select } from '@/components/ui/input';
 import { 
   RiSettings4Line, 
   RiMailLine, 
@@ -28,8 +28,39 @@ interface Props {
   };
 }
 
+interface EmailTemplate {
+  key: string;
+  label: string;
+  variables: string[];
+}
+
 const Settings: React.FC<Props> = ({ settings }) => {
   const [activeTab, setActiveTab] = useState<'mail' | 'whatsapp' | 'general'>('mail');
+  const [selectedMailTemplate, setSelectedMailTemplate] = useState<string>('prospect_welcome');
+  
+  // Configuración de templates de email
+  const emailTemplates: EmailTemplate[] = [
+    {
+      key: 'prospect_welcome',
+      label: 'Email de Bienvenida a Prospectos',
+      variables: ['nombre_estudiante', 'nombre_asesor', 'email_asesor', 'telefono_asesor', 'fecha_registro', 'url_plataforma']
+    },
+    {
+      key: 'welcome_email',
+      label: 'Template de Bienvenida',
+      variables: ['nombre', 'email', 'fecha']
+    },
+    {
+      key: 'payment_reminder',
+      label: 'Recordatorio de Pago',
+      variables: ['nombre', 'monto', 'fecha_vencimiento']
+    },
+    {
+      key: 'enrollment_confirmation',
+      label: 'Confirmación de Matrícula',
+      variables: ['nombre', 'codigo_matricula', 'nivel', 'plan']
+    }
+  ];
   
   // Form states por tab
   const mailForm = useForm({
@@ -194,91 +225,94 @@ const Settings: React.FC<Props> = ({ settings }) => {
             {/* Mail Templates Tab */}
             {activeTab === 'mail' && (
               <form onSubmit={handleMailSubmit} className="space-y-6">
+                {/* Template Selector */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Template de Bienvenida</h3>
-                  <Editor
-                    apiKey="0nai4nwo1mc0dumfyzl8re1odbzzr1fz4gfwzpgu5ghdnu4n"
-                    value={mailForm.data.settings['welcome_email'] || ''}
-                    onEditorChange={(content) => {
-                      mailForm.setData('settings', {
-                        ...mailForm.data.settings,
-                        welcome_email: content,
-                      });
-                    }}
-                    init={{
-                      height: 400,
-                      menubar: false,
-                      plugins: [
-                        'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-                        'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                        'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount'
-                      ],
-                      toolbar: 'undo redo | blocks | ' +
-                        'bold italic forecolor | alignleft aligncenter ' +
-                        'alignright alignjustify | bullist numlist outdent indent | ' +
-                        'removeformat | help',
-                      content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
-                    }}
-                  />
-                  <p className="text-sm text-gray-500 mt-2">Variables disponibles: {'{nombre}'}, {'{email}'}, {'{fecha}'}</p>
+                  <Select
+                    label="Seleccionar Template de Email"
+                    value={selectedMailTemplate}
+                    onChange={(e) => setSelectedMailTemplate(e.target.value)}
+                    required
+                  >
+                    {emailTemplates.map((template) => (
+                      <option key={template.key} value={template.key}>
+                        {template.label}
+                      </option>
+                    ))}
+                  </Select>
                 </div>
 
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Recordatorio de Pago</h3>
-                  <Editor
-                    apiKey="0nai4nwo1mc0dumfyzl8re1odbzzr1fz4gfwzpgu5ghdnu4n"
-                    value={mailForm.data.settings['payment_reminder'] || ''}
-                    onEditorChange={(content) => {
-                      mailForm.setData('settings', {
-                        ...mailForm.data.settings,
-                        payment_reminder: content,
-                      });
-                    }}
-                    init={{
-                      height: 400,
-                      menubar: false,
-                      plugins: [
-                        'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-                        'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                        'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount'
-                      ],
-                      toolbar: 'undo redo | blocks | ' +
-                        'bold italic forecolor | alignleft aligncenter ' +
-                        'alignright alignjustify | bullist numlist outdent indent | ' +
-                        'removeformat | help',
-                      content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
-                    }}
-                  />
-                  <p className="text-sm text-gray-500 mt-2">Variables: {'{nombre}'}, {'{monto}'}, {'{fecha_vencimiento}'}</p>
-                </div>
+                {/* Editor for Selected Template */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {emailTemplates.find(t => t.key === selectedMailTemplate)?.label}
+                    </h3>
+                  </div>
 
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirmación de Matrícula</h3>
                   <Editor
+                    key={selectedMailTemplate}
                     apiKey="0nai4nwo1mc0dumfyzl8re1odbzzr1fz4gfwzpgu5ghdnu4n"
-                    value={mailForm.data.settings['enrollment_confirmation'] || ''}
+                    value={mailForm.data.settings[selectedMailTemplate] || ''}
                     onEditorChange={(content) => {
                       mailForm.setData('settings', {
                         ...mailForm.data.settings,
-                        enrollment_confirmation: content,
+                        [selectedMailTemplate]: content,
                       });
                     }}
                     init={{
-                      height: 400,
+                      height: 500,
                       menubar: false,
                       plugins: [
                         'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
                         'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                        'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount'
+                        'insertdatetime', 'media', 'table', 'help', 'wordcount'
                       ],
                       toolbar: 'undo redo | blocks | ' +
                         'bold italic forecolor | alignleft aligncenter ' +
                         'alignright alignjustify | bullist numlist outdent indent | ' +
-                        'removeformat | help',
+                        'link image | removeformat | code | help',
+                      image_title: true,
+                      automatic_uploads: true,
+                      file_picker_types: 'image',
+                      images_upload_url: '/admin/upload-image',
+                      images_upload_handler: (blobInfo) => new Promise((resolve, reject) => {
+                        const formData = new FormData();
+                        formData.append('file', blobInfo.blob(), blobInfo.filename());
+
+                        fetch('/admin/upload-image', {
+                          method: 'POST',
+                          body: formData,
+                          headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                          }
+                        })
+                          .then(response => response.json())
+                          .then(result => {
+                            if (result.location) {
+                              resolve(result.location);
+                            } else {
+                              reject('Error al subir imagen');
+                            }
+                          })
+                          .catch(() => {
+                            reject('Error al subir imagen');
+                          });
+                      }),
                       content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
                     }}
                   />
-                  <p className="text-sm text-gray-500 mt-2">Variables: {'{nombre}'}, {'{codigo_matricula}'}, {'{nivel}'}, {'{plan}'}</p>
+
+                  {/* Variables Info */}
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm font-semibold text-blue-900 mb-2">Variables disponibles para este template:</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-blue-800">
+                      {emailTemplates.find(t => t.key === selectedMailTemplate)?.variables.map((variable) => (
+                        <code key={variable} className="bg-white px-2 py-1 rounded">
+                          {`{{${variable}}}`}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex justify-end">
@@ -288,7 +322,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                     className="inline-flex items-center px-6 py-3 bg-[#073372] hover:bg-[#17BC91] text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50"
                   >
                     <RiSaveLine className="h-5 w-5 mr-2" />
-                    {mailForm.processing ? 'Guardando...' : 'Guardar Templates'}
+                    {mailForm.processing ? 'Guardando...' : 'Guardar Template'}
                   </button>
                 </div>
               </form>

@@ -9,7 +9,7 @@ const Header: React.FC = () => {
   const user = auth.user;
 
   return (
-    <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+    <header className="bg-white border-b border-slate-200 sticky top-0 z-0 shadow-sm">
       <div className="max-w-full px-6 lg:px-8">
         <div className="flex justify-end items-center h-16">
           <div className="flex items-center space-x-4">
