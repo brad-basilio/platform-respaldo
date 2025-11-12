@@ -59,6 +59,8 @@ export interface Student extends User {
   paymentVoucherUrl?: string;      // ✅ Nuevo: URL del voucher de pago
   paymentVoucherFileName?: string; // ✅ Nuevo: Nombre del archivo del voucher
   paymentVerified?: boolean;
+  contractedPlan?: string;         // ✅ Plan contratado (texto)
+  level?: string;                  // ✅ Nivel académico (texto)
 
   // Examen de Categorización
   hasPlacementTest?: boolean;

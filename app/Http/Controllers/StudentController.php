@@ -25,7 +25,7 @@ class StudentController extends Controller
         $user = auth()->user();
         
         // Query base: estudiantes matriculados
-        $query = Student::with(['user', 'groups', 'badges', 'registeredBy', 'verifiedPaymentBy', 'verifiedEnrollmentBy'])
+        $query = Student::with(['user', 'groups', 'badges', 'registeredBy', 'verifiedPaymentBy', 'verifiedEnrollmentBy', 'academicLevel', 'paymentPlan'])
             ->where('prospect_status', 'matriculado');
         
         // Lógica según rol
@@ -65,14 +65,14 @@ class StudentController extends Controller
                     'educationLevel' => $student->education_level,
                     'role' => 'student',
                     'status' => $student->status ?? 'active',
-                    'level' => $student->level,
+                    'level' => $student->academicLevel?->code ?? null,
                     'points' => $student->points ?? 0,
                     'prospectStatus' => $student->prospect_status,
                     'paymentDate' => $student->payment_date?->format('Y-m-d'),
                     'enrollmentDate' => $student->enrollment_date?->format('Y-m-d'),
                     'enrollmentCode' => $student->enrollment_code,
                     'registrationDate' => $student->registration_date?->format('Y-m-d'),
-                    'contractedPlan' => $student->contracted_plan,
+                    'contractedPlan' => $student->paymentPlan?->name ?? null,
                     'contractFileName' => $student->contract_file_name,
                     'contractFilePath' => $student->contract_file_path,
                     'paymentVoucherUrl' => $student->payment_voucher_url,

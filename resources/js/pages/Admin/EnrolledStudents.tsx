@@ -441,32 +441,35 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     {
       headerName: 'Alumno',
       field: 'name',
-      minWidth: 300,
+      width: 280,
       filter: 'agTextColumnFilter',
       cellRenderer: (params: ICellRendererParams<Student>) => {
         const student = params.data!;
         const hasAvatar = student.avatar;
         
         return (
-          <div className="flex items-center py-2 w-full h-full">
-            {hasAvatar ? (
-              <img
-                src={`/storage/${student.avatar}`}
-                alt={student.name}
-                className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-white shadow-md"
-              />
-            ) : (
-              <div className="w-10 h-10 bg-gradient-to-r from-[#073372] to-[#17BC91] rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-sm font-semibold">
-                  {student.name.split(' ').map((n: string) => n[0]).join('')}
-                </span>
+          <div className="flex items-center justify-between py-2 w-full h-full group">
+            <div className="flex items-center">
+              {hasAvatar ? (
+                <img
+                  src={`/storage/${student.avatar}`}
+                  alt={student.name}
+                  className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-white shadow-md"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-gradient-to-r from-[#073372] to-[#17BC91] rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-sm font-semibold">
+                    {student.name.split(' ').map((n: string) => n[0]).join('')}
+                  </span>
+                </div>
+              )}
+              <div className="ml-3">
+                <div className="text-sm font-medium text-gray-900">{student.name}</div>
+                <div className="text-xs text-gray-500">{student.email}</div>
+                <div className="text-xs text-gray-400">{student.phoneNumber}</div>
               </div>
-            )}
-            <div className="ml-3">
-              <div className="text-sm font-medium text-gray-900">{student.name}</div>
-              <div className="text-xs text-gray-500">{student.email}</div>
-              <div className="text-xs text-gray-400">{student.phoneNumber}</div>
             </div>
+            
           </div>
         );
       }
@@ -474,12 +477,12 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     {
       headerName: 'Código',
       field: 'enrollmentCode',
-      width: 180,
+      width: 150,
       filter: 'agTextColumnFilter',
       cellRenderer: (params: ICellRendererParams<Student>) => {
         const row = params.data!;
         return (
-          <div className="w-full h-full flex items-center">
+          <div className="w-full h-full flex flex-col justify-center">
             <div className="text-sm font-mono text-gray-900">{params.value}</div>
             <div className="text-xs text-gray-500">{row.enrollmentDate}</div>
           </div>
@@ -489,62 +492,82 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     {
       headerName: 'Estado',
       field: 'status',
-      width: 120,
+      width: 110,
       filter: 'agTextColumnFilter',
-  cellRenderer: (params: ICellRendererParams<Student>) => {
+      cellRenderer: (params: ICellRendererParams<Student>) => {
         const status = params.value;
         return (
-        <div className='flex items-center space-x-2 w-full h-full'>
+          <div className='flex items-center justify-center w-full h-full'>
             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-            status === 'active' ? 'bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30' : 'bg-red-100 text-red-800'
-          }`}>
-            {status === 'active' ? <UserCheck className="w-3 h-3 mr-1" /> : <UserX className="w-3 h-3 mr-1" />}
-            {status === 'active' ? 'Activo' : 'Inactivo'}
-          </span>
-        </div>
+              status === 'active' ? 'bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30' : 'bg-red-100 text-red-800'
+            }`}>
+              {status === 'active' ? <UserCheck className="w-3 h-3 mr-1" /> : <UserX className="w-3 h-3 mr-1" />}
+              {status === 'active' ? 'Activo' : 'Inactivo'}
+            </span>
+          </div>
         );
       }
     },
     {
       headerName: 'Nivel',
       field: 'level',
-      width: 120,
+      width: 130,
       filter: 'agTextColumnFilter',
-  cellRenderer: (params: ICellRendererParams<Student>) => {
+      cellRenderer: (params: ICellRendererParams<Student>) => {
         const level = params.value;
+        if (!level) return <div className="flex items-center justify-center w-full h-full"><span className="text-xs text-gray-400">N/A</span></div>;
+        
         const colorClass = level === 'basic' ? 'bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30' :
                          level === 'intermediate' ? 'bg-[#F98613]/10 text-[#F98613] border border-[#F98613]/30' :
                          'bg-[#073372]/10 text-[#073372] border border-[#073372]/30';
         return (
-        <div className='flex items-center space-x-2 w-full h-full'>
+          <div className='flex items-center justify-center w-full h-full'>
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>
-            {level === 'basic' ? 'Básico' : level === 'intermediate' ? 'Intermedio' : 'Avanzado'}
-          </span>
-        </div>
+              {level === 'basic' ? 'Básico' : level === 'intermediate' ? 'Intermedio' : 'Avanzado'}
+            </span>
+          </div>
         );
       }
     },
     {
       headerName: 'Verificación',
       field: 'enrollmentVerified',
-      width: 150,
+      width: 180,
       filter: 'agTextColumnFilter',
       cellRenderer: (params: ICellRendererParams<Student>) => {
         const student = params.data!;
         const isVerified = student.enrollmentVerified;
+        
         return (
-          <div className="flex items-center justify-between h-full gap-2">
+          <div className="flex items-center gap-2 h-full">
             {isVerified ? (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30">
                 <CheckCircle className="w-3 h-3 mr-1" />
                 Verificado
               </span>
             ) : (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#F98613]/10 text-[#F98613] border border-[#F98613]/30">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[#F98613]/10 text-[#F98613] border border-[#F98613]/30">
                 <Clock className="w-3 h-3 mr-1" />
                 Pendiente
               </span>
             )}
+            
+            {/* Switch para verificar/desverificar */}
+            <button
+              onClick={() => isVerified ? handleUnverifyEnrollment(student.id) : handleVerifyEnrollment(student)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                isVerified 
+                  ? 'bg-[#17BC91] focus:ring-[#17BC91]' 
+                  : 'bg-gray-300 focus:ring-gray-400'
+              }`}
+              title={isVerified ? 'Clic para desverificar' : 'Clic para verificar'}
+            >
+              <span
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                  isVerified ? 'translate-x-5' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
           </div>
         );
       }
@@ -552,13 +575,14 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     {
       headerName: 'Plan',
       field: 'contractedPlan',
-      minWidth: 200,
+      width: 200,
       filter: 'agTextColumnFilter',
       cellRenderer: (params: ICellRendererParams<Student>) => {
         const row = params.data!;
+        const plan = params.value || 'Sin plan';
         return (
           <div className="w-full h-full flex flex-col items-start justify-center">
-            <div className="text-sm text-gray-900">{params.value}</div>
+            <div className="text-sm text-gray-900">{plan}</div>
             <div className="text-xs text-gray-500">Grupo: {getGroupName(row.assignedGroupId)}</div>
           </div>
         );
@@ -567,39 +591,17 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     {
       headerName: 'Acciones',
       width: 100,
-      sortable: false,
-      filter: false,
       cellRenderer: (params: ICellRendererParams<Student>) => {
         const student = params.data!;
         return (
-          <div className="flex items-center space-x-2 w-full h-full">
+          <div className="flex items-center justify-center h-full gap-2">
             <button
               onClick={() => handleViewStudent(student)}
-              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
               title="Ver detalles"
             >
               <Eye className="h-4 w-4" />
             </button>
-            {student.enrollmentVerified ? (
-               <button
-                onClick={() => handleUnverifyEnrollment(student.id)}
-                className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                 title="Remover verificación"
-              
-              >
-                <CheckCircle className="h-4 w-4" />
-              </button>
-             
-            ) : (
-           
-               <button
-                onClick={() => handleVerifyEnrollment(student)}
-                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                title="Verificar matrícula"
-              >
-                <XCircle className="h-4 w-4" />
-              </button>
-            )}
           </div>
         );
       }
@@ -736,7 +738,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
         <div className="fixed inset-0 bg-black/50  flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
             <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6">
-              <h2 className="text-2xl font-bold text-white">Verificar Matrícula</h2>
+              <h2 className="text-2xl font-bold text-white">Enviar Documentos para Verificación</h2>
               <p className="text-white/90 text-sm mt-1">
                 {verifyingStudent.name} - {verifyingStudent.enrollmentCode}
               </p>
@@ -745,14 +747,14 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
             <div className="p-8 overflow-y-auto max-h-[calc(90vh-200px)]">
               <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded mb-6">
                 <p className="text-sm text-blue-800">
-                  <strong>Importante:</strong> Al verificar esta matrícula:
+                  <strong>Importante:</strong> Al enviar documentos al estudiante:
                 </p>
                 <ul className="text-sm text-blue-700 mt-2 space-y-1 list-disc list-inside">
-                  <li>Contará para la comisión del asesor de ventas</li>
-                  <li>Se registrará como matrícula válida</li>
-                  <li>Se guardará tu nombre como verificador</li>
+                  <li>Los documentos se enviarán por email al estudiante</li>
+                  <li>El estudiante debe confirmar/firmar cada documento</li>
+                  <li>La matrícula se verificará automáticamente cuando confirme todos</li>
                   {documents.length > 0 && (
-                    <li>Se enviarán {documents.length} documento(s) al estudiante por email</li>
+                    <li>Se enviarán {documents.length} documento(s) que requieren confirmación</li>
                   )}
                 </ul>
               </div>
@@ -885,8 +887,8 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                 onClick={handleConfirmVerification}
                 className="bg-gradient-to-r from-[#073372] to-[#17BC91] hover:opacity-90 text-white px-6 py-2.5 rounded-xl font-medium transition-opacity"
               >
-                ✓ Verificar Matrícula
-                {documents.length > 0 && ` y Enviar ${documents.length} Documento(s)`}
+                ✉️ Enviar Documentos al Estudiante
+                {documents.length > 0 && ` (${documents.length})`}
               </button>
             </div>
           </div>
