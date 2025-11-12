@@ -1,5 +1,5 @@
 ﻿import React, { useState, useMemo, useCallback } from 'react';
-import { Users, Eye, UserCheck, UserX, BookOpen, GraduationCap, Calendar, XCircle, CheckCircle, AlertCircle, Search, Clock, Phone, MapPin, Mail, FileText, CreditCard } from 'lucide-react';
+import { Users, Eye, UserCheck, UserX, BookOpen, GraduationCap, Calendar, XCircle, CheckCircle, AlertCircle, Search, Clock, Phone, MapPin, Mail, FileText, CreditCard, User } from 'lucide-react';
 import { Student, Group } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import { AgGridReact } from 'ag-grid-react';
@@ -1225,41 +1225,97 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
 
       {/* Modal de Verificación con Documentos */}
       {showVerifyModal && verifyingStudent && (
-        <div className="fixed inset-0 bg-black/50  flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
-            <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6">
-              <h2 className="text-2xl font-bold text-white">Enviar Documentos para Verificación</h2>
-              <p className="text-white/90 text-sm mt-1">
-                {verifyingStudent.name} - {verifyingStudent.enrollmentCode}
-              </p>
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-fade-in"
+          onClick={() => {
+            setShowVerifyModal(false);
+            setVerifyingStudent(null);
+            setDocuments([]);
+          }}
+        >
+          <div 
+            className="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header con gradiente mejorado */}
+            <div className="bg-gradient-to-r from-[#073372] via-[#0d4a8f] to-[#17BC91] px-8 py-6 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent"></div>
+              <div className="relative z-10">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                      <FileText className="h-6 w-6" />
+                      Enviar Documentos para Verificación
+                    </h2>
+                    <p className="text-white/90 text-sm mt-1 flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      {verifyingStudent.name} • {verifyingStudent.enrollmentCode}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowVerifyModal(false);
+                      setVerifyingStudent(null);
+                      setDocuments([]);
+                    }}
+                    className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+                  >
+                    <XCircle className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
             </div>
 
+            {/* Content */}
             <div className="p-8 overflow-y-auto max-h-[calc(90vh-200px)]">
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded mb-6">
-                <p className="text-sm text-blue-800">
-                  <strong>Importante:</strong> Al enviar documentos al estudiante:
-                </p>
-                <ul className="text-sm text-blue-700 mt-2 space-y-1 list-disc list-inside">
-                  <li>Los documentos se enviarán por email al estudiante</li>
-                  <li>El estudiante debe confirmar/firmar cada documento</li>
-                  <li>La matrícula se verificará automáticamente cuando confirme todos</li>
-                  {documents.length > 0 && (
-                    <li>Se enviarán {documents.length} documento(s) que requieren confirmación</li>
-                  )}
-                </ul>
+              {/* Info Banner mejorado */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-xl p-5 mb-6 shadow-sm">
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0">
+                    <AlertCircle className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-blue-900 mb-2">
+                      ℹ️ Información Importante
+                    </p>
+                    <ul className="text-sm text-blue-800 space-y-1.5">
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-500 mt-0.5">•</span>
+                        <span>Los documentos se enviarán por email al estudiante</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-500 mt-0.5">•</span>
+                        <span>El estudiante debe confirmar/firmar cada documento</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-500 mt-0.5">•</span>
+                        <span>La matrícula se verificará automáticamente cuando confirme todos</span>
+                      </li>
+                      {documents.length > 0 && (
+                        <li className="flex items-start gap-2">
+                          <span className="text-green-500 mt-0.5">✓</span>
+                          <span className="font-medium text-green-700">
+                            Se enviarán {documents.length} documento(s) que requieren confirmación
+                          </span>
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
               </div>
 
               {/* Sección de Documentos */}
               <div className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-indigo-600" />
                     Documentos para el Estudiante
                   </h3>
                   <button
                     onClick={handleAddDocument}
-                    className="flex items-center gap-2 bg-[#17BC91] hover:bg-[#17BC91]/90 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                    className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-[#17BC91] to-[#14a87d] hover:from-[#14a87d] hover:to-[#17BC91] text-white px-5 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                   >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-5 h-5 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
                     Agregar Documentos
@@ -1267,34 +1323,45 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                 </div>
 
                 {documents.length === 0 ? (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p className="mt-2 text-sm text-gray-500">
-                      No hay documentos agregados. Haz clic en "Agregar Documentos" para subir contratos, reglamentos, etc.
+                  <div className="border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-50 transition-all">
+                    <div className="flex justify-center mb-4">
+                      <div className="p-4 bg-white rounded-full shadow-md">
+                        <FileText className="h-12 w-12 text-gray-400" />
+                      </div>
+                    </div>
+                    <p className="text-base font-medium text-gray-700 mb-2">
+                      No hay documentos agregados
                     </p>
-                    <p className="mt-1 text-xs text-gray-400">
-                      Los documentos se enviarán al estudiante por email y deberá confirmarlos/firmarlos.
+                    <p className="text-sm text-gray-500 max-w-md mx-auto">
+                      Haz clic en "Agregar Documentos" para subir contratos, reglamentos, etc.
+                    </p>
+                    <p className="text-xs text-gray-400 mt-3">
+                      📧 Los documentos se enviarán al estudiante por email
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {documents.map((doc, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                      <div key={index} className="border-2 border-gray-200 rounded-2xl p-6 bg-gradient-to-br from-white to-gray-50 hover:shadow-lg transition-all duration-200">
                         <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                              <span className="font-medium text-gray-900">{doc.file.name}</span>
-                              <span className="text-xs text-gray-500">
-                                ({(doc.file.size / 1024 / 1024).toFixed(2)} MB)
-                              </span>
+                          <div className="flex-1 space-y-4">
+                            {/* File Info */}
+                            <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
+                              <div className="p-2.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-md">
+                                <FileText className="w-5 h-5 text-white" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-semibold text-gray-900">{doc.file.name}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  Tamaño: {(doc.file.size / 1024 / 1024).toFixed(2)} MB
+                                </p>
+                              </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-3 mt-3">
-                              <input
+
+                            {/* Inputs con Material Design */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <Input
+                                label="Nombre del Documento"
                                 type="text"
                                 value={doc.document_name}
                                 onChange={(e) => {
@@ -1302,36 +1369,42 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                                   newDocs[index].document_name = e.target.value;
                                   setDocuments(newDocs);
                                 }}
-                                placeholder="Nombre del documento"
-                                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                variant="outlined"
+                                required
                               />
-                              <select
+                              
+                              <Select
+                                label="Tipo de Documento"
                                 value={doc.document_type}
                                 onChange={(e) => {
                                   const newDocs = [...documents];
                                   newDocs[index].document_type = e.target.value;
                                   setDocuments(newDocs);
                                 }}
-                                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                variant="outlined"
+                                required
                               >
-                                <option value="contract">Contrato</option>
-                                <option value="regulation">Reglamento</option>
-                                <option value="terms">Términos y Condiciones</option>
-                                <option value="other">Otro</option>
-                              </select>
+                                <option value="contract">📄 Contrato</option>
+                                <option value="regulation">📋 Reglamento</option>
+                                <option value="terms">📜 Términos y Condiciones</option>
+                                <option value="other">📁 Otro</option>
+                              </Select>
                             </div>
-                            <textarea
+
+                            <Input
+                              label="Descripción o Instrucciones (Opcional)"
+                              type="text"
                               value={doc.description}
                               onChange={(e) => {
                                 const newDocs = [...documents];
                                 newDocs[index].description = e.target.value;
                                 setDocuments(newDocs);
                               }}
-                              placeholder="Descripción o instrucciones para el estudiante (opcional)"
-                              className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"
-                              rows={2}
+                              variant="filled"
+                              helperText="Agrega notas o instrucciones para el estudiante"
                             />
-                            <label className="flex items-center gap-2 mt-2">
+
+                            <label className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
                               <input
                                 type="checkbox"
                                 checked={doc.requires_signature}
@@ -1340,19 +1413,22 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                                   newDocs[index].requires_signature = e.target.checked;
                                   setDocuments(newDocs);
                                 }}
-                                className="rounded"
+                                className="w-5 h-5 text-[#17BC91] border-gray-300 rounded focus:ring-[#17BC91] focus:ring-2"
                               />
-                              <span className="text-sm text-gray-700">Requiere firma del estudiante</span>
+                              <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                                <CheckCircle className="h-4 w-4 text-[#17BC91]" />
+                                Requiere firma/confirmación del estudiante
+                              </span>
                             </label>
                           </div>
+
+                          {/* Delete Button */}
                           <button
                             onClick={() => handleRemoveDocument(index)}
-                            className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                            className="flex-shrink-0 group p-3 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 hover:shadow-md"
                             title="Eliminar documento"
                           >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
+                            <XCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
                           </button>
                         </div>
                       </div>
@@ -1362,24 +1438,48 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
               </div>
             </div>
 
-            <div className="bg-gray-50 px-8 py-4 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowVerifyModal(false);
-                  setVerifyingStudent(null);
-                  setDocuments([]);
-                }}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2.5 rounded-xl font-medium transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmVerification}
-                className="bg-gradient-to-r from-[#073372] to-[#17BC91] hover:opacity-90 text-white px-6 py-2.5 rounded-xl font-medium transition-opacity"
-              >
-                ✉️ Enviar Documentos al Estudiante
-                {documents.length > 0 && ` (${documents.length})`}
-              </button>
+            {/* Footer con botones mejorados */}
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-8 py-5 border-t border-gray-200 flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                {documents.length > 0 ? (
+                  <span className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-indigo-600" />
+                    <strong className="text-gray-900">{documents.length}</strong> documento(s) listo(s) para enviar
+                  </span>
+                ) : (
+                  <span className="text-gray-500">Agrega al menos un documento</span>
+                )}
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowVerifyModal(false);
+                    setVerifyingStudent(null);
+                    setDocuments([]);
+                  }}
+                  className="px-6 py-2.5 rounded-xl font-medium text-gray-700 bg-white hover:bg-gray-100 border-2 border-gray-300 transition-all duration-200 hover:shadow-md"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmVerification}
+                  disabled={documents.length === 0}
+                  className={`group relative inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                    documents.length === 0
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-[#073372] via-[#0d4a8f] to-[#17BC91] hover:from-[#0d4a8f] hover:via-[#073372] hover:to-[#14a87d] text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                  }`}
+                >
+                  <Mail className="h-5 w-5" />
+                  Enviar Documentos al Estudiante
+                  {documents.length > 0 && (
+                    <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs font-bold">
+                      {documents.length}
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
