@@ -25,6 +25,7 @@ interface Props {
     mail?: Setting[];
     whatsapp?: Setting[];
     general?: Setting[];
+    contact?: Setting[];
   };
 }
 
@@ -35,7 +36,7 @@ interface EmailTemplate {
 }
 
 const Settings: React.FC<Props> = ({ settings }) => {
-  const [activeTab, setActiveTab] = useState<'mail' | 'whatsapp' | 'general'>('mail');
+  const [activeTab, setActiveTab] = useState<'mail' | 'whatsapp' | 'general' | 'contact'>('mail');
   const [selectedMailTemplate, setSelectedMailTemplate] = useState<string>('prospect_welcome');
   
   // Configuración de templates de email
@@ -50,7 +51,11 @@ const Settings: React.FC<Props> = ({ settings }) => {
       label: 'Email de Credenciales para Estudiantes Matriculados',
       variables: ['nombre_estudiante', 'codigo_matricula', 'email', 'contrasena', 'url_plataforma', 'nivel_academico', 'plan_pago']
     },
-   
+    {
+      key: 'enrollment_verified',
+      label: 'Email de Matrícula Verificada',
+      variables: ['nombre_estudiante', 'codigo_matricula', 'email', 'nivel_academico', 'plan_pago', 'verificado_por', 'fecha_verificacion', 'cantidad_documentos', 'url_plataforma']
+    },
   ];
   
   // Form states por tab
@@ -71,10 +76,15 @@ const Settings: React.FC<Props> = ({ settings }) => {
     site_description: settings.general?.find(s => s.key === 'site_description')?.content || '',
   });
 
+  const contactForm = useForm({
+    support_email: settings.contact?.find(s => s.key === 'support_email')?.content || '',
+  });
+
   const tabs = [
     { id: 'mail', label: 'Templates de Email', icon: RiMailLine },
     { id: 'whatsapp', label: 'Configuración WhatsApp', icon: RiWhatsappLine },
     { id: 'general', label: 'Configuración General', icon: RiGlobalLine },
+    { id: 'contact', label: 'Información de Contacto', icon: RiMailLine },
   ];
 
   const handleMailSubmit = (e: React.FormEvent) => {
@@ -156,6 +166,29 @@ const Settings: React.FC<Props> = ({ settings }) => {
       onSuccess: () => {
         toast.success('Configuración guardada', {
           description: 'La configuración general ha sido actualizada',
+          duration: 4000,
+        });
+      },
+    });
+  };
+
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const settingsArray = [
+      {
+        key: 'support_email',
+        content: contactForm.data.support_email,
+        type: 'contact',
+        description: 'Email de soporte técnico para estudiantes',
+      },
+    ];
+
+    contactForm.transform(() => ({ settings: settingsArray }));
+    contactForm.post('/admin/settings', {
+      onSuccess: () => {
+        toast.success('Configuración guardada', {
+          description: 'El email de soporte ha sido actualizado',
           duration: 4000,
         });
       },
@@ -392,6 +425,37 @@ const Settings: React.FC<Props> = ({ settings }) => {
                   >
                     <RiSaveLine className="h-5 w-5 mr-2" />
                     {generalForm.processing ? 'Guardando...' : 'Guardar Configuración'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Contact Tab */}
+            {activeTab === 'contact' && (
+              <form onSubmit={handleContactSubmit} className="space-y-6">
+                <Input
+                  label="Email de Soporte"
+                  type="email"
+                  value={contactForm.data.support_email}
+                  onChange={(e) => contactForm.setData('support_email', e.target.value)}
+                  helperText="Email que se mostrará a los estudiantes para soporte técnico"
+                  variant="outlined"
+                />
+
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-900">
+                    <strong>Nota:</strong> Este email se muestra en las notificaciones y modales de confirmación de documentos para que los estudiantes puedan contactar con soporte.
+                  </p>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={contactForm.processing}
+                    className="inline-flex items-center px-6 py-3 bg-[#073372] hover:bg-[#17BC91] text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50"
+                  >
+                    <RiSaveLine className="h-5 w-5 mr-2" />
+                    {contactForm.processing ? 'Guardando...' : 'Guardar Email'}
                   </button>
                 </div>
               </form>

@@ -182,6 +182,14 @@ class SettingSeeder extends Seeder
                 'description' => 'Mensaje predeterminado de WhatsApp',
             ],
 
+            // Contact Configuration
+            [
+                'key' => 'support_email',
+                'type' => 'contact',
+                'content' => 'soporte@institutodeingles.edu.pe',
+                'description' => 'Email de soporte técnico para estudiantes',
+            ],
+
             // ✅ Email when enrollment is verified (with documents)
             [
                 'key' => 'enrollment_verified',

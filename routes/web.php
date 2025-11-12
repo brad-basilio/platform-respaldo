@@ -196,6 +196,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Enrollment documents
         Route::get('/api/student/pending-documents', [StudentController::class, 'getPendingDocuments'])->name('api.student.pending-documents');
         Route::post('/api/student/documents/{document}/confirm', [StudentController::class, 'confirmDocument'])->name('api.student.confirm-document');
+        
+        // Public settings endpoint (no requiere autenticación)
+        Route::get('/api/settings/{key}', function ($key) {
+            $setting = \App\Models\Setting::where('key', $key)->first();
+            return response()->json([
+                'success' => true,
+                'key' => $key,
+                'content' => $setting ? $setting->content : null,
+            ]);
+        })->withoutMiddleware(['auth', 'verified']);
     });
     
     // Cashier routes
