@@ -628,6 +628,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
   // Estados para verificación con documentos
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [verifyingStudent, setVerifyingStudent] = useState<Student | null>(null);
+  const [isSendingDocuments, setIsSendingDocuments] = useState(false);
   const [documents, setDocuments] = useState<Array<{
     file: File;
     document_type: string;
@@ -724,7 +725,12 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
   const handleConfirmVerification = async () => {
     if (!verifyingStudent) return;
 
+    // Prevenir múltiples envíos
+    if (isSendingDocuments) return;
+
     try {
+      setIsSendingDocuments(true);
+      
       // Crear FormData para enviar archivos
       const formData = new FormData();
       
@@ -794,6 +800,8 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
           confirmButton: 'px-6 py-2.5 rounded-xl font-medium'
         }
       });
+    } finally {
+      setIsSendingDocuments(false);
     }
   };
 
@@ -1228,9 +1236,11 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
         <div 
           className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-fade-in"
           onClick={() => {
-            setShowVerifyModal(false);
-            setVerifyingStudent(null);
-            setDocuments([]);
+            if (!isSendingDocuments) {
+              setShowVerifyModal(false);
+              setVerifyingStudent(null);
+              setDocuments([]);
+            }
           }}
         >
           <div 
@@ -1254,11 +1264,18 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                   </div>
                   <button
                     onClick={() => {
-                      setShowVerifyModal(false);
-                      setVerifyingStudent(null);
-                      setDocuments([]);
+                      if (!isSendingDocuments) {
+                        setShowVerifyModal(false);
+                        setVerifyingStudent(null);
+                        setDocuments([]);
+                      }
                     }}
-                    className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+                    disabled={isSendingDocuments}
+                    className={`rounded-full p-2 transition-colors ${
+                      isSendingDocuments
+                        ? 'text-white/50 cursor-not-allowed'
+                        : 'text-white hover:bg-white/20'
+                    }`}
                   >
                     <XCircle className="h-6 w-6" />
                   </button>
@@ -1313,7 +1330,12 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                   </h3>
                   <button
                     onClick={handleAddDocument}
-                    className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-[#17BC91] to-[#14a87d] hover:from-[#14a87d] hover:to-[#17BC91] text-white px-5 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                    disabled={isSendingDocuments}
+                    className={`group relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-md ${
+                      isSendingDocuments
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-[#17BC91] to-[#14a87d] hover:from-[#14a87d] hover:to-[#17BC91] text-white hover:shadow-lg transform hover:-translate-y-0.5'
+                    }`}
                   >
                     <svg className="w-5 h-5 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1371,6 +1393,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                                 }}
                                 variant="outlined"
                                 required
+                                disabled={isSendingDocuments}
                               />
                               
                               <Select
@@ -1383,6 +1406,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                                 }}
                                 variant="outlined"
                                 required
+                                disabled={isSendingDocuments}
                               >
                                 <option value="contract">📄 Contrato</option>
                                 <option value="regulation">📋 Reglamento</option>
@@ -1402,9 +1426,12 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                               }}
                               variant="filled"
                               helperText="Agrega notas o instrucciones para el estudiante"
+                              disabled={isSendingDocuments}
                             />
 
-                            <label className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+                            <label className={`flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 transition-colors ${
+                              isSendingDocuments ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-gray-50'
+                            }`}>
                               <input
                                 type="checkbox"
                                 checked={doc.requires_signature}
@@ -1413,7 +1440,8 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                                   newDocs[index].requires_signature = e.target.checked;
                                   setDocuments(newDocs);
                                 }}
-                                className="w-5 h-5 text-[#17BC91] border-gray-300 rounded focus:ring-[#17BC91] focus:ring-2"
+                                disabled={isSendingDocuments}
+                                className="w-5 h-5 text-[#17BC91] border-gray-300 rounded focus:ring-[#17BC91] focus:ring-2 disabled:cursor-not-allowed"
                               />
                               <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
                                 <CheckCircle className="h-4 w-4 text-[#17BC91]" />
@@ -1425,10 +1453,15 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                           {/* Delete Button */}
                           <button
                             onClick={() => handleRemoveDocument(index)}
-                            className="flex-shrink-0 group p-3 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 hover:shadow-md"
-                            title="Eliminar documento"
+                            disabled={isSendingDocuments}
+                            className={`flex-shrink-0 group p-3 rounded-xl transition-all duration-200 ${
+                              isSendingDocuments
+                                ? 'text-gray-400 cursor-not-allowed'
+                                : 'text-red-600 hover:bg-red-50 hover:shadow-md'
+                            }`}
+                            title={isSendingDocuments ? 'Enviando documentos...' : 'Eliminar documento'}
                           >
-                            <XCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                            <XCircle className={`w-6 h-6 ${!isSendingDocuments && 'group-hover:scale-110'} transition-transform`} />
                           </button>
                         </div>
                       </div>
@@ -1458,25 +1491,39 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                     setVerifyingStudent(null);
                     setDocuments([]);
                   }}
-                  className="px-6 py-2.5 rounded-xl font-medium text-gray-700 bg-white hover:bg-gray-100 border-2 border-gray-300 transition-all duration-200 hover:shadow-md"
+                  disabled={isSendingDocuments}
+                  className={`px-6 py-2.5 rounded-xl font-medium transition-all duration-200 border-2 ${
+                    isSendingDocuments
+                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                      : 'text-gray-700 bg-white hover:bg-gray-100 border-gray-300 hover:shadow-md'
+                  }`}
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleConfirmVerification}
-                  disabled={documents.length === 0}
+                  disabled={documents.length === 0 || isSendingDocuments}
                   className={`group relative inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium transition-all duration-200 ${
-                    documents.length === 0
+                    documents.length === 0 || isSendingDocuments
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       : 'bg-gradient-to-r from-[#073372] via-[#0d4a8f] to-[#17BC91] hover:from-[#0d4a8f] hover:via-[#073372] hover:to-[#14a87d] text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
                   }`}
                 >
-                  <Mail className="h-5 w-5" />
-                  Enviar Documentos al Estudiante
-                  {documents.length > 0 && (
-                    <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs font-bold">
-                      {documents.length}
-                    </span>
+                  {isSendingDocuments ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Enviando documentos...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="h-5 w-5" />
+                      Enviar Documentos al Estudiante
+                      {documents.length > 0 && (
+                        <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs font-bold">
+                          {documents.length}
+                        </span>
+                      )}
+                    </>
                   )}
                 </button>
               </div>
