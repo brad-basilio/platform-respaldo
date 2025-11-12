@@ -39,7 +39,10 @@ class DashboardController extends Controller
             'groups', 
             'badges', 
             'certificates',
-            'activeEnrollment.verifiedBy'
+            'activeEnrollment.paymentPlan',
+            'activeEnrollment.installments.vouchers',
+            'activeEnrollment.verifiedBy',
+            'verifiedEnrollmentBy'
         ]);
 
         // Rename activeEnrollment to enrollment for frontend consistency
@@ -47,11 +50,111 @@ class DashboardController extends Controller
             $student->enrollment = $student->activeEnrollment;
         }
 
+        // Obtener datos de pagos usando la misma lógica que StudentPaymentController
+        $paymentStats = [];
+        if ($student->activeEnrollment) {
+            $enrollment = $student->activeEnrollment;
+            
+            // ✅ Calcular mora automáticamente para todas las cuotas pendientes
+            foreach ($enrollment->installments as $installment) {
+                if ($installment->status === 'pending') {
+                    $installment->calculateLateFee();
+                }
+            }
+            
+            // Refrescar las cuotas después de calcular la mora
+            $enrollment->load('installments');
+            
+            // Contar cuotas verificadas (status = 'verified')
+            $verifiedInstallments = $enrollment->installments->where('status', 'verified')->count();
+            
+            // Contar cuotas en verificación (status = 'paid' pero no 'verified')
+            $inVerificationInstallments = $enrollment->installments->where('status', 'paid')->count();
+            
+            // Total de cuotas pagadas (verified + paid)
+            $paidInstallments = $verifiedInstallments + $inVerificationInstallments;
+            
+            // Cuotas pendientes
+            $pendingInstallments = $enrollment->installments->where('status', 'pending')->count();
+            
+            // Total de cuotas
+            $totalInstallments = $enrollment->installments->count();
+            
+            // Cuotas vencidas (con mora aplicada)
+            $overdueInstallments = $enrollment->installments->filter(function ($installment) {
+                return $installment->status === 'pending' && $installment->is_overdue;
+            })->count();
+            
+            // Próximo pago pendiente
+            $nextPayment = $enrollment->installments
+                ->where('status', 'pending')
+                ->sortBy('due_date')
+                ->first();
+            
+            // Usar los valores calculados del enrollment (incluyen mora)
+            $totalAmount = (float) $enrollment->paymentPlan->total_amount;
+            $paidAmount = (float) $enrollment->total_paid;
+            $pendingAmount = (float) $enrollment->total_pending;
+            
+            // ✅ Calcular días hasta vencimiento y período de gracia para el próximo pago
+            $nextPaymentData = null;
+            if ($nextPayment) {
+                $today = \Carbon\Carbon::today();
+                $dueDate = $nextPayment->due_date;
+                $gracePeriodDays = $enrollment->paymentPlan->grace_period_days ?? 0;
+                
+                // Calcular días hasta vencimiento (positivo = futuro, negativo = pasado)
+                $daysUntilDue = $today->diffInDays($dueDate, false);
+                
+                // Calcular fecha límite con período de gracia
+                $graceLimit = $dueDate->copy()->addDays($gracePeriodDays);
+                $daysUntilGraceLimit = $today->diffInDays($graceLimit, false);
+                
+                // Determinar si está en período de gracia
+                $isInGracePeriod = $daysUntilDue < 0 && $daysUntilGraceLimit >= 0 && $gracePeriodDays > 0;
+                
+                $nextPaymentData = [
+                    'amount' => (float) $nextPayment->total_due, // ✅ Usar total_due que incluye mora
+                    'due_date' => $nextPayment->due_date->format('Y-m-d'),
+                    'installment_number' => $nextPayment->installment_number,
+                    'has_late_fee' => $nextPayment->late_fee > 0,
+                    'late_fee' => (float) $nextPayment->late_fee,
+                    'days_until_due' => $daysUntilDue,
+                    'days_until_grace_limit' => $daysUntilGraceLimit,
+                    'grace_period_days' => $gracePeriodDays,
+                    'is_in_grace_period' => $isInGracePeriod,
+                    'is_overdue' => $nextPayment->is_overdue,
+                ];
+            }
+
+            $paymentStats = [
+                'totalInstallments' => $totalInstallments,
+                'paidInstallments' => $paidInstallments,
+                'verifiedInstallments' => $verifiedInstallments,
+                'inVerificationInstallments' => $inVerificationInstallments,
+                'pendingInstallments' => $pendingInstallments,
+                'overdueInstallments' => $overdueInstallments,
+                'totalAmount' => $totalAmount,
+                'paidAmount' => $paidAmount,
+                'pendingAmount' => $pendingAmount,
+                'nextPayment' => $nextPaymentData,
+                'paymentProgress' => (float) $enrollment->payment_progress,
+            ];
+        }
+
+        // Verificar si tiene documentos pendientes de confirmar
+        $hasPendingDocuments = \App\Models\EnrollmentDocument::where('student_id', $student->id)
+            ->where('requires_signature', true)
+            ->where('student_confirmed', false)
+            ->exists();
+
         $studentData = array_merge($student->toArray(), [
             'name' => $user->name,
             'email' => $user->email,
             'role' => 'student',
             'enrolledGroups' => $student->groups->pluck('id')->toArray(),
+            'paymentStats' => $paymentStats,
+            'hasPendingDocuments' => $hasPendingDocuments,
         ]);
 
         return Inertia::render('Dashboard/Student', [

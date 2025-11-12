@@ -1,50 +1,145 @@
 import React from 'react';
 import { 
-  BookOpen, Video, MessageSquare, FileText, 
-  BarChart3, Award, Clock, Star, Trophy, Target, AlertTriangle, CheckCircle2
+  BookOpen, FileText, 
+  Award, Clock, Trophy, AlertTriangle, CheckCircle2,
+  CreditCard, TrendingUp, Calendar, AlertCircle, FileCheck
 } from 'lucide-react';
-import { Student } from '../../types';
+import { Student } from '@/types/models';
+
+// Colores institucionales UNCED
+const COLORS = {
+  catalina: '#073372',    // Catalina Blue
+  pradera: '#17BC91',     // Pradera de montaña
+  beer: '#F98613',        // Beer Orange
+};
+
+interface Badge {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  points: number;
+}
+
+interface PaymentStats {
+  totalInstallments: number;
+  paidInstallments: number;
+  verifiedInstallments?: number;
+  inVerificationInstallments?: number;
+  pendingInstallments: number;
+  overdueInstallments: number;
+  totalAmount: number;
+  paidAmount: number;
+  pendingAmount: number;
+  nextPayment: {
+    amount: number;
+    due_date: string;
+    installment_number: number;
+    has_late_fee?: boolean;
+    late_fee?: number;
+    days_until_due?: number;
+    days_until_grace_limit?: number;
+    grace_period_days?: number;
+    is_in_grace_period?: boolean;
+    is_overdue?: boolean;
+  } | null;
+  paymentProgress: number;
+}
 
 interface StudentDashboardProps {
-  student: Student;
+  student: Student & {
+    paymentStats?: PaymentStats;
+    hasPendingDocuments?: boolean;
+  };
 }
 
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
-  const upcomingClasses = [
-    { id: '1', title: 'Gramática Esencial', time: '10:00 AM', date: 'Hoy' },
-    { id: '2', title: 'Práctica de Conversación', time: '2:00 PM', date: 'Mañana' },
-  ];
-
-  const recentWorkshops = [
-    { id: '1', title: 'Inglés de Negocios', participants: 6, status: 'upcoming' },
-    { id: '2', title: 'Taller de Pronunciación', participants: 8, status: 'completed' },
-  ];
-
-  const stats = [
-    { label: 'Clases Completadas', value: '12/20', icon: BookOpen, color: 'blue', gradient: 'from-blue-500 to-blue-600' },
-    { label: 'Talleres Asistidos', value: '3', icon: Video, color: 'emerald', gradient: 'from-emerald-500 to-emerald-600' },
-    { label: 'Puntos Actuales', value: student.points.toLocaleString(), icon: Star, color: 'amber', gradient: 'from-amber-500 to-amber-600' },
-    { label: 'Progreso', value: '60%', icon: Target, color: 'violet', gradient: 'from-violet-500 to-violet-600' },
-  ];
+  // KPI Cards para el dashboard
+  const paymentKPIs = student.paymentStats ? [
+    { 
+      label: 'Cuotas Pagadas', 
+      value: `${student.paymentStats.paidInstallments}/${student.paymentStats.totalInstallments}`,
+      icon: CheckCircle2, 
+      color: COLORS.pradera,
+      description: 'Cuotas completadas'
+    },
+    { 
+      label: 'Cuotas Pendientes', 
+      value: student.paymentStats.pendingInstallments,
+      icon: Clock, 
+      color: COLORS.beer,
+      description: 'Por pagar',
+      percentage: student.paymentStats.overdueInstallments > 0 ? student.paymentStats.overdueInstallments : undefined
+    },
+    { 
+      label: 'Progreso de Pago', 
+      value: `${student.paymentStats.paymentProgress.toFixed(2)}%`,
+      icon: TrendingUp, 
+      color: COLORS.catalina,
+      description: 'Del total'
+    },
+    { 
+      label: 'Próximo Pago', 
+      value: student.paymentStats.nextPayment 
+        ? `S/ ${(student.paymentStats.nextPayment.amount || 0).toFixed(2)}`
+        : 'Ninguno',
+      icon: Calendar, 
+      color: student.paymentStats.nextPayment ? COLORS.beer : '#6b7280',
+      description: student.paymentStats.nextPayment 
+        ? new Date(student.paymentStats.nextPayment.due_date).toLocaleDateString('es-PE')
+        : 'Sin pagos pendientes'
+    },
+  ] : [];
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">¡Bienvenido, <span className="text-blue-600">{student.name}</span>!</h1>
-          <p className="text-slate-600 mt-1 font-medium">Nivel: {student.level === 'basic' ? 'Básico' : student.level === 'intermediate' ? 'Intermedio' : 'Avanzado'}</p>
-        </div>
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white px-6 py-4 rounded-2xl shadow-lg shadow-blue-600/25">
-          <div className="text-center">
-            <div className="text-3xl font-bold">{student.points}</div>
-            <div className="text-sm opacity-90 font-medium">Puntos</div>
+    <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto bg-gray-50">
+      {/* Header */}
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">
+              Panel de Estudiante
+            </h1>
+            <p className="text-gray-500">
+              Bienvenido, <span className="font-semibold text-gray-700">{student.name}</span>
+            </p>
+            <p className="text-sm text-gray-400 mt-1">
+              Nivel: {student.level === 'basic' ? 'Básico' : student.level === 'intermediate' ? 'Intermedio' : 'Avanzado'}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Banner de Estado de Matrícula */}
-      {student.enrollmentVerified === false && student.prospectStatus === 'matriculado' && (
-        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-400 rounded-2xl p-6 shadow-lg animate-pulse">
+      {/* Banner de Documentos Pendientes */}
+      {student.hasPendingDocuments && (
+        <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-blue-400 rounded-2xl p-6 shadow-lg animate-pulse">
+          <div className="flex items-start space-x-4">
+            <div className="flex-shrink-0">
+              <FileCheck className="h-8 w-8 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">
+                📄 Tienes Documentos Pendientes de Confirmar
+              </h3>
+              <p className="text-slate-700 mb-3">
+                El equipo administrativo te ha enviado documentos que requieren tu confirmación. 
+                Por favor revísalos y confírmalos para completar tu proceso de matrícula.
+              </p>
+              <a
+                href="/student/payment-control"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                <FileCheck className="h-4 w-4" />
+                Ver Documentos Pendientes
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Banner de Matrícula Pendiente de Verificación */}
+      {!student.enrollmentVerified && student.prospectStatus === 'matriculado' && (
+        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-400 rounded-2xl p-6 shadow-lg">
           <div className="flex items-start space-x-4">
             <div className="flex-shrink-0">
               <AlertTriangle className="h-8 w-8 text-yellow-600" />
@@ -57,12 +152,12 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
                 Tu matrícula ha sido registrada pero aún no ha sido verificada por el equipo administrativo. 
                 Algunas funciones pueden estar limitadas hasta que se complete la verificación.
               </p>
-              <div className="flex items-center space-x-2 text-sm text-slate-600">
+              <div className="flex items-center space-x-2 text-sm text-slate-600 mb-2">
                 <Clock className="h-4 w-4" />
                 <span>Estado: <strong className="text-yellow-700">Pendiente de revisión</strong></span>
               </div>
               {student.enrollmentDate && (
-                <div className="mt-2 text-xs text-slate-500">
+                <div className="text-xs text-slate-500">
                   Fecha de matrícula: {new Date(student.enrollmentDate).toLocaleDateString('es-PE', { 
                     year: 'numeric', 
                     month: 'long', 
@@ -76,7 +171,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
       )}
 
       {/* Banner de Matrícula Verificada */}
-      {student.enrollmentVerified === true && student.prospectStatus === 'matriculado' && (
+      {student.enrollmentVerified && student.prospectStatus === 'matriculado' && (
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 rounded-2xl p-6 shadow-lg">
           <div className="flex items-start space-x-4">
             <div className="flex-shrink-0">
@@ -108,117 +203,278 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
+      {/* KPI Cards de Pagos */}
+      {student.paymentStats && student.paymentStats.totalInstallments > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {paymentKPIs.map((card) => {
+            const Icon = card.icon;
+            return (
+              <div 
+                key={card.label} 
+                className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 relative overflow-hidden"
+                style={{ backgroundColor: `${card.color}03` }}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div 
+                    className="p-3 rounded-lg"
+                    style={{ backgroundColor: `${card.color}15` }}
+                  >
+                    <Icon className="h-6 w-6" style={{ color: card.color }} />
+                  </div>
+                  {card.percentage && (
+                    <div 
+                      className="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white"
+                      style={{ backgroundColor: card.color }}
+                    >
+                      {card.percentage} Vencidas
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-1">
+                  <p className="text-4xl font-black text-gray-900">{card.value}</p>
+                  <p className="text-sm font-bold text-gray-700 mt-2">{card.label}</p>
+                  <p className="text-xs text-gray-500">{card.description}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-          return (
-            <div key={stat.label} className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200 hover:shadow-xl transition-all duration-300 group">
+      {/* Resumen de Pagos */}
+      {student.paymentStats && student.paymentStats.totalInstallments > 0 && (
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Estado de Pagos
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">Resumen de tu plan de pagos</p>
+              </div>
+              <CreditCard className="h-6 w-6" style={{ color: COLORS.catalina }} />
+            </div>
+          </div>
+
+          {/* Barra de Progreso */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-gray-700">Progreso de Pago</span>
+              <span className="text-lg font-bold" style={{ color: COLORS.pradera }}>
+                {student.paymentStats.paymentProgress}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+              <div 
+                className="h-full rounded-full transition-all duration-500"
+                style={{ 
+                  width: `${student.paymentStats.paymentProgress}%`,
+                  backgroundColor: COLORS.pradera
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Totales */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="rounded-xl p-5 shadow-md" style={{ backgroundColor: `${COLORS.pradera}08` }}>
+              <p className="text-xs font-bold text-gray-600 mb-2">TOTAL PAGADO</p>
+              <p className="text-3xl font-black" style={{ color: COLORS.pradera }}>
+                S/ {(student.paymentStats.paidAmount || 0).toFixed(2)}
+              </p>
+            </div>
+            <div className="rounded-xl p-5 shadow-md" style={{ backgroundColor: `${COLORS.beer}08` }}>
+              <p className="text-xs font-bold text-gray-600 mb-2">TOTAL PENDIENTE</p>
+              <p className="text-3xl font-black" style={{ color: COLORS.beer }}>
+                S/ {(student.paymentStats.pendingAmount || 0).toFixed(2)}
+              </p>
+            </div>
+            <div className="rounded-xl p-5 shadow-md" style={{ backgroundColor: `${COLORS.catalina}08` }}>
+              <p className="text-xs font-bold text-gray-600 mb-2">TOTAL A PAGAR</p>
+              <p className="text-3xl font-black" style={{ color: COLORS.catalina }}>
+                S/ {(student.paymentStats.totalAmount || 0).toFixed(2)}
+              </p>
+            </div>
+          </div>
+
+          {/* Próximo Pago */}
+          {student.paymentStats.nextPayment && (
+            <div className={`mt-6 p-5 rounded-xl border-2 ${
+              student.paymentStats.nextPayment.is_overdue && !student.paymentStats.nextPayment.is_in_grace_period
+                ? 'bg-gradient-to-r from-red-50 to-red-100 border-red-300'
+                : student.paymentStats.nextPayment.is_in_grace_period
+                ? 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-300'
+                : 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200'
+            }`}>
+              {/* Alerta de período de gracia */}
+              {student.paymentStats.nextPayment.is_in_grace_period && student.paymentStats.nextPayment.days_until_grace_limit !== undefined && (
+                <div className="mb-3 p-3 bg-orange-100 border border-orange-300 rounded-lg">
+                  <p className="text-sm text-orange-900 font-bold flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    ⚠️ Cuota vencida - Período de Gracia
+                  </p>
+                  <p className="text-xs text-orange-800 mt-1">
+                    Esta cuota venció el {new Date(student.paymentStats.nextPayment.due_date).toLocaleDateString('es-PE')}, 
+                    pero aún tienes <strong>{student.paymentStats.nextPayment.days_until_grace_limit} días de gracia</strong> 
+                    {student.paymentStats.nextPayment.grace_period_days && ` (de ${student.paymentStats.nextPayment.grace_period_days} días totales)`} 
+                    para pagar sin mora adicional.
+                  </p>
+                </div>
+              )}
+              
+              {/* Alerta de mora aplicada */}
+              {student.paymentStats.nextPayment.has_late_fee && student.paymentStats.nextPayment.late_fee && student.paymentStats.nextPayment.late_fee > 0 && (
+                <div className="mb-3 p-3 bg-red-50 border border-red-300 rounded-lg">
+                  <p className="text-sm text-red-900 font-bold flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    🚨 Mora Aplicada
+                  </p>
+                  <p className="text-xs text-red-800 mt-1">
+                    Esta cuota tiene un recargo por mora de <strong>S/ {student.paymentStats.nextPayment.late_fee.toFixed(2)}</strong>
+                    {student.paymentStats.nextPayment.days_until_grace_limit !== undefined && student.paymentStats.nextPayment.days_until_grace_limit < 0 && 
+                      ` (${Math.abs(student.paymentStats.nextPayment.days_until_grace_limit)} días después del período de gracia)`
+                    }
+                  </p>
+                </div>
+              )}
+              
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-600 font-medium mb-2">{stat.label}</p>
-                  <p className="text-3xl font-bold text-slate-900">{stat.value}</p>
+                  <p className="text-sm font-bold text-gray-700 mb-1">
+                    {student.paymentStats.nextPayment.is_in_grace_period ? 'Pago Vencido (En Gracia)' : 'Próximo Pago'}
+                  </p>
+                  <p className="text-2xl font-black text-gray-900">
+                    S/ {(student.paymentStats.nextPayment.amount || 0).toFixed(2)}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Cuota #{student.paymentStats.nextPayment.installment_number}
+                    {student.paymentStats.nextPayment.has_late_fee && ' (incluye mora)'}
+                  </p>
                 </div>
-                <div className={`p-3.5 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg group-hover:scale-110 transition-transform`}>
-                  <Icon className="h-6 w-6 text-white" />
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-gray-700">
+                    {student.paymentStats.nextPayment.days_until_due !== undefined && student.paymentStats.nextPayment.days_until_due < 0 ? 'Venció el:' : 'Vence el:'}
+                  </p>
+                  <p className="text-lg font-bold" style={{ color: COLORS.beer }}>
+                    {new Date(student.paymentStats.nextPayment.due_date).toLocaleDateString('es-PE', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric'
+                    })}
+                  </p>
+                  {student.paymentStats.nextPayment.days_until_due !== undefined && (
+                    <p className={`text-xs mt-1 font-semibold ${
+                      student.paymentStats.nextPayment.days_until_due < 0 
+                        ? 'text-red-600' 
+                        : student.paymentStats.nextPayment.days_until_due < 7 
+                        ? 'text-orange-600' 
+                        : 'text-gray-600'
+                    }`}>
+                      {student.paymentStats.nextPayment.days_until_due > 0 
+                        ? `Faltan ${student.paymentStats.nextPayment.days_until_due} días` 
+                        : student.paymentStats.nextPayment.days_until_due === 0 
+                        ? '¡Vence hoy!' 
+                        : `Vencido hace ${Math.abs(student.paymentStats.nextPayment.days_until_due)} días`}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
-          );
-        })}
-      </div>
+          )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Botón para ir a Control de Pagos */}
+          <div className="mt-6 text-center">
+            <a
+              href="/student/payment-control"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              style={{ 
+                background: `linear-gradient(135deg, ${COLORS.catalina} 0%, ${COLORS.pradera} 100%)`
+              }}
+            >
+              <CreditCard className="h-5 w-5" />
+              Ver Control de Pagos Completo
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Mensaje si no hay datos de pago */}
+      {(!student.paymentStats || student.paymentStats.totalInstallments === 0) && (
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
+          <div className="text-center py-8">
+            <AlertCircle className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              No hay información de pagos disponible
+            </h3>
+            <p className="text-gray-500">
+              Tu plan de pagos se generará una vez que tu matrícula sea verificada por el equipo administrativo.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Logros (si tiene badges) */}
+      {student.badges && student.badges.length > 0 && (
         <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-slate-900">Próximas Clases</h2>
-            <Clock className="h-5 w-5 text-slate-400" />
+            <h2 className="text-xl font-bold text-slate-900">Logros Recientes</h2>
+            <Trophy className="h-5 w-5 text-slate-400" />
           </div>
-          <div className="space-y-3">
-            {upcomingClasses.map((cls) => (
-              <div key={cls.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {student.badges.map((badge: Badge) => (
+              <div key={badge.id} className="flex items-center space-x-3 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
+                <div className="text-2xl">{badge.icon}</div>
                 <div>
-                  <p className="font-medium text-gray-900">{cls.title}</p>
-                  <p className="text-sm text-gray-600">{cls.date} at {cls.time}</p>
+                  <p className="font-medium text-gray-900">{badge.name}</p>
+                  <p className="text-sm text-gray-600">{badge.description}</p>
+                  <p className="text-xs text-orange-600 font-medium">+{badge.points} puntos</p>
                 </div>
-                <button className="text-blue-600 hover:text-blue-700 font-medium text-sm">
-                  Unirse
-                </button>
               </div>
             ))}
           </div>
         </div>
+      )}
 
-        <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-slate-900">Talleres</h2>
-            <Video className="h-5 w-5 text-slate-400" />
-          </div>
-          <div className="space-y-3">
-            {recentWorkshops.map((workshop) => (
-              <div key={workshop.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">{workshop.title}</p>
-                  <p className="text-sm text-gray-600">{workshop.participants}/8 participantes</p>
-                </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  workshop.status === 'upcoming' 
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-green-100 text-green-800'
-                }`}>
-                  {workshop.status === 'upcoming' ? 'próximo' : 'completado'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-slate-900">Logros Recientes</h2>
-          <Trophy className="h-5 w-5 text-slate-400" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {student.badges.map((badge) => (
-            <div key={badge.id} className="flex items-center space-x-3 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
-              <div className="text-2xl">{badge.icon}</div>
-              <div>
-                <p className="font-medium text-gray-900">{badge.name}</p>
-                <p className="text-sm text-gray-600">{badge.description}</p>
-                <p className="text-xs text-orange-600 font-medium">+{badge.points} puntos</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
+      {/* Acciones Rápidas */}
       <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl p-8 border border-slate-200">
         <h2 className="text-xl font-bold text-slate-900 mb-6">Acciones Rápidas</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group">
-            <div className="p-3 bg-blue-50 rounded-xl mb-3 group-hover:bg-blue-100 transition-colors">
-              <BookOpen className="h-7 w-7 text-blue-600" />
+          <a
+            href="/student/payment-control"
+            className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group"
+          >
+            <div 
+              className="p-3 rounded-xl mb-3 group-hover:scale-110 transition-transform"
+              style={{ backgroundColor: `${COLORS.pradera}15` }}
+            >
+              <CreditCard className="h-7 w-7" style={{ color: COLORS.pradera }} />
             </div>
-            <span className="text-sm font-semibold text-slate-900">Iniciar Clase</span>
+            <span className="text-sm font-semibold text-slate-900">Ver Pagos</span>
+          </a>
+          <button className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group">
+            <div 
+              className="p-3 rounded-xl mb-3 group-hover:scale-110 transition-transform"
+              style={{ backgroundColor: `${COLORS.catalina}15` }}
+            >
+              <BookOpen className="h-7 w-7" style={{ color: COLORS.catalina }} />
+            </div>
+            <span className="text-sm font-semibold text-slate-900">Mis Clases</span>
           </button>
           <button className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group">
-            <div className="p-3 bg-emerald-50 rounded-xl mb-3 group-hover:bg-emerald-100 transition-colors">
-              <FileText className="h-7 w-7 text-emerald-600" />
+            <div 
+              className="p-3 rounded-xl mb-3 group-hover:scale-110 transition-transform"
+              style={{ backgroundColor: `${COLORS.beer}15` }}
+            >
+              <FileText className="h-7 w-7" style={{ color: COLORS.beer }} />
             </div>
-            <span className="text-sm font-semibold text-slate-900">Tomar Examen</span>
+            <span className="text-sm font-semibold text-slate-900">Mis Notas</span>
           </button>
           <button className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group">
-            <div className="p-3 bg-violet-50 rounded-xl mb-3 group-hover:bg-violet-100 transition-colors">
-              <MessageSquare className="h-7 w-7 text-violet-600" />
+            <div className="p-3 bg-purple-50 rounded-xl mb-3 group-hover:bg-purple-100 group-hover:scale-110 transition-all">
+              <Award className="h-7 w-7 text-purple-600" />
             </div>
-            <span className="text-sm font-semibold text-slate-900">Visitar Foro</span>
-          </button>
-          <button className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group">
-            <div className="p-3 bg-orange-50 rounded-xl mb-3 group-hover:bg-orange-100 transition-colors">
-              <Award className="h-7 w-7 text-orange-600" />
-            </div>
-            <span className="text-sm font-semibold text-slate-900">Ver Certificados</span>
+            <span className="text-sm font-semibold text-slate-900">Certificados</span>
           </button>
         </div>
       </div>
