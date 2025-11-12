@@ -200,50 +200,92 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
   const [showViewModal, setShowViewModal] = useState(false);
   const [quickFilterText, setQuickFilterText] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'pending' | 'verified' | 'all'>('verified');
+  
+  // Estados para verificación con documentos
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyingStudent, setVerifyingStudent] = useState<Student | null>(null);
+  const [documents, setDocuments] = useState<Array<{
+    file: File;
+    document_type: string;
+    document_name: string;
+    description: string;
+    requires_signature: boolean;
+  }>>([]);
 
-  const handleVerifyEnrollment = async (studentId: string) => {
-    const result = await Swal.fire({
-      title: '¿Verificar Matrícula?',
-      html: `
-        <div class="text-left">
-          <p class="text-gray-700 mb-3">¿Estás seguro de que quieres aprobar esta matrícula?</p>
-          <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-            <p class="text-sm text-blue-800">
-              <strong>Importante:</strong> Al verificar esta matrícula:
-            </p>
-            <ul class="text-sm text-blue-700 mt-2 space-y-1 list-disc list-inside">
-              <li>Contará para la comisión del asesor de ventas</li>
-              <li>Se registrará como matrícula válida</li>
-              <li>Se guardará tu nombre como verificador</li>
-            </ul>
-          </div>
-        </div>
-      `,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#10b981',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: '<i class="fas fa-check-circle"></i> Sí, Verificar',
-      cancelButtonText: '<i class="fas fa-times"></i> Cancelar',
-      reverseButtons: true,
-      customClass: {
-        confirmButton: 'px-6 py-2.5 rounded-xl font-medium',
-        cancelButton: 'px-6 py-2.5 rounded-xl font-medium'
+  const handleOpenVerifyModal = (student: Student) => {
+    setVerifyingStudent(student);
+    setDocuments([]);
+    setShowVerifyModal(true);
+  };
+
+  const handleAddDocument = () => {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg';
+    fileInput.multiple = true;
+    
+    fileInput.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const files = target.files;
+      
+      if (files) {
+        const newDocs = Array.from(files).map(file => ({
+          file,
+          document_type: 'contract',
+          document_name: file.name.replace(/\.[^/.]+$/, ''),
+          description: '',
+          requires_signature: true
+        }));
+        
+        setDocuments([...documents, ...newDocs]);
       }
-    });
+    };
+    
+    fileInput.click();
+  };
 
-    if (!result.isConfirmed) {
-      return;
-    }
+  const handleRemoveDocument = (index: number) => {
+    setDocuments(documents.filter((_, i) => i !== index));
+  };
+
+  const handleVerifyEnrollment = async (student: Student) => {
+    // Abrir modal para subir documentos
+    setVerifyingStudent(student);
+    setDocuments([]);
+    setShowVerifyModal(true);
+  };
+
+  const handleConfirmVerification = async () => {
+    if (!verifyingStudent) return;
 
     try {
-      const response = await axios.post(`/admin/students/${studentId}/verify-enrollment`);
+      // Crear FormData para enviar archivos
+      const formData = new FormData();
+      
+      // Agregar cada documento con su metadata
+      documents.forEach((doc, index) => {
+        formData.append(`documents[${index}][file]`, doc.file);
+        formData.append(`documents[${index}][document_type]`, doc.document_type);
+        formData.append(`documents[${index}][document_name]`, doc.document_name);
+        formData.append(`documents[${index}][description]`, doc.description);
+        formData.append(`documents[${index}][requires_signature]`, doc.requires_signature ? '1' : '0');
+      });
+
+      const response = await axios.post(
+        `/admin/students/${verifyingStudent.id}/verify-enrollment`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
       
       if (response.data.success) {
         // Actualizar el estudiante en el estado
         setStudents(prevStudents => 
           prevStudents.map(s => 
-            s.id === studentId 
+            s.id === verifyingStudent.id 
               ? { 
                   ...s, 
                   enrollmentVerified: true,
@@ -254,9 +296,19 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
           )
         );
         
+        // Cerrar modal
+        setShowVerifyModal(false);
+        setVerifyingStudent(null);
+        setDocuments([]);
+        
         await Swal.fire({
           title: '¡Verificado!',
-          text: 'La matrícula ha sido verificada exitosamente',
+          html: `
+            <p>La matrícula ha sido verificada exitosamente</p>
+            ${response.data.documents_uploaded > 0 
+              ? `<p class="text-sm text-gray-600 mt-2">Se enviaron ${response.data.documents_uploaded} documento(s) al estudiante</p>` 
+              : ''}
+          `,
           icon: 'success',
           confirmButtonColor: '#10b981',
           confirmButtonText: 'Entendido',
@@ -551,7 +603,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
             ) : (
            
                <button
-                onClick={() => handleVerifyEnrollment(student.id)}
+                onClick={() => handleVerifyEnrollment(student)}
                 className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                 title="Verificar matrícula"
               >
@@ -687,6 +739,168 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
 
       {showViewModal && selectedStudent && (
         <ViewStudentModal student={selectedStudent} onClose={() => setShowViewModal(false)} groups={groups} />
+      )}
+
+      {/* Modal de Verificación con Documentos */}
+      {showVerifyModal && verifyingStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+            <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6">
+              <h2 className="text-2xl font-bold text-white">Verificar Matrícula</h2>
+              <p className="text-white/90 text-sm mt-1">
+                {verifyingStudent.name} - {verifyingStudent.enrollmentCode}
+              </p>
+            </div>
+
+            <div className="p-8 overflow-y-auto max-h-[calc(90vh-200px)]">
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded mb-6">
+                <p className="text-sm text-blue-800">
+                  <strong>Importante:</strong> Al verificar esta matrícula:
+                </p>
+                <ul className="text-sm text-blue-700 mt-2 space-y-1 list-disc list-inside">
+                  <li>Contará para la comisión del asesor de ventas</li>
+                  <li>Se registrará como matrícula válida</li>
+                  <li>Se guardará tu nombre como verificador</li>
+                  {documents.length > 0 && (
+                    <li>Se enviarán {documents.length} documento(s) al estudiante por email</li>
+                  )}
+                </ul>
+              </div>
+
+              {/* Sección de Documentos */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Documentos para el Estudiante
+                  </h3>
+                  <button
+                    onClick={handleAddDocument}
+                    className="flex items-center gap-2 bg-[#17BC91] hover:bg-[#17BC91]/90 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Agregar Documentos
+                  </button>
+                </div>
+
+                {documents.length === 0 ? (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="mt-2 text-sm text-gray-500">
+                      No hay documentos agregados. Haz clic en "Agregar Documentos" para subir contratos, reglamentos, etc.
+                    </p>
+                    <p className="mt-1 text-xs text-gray-400">
+                      Los documentos se enviarán al estudiante por email y deberá confirmarlos/firmarlos.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {documents.map((doc, index) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <span className="font-medium text-gray-900">{doc.file.name}</span>
+                              <span className="text-xs text-gray-500">
+                                ({(doc.file.size / 1024 / 1024).toFixed(2)} MB)
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 mt-3">
+                              <input
+                                type="text"
+                                value={doc.document_name}
+                                onChange={(e) => {
+                                  const newDocs = [...documents];
+                                  newDocs[index].document_name = e.target.value;
+                                  setDocuments(newDocs);
+                                }}
+                                placeholder="Nombre del documento"
+                                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              />
+                              <select
+                                value={doc.document_type}
+                                onChange={(e) => {
+                                  const newDocs = [...documents];
+                                  newDocs[index].document_type = e.target.value;
+                                  setDocuments(newDocs);
+                                }}
+                                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              >
+                                <option value="contract">Contrato</option>
+                                <option value="regulation">Reglamento</option>
+                                <option value="terms">Términos y Condiciones</option>
+                                <option value="other">Otro</option>
+                              </select>
+                            </div>
+                            <textarea
+                              value={doc.description}
+                              onChange={(e) => {
+                                const newDocs = [...documents];
+                                newDocs[index].description = e.target.value;
+                                setDocuments(newDocs);
+                              }}
+                              placeholder="Descripción o instrucciones para el estudiante (opcional)"
+                              className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"
+                              rows={2}
+                            />
+                            <label className="flex items-center gap-2 mt-2">
+                              <input
+                                type="checkbox"
+                                checked={doc.requires_signature}
+                                onChange={(e) => {
+                                  const newDocs = [...documents];
+                                  newDocs[index].requires_signature = e.target.checked;
+                                  setDocuments(newDocs);
+                                }}
+                                className="rounded"
+                              />
+                              <span className="text-sm text-gray-700">Requiere firma del estudiante</span>
+                            </label>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveDocument(index)}
+                            className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                            title="Eliminar documento"
+                          >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-gray-50 px-8 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowVerifyModal(false);
+                  setVerifyingStudent(null);
+                  setDocuments([]);
+                }}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2.5 rounded-xl font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmVerification}
+                className="bg-gradient-to-r from-[#073372] to-[#17BC91] hover:opacity-90 text-white px-6 py-2.5 rounded-xl font-medium transition-opacity"
+              >
+                ✓ Verificar Matrícula
+                {documents.length > 0 && ` y Enviar ${documents.length} Documento(s)`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </AuthenticatedLayout>
   );

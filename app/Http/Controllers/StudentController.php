@@ -33,9 +33,14 @@ class StudentController extends Controller
             // Admin: Ver TODOS (verificados y no verificados)
             // No se aplica filtro adicional
         } elseif ($user->role === 'verifier') {
-            // Verifier: Ver solo los que YO he verificado
-            $query->where('enrollment_verified', true)
-                  ->where('verified_enrollment_by', $user->id);
+            // Verifier: Ver los que YO he verificado + los NO VERIFICADOS (para poder verificarlos)
+            $query->where(function ($q) use ($user) {
+                $q->where(function ($subQ) use ($user) {
+                    // Los que YO he verificado
+                    $subQ->where('enrollment_verified', true)
+                         ->where('verified_enrollment_by', $user->id);
+                })->orWhere('enrollment_verified', false); // O los NO VERIFICADOS
+            });
         } else {
             // Sales Advisor y otros: Ver solo NO VERIFICADOS (pendientes de verificación)
             $query->where('enrollment_verified', false);
@@ -1230,7 +1235,19 @@ class StudentController extends Controller
             ], 400);
         }
 
+        // Validar documentos si se están subiendo
+        $validatedData = $request->validate([
+            'documents' => 'nullable|array',
+            'documents.*.file' => 'required|file|mimes:pdf,doc,docx,png,jpg,jpeg|max:10240', // 10MB max
+            'documents.*.document_type' => 'required|string|in:contract,regulation,terms,other',
+            'documents.*.document_name' => 'required|string|max:255',
+            'documents.*.description' => 'nullable|string',
+            'documents.*.requires_signature' => 'required|boolean',
+        ]);
+
         try {
+            \DB::beginTransaction();
+
             // Marcar como verificado
             $student->update([
                 'enrollment_verified' => true,
@@ -1238,16 +1255,77 @@ class StudentController extends Controller
                 'verified_enrollment_by' => auth()->id(),
             ]);
 
+            // Procesar y guardar documentos
+            $uploadedDocuments = collect();
+            
+            if ($request->has('documents') && is_array($request->documents)) {
+                foreach ($request->documents as $documentData) {
+                    if (isset($documentData['file']) && $documentData['file'] instanceof \Illuminate\Http\UploadedFile) {
+                        // Guardar archivo
+                        $file = $documentData['file'];
+                        $fileName = time() . '_' . $file->getClientOriginalName();
+                        $filePath = $file->storeAs('enrollment_documents', $fileName, 'public');
+
+                        // Crear registro en base de datos
+                        $document = \App\Models\EnrollmentDocument::create([
+                            'student_id' => $student->id,
+                            'uploaded_by' => auth()->id(),
+                            'document_type' => $documentData['document_type'],
+                            'document_name' => $documentData['document_name'],
+                            'file_path' => $filePath,
+                            'file_name' => $fileName,
+                            'description' => $documentData['description'] ?? null,
+                            'requires_signature' => $documentData['requires_signature'] ?? true,
+                            'student_confirmed' => false,
+                        ]);
+
+                        $uploadedDocuments->push($document);
+                    }
+                }
+            }
+
+            \DB::commit();
+
             Log::info('Matrícula verificada por administrador', [
                 'student_id' => $student->id,
                 'student_name' => $student->user->name ?? 'N/A',
                 'verified_by' => auth()->user()->name,
-                'verified_at' => now()
+                'verified_at' => now(),
+                'documents_count' => $uploadedDocuments->count()
             ]);
+
+            // Enviar email con documentos adjuntos SI hay documentos
+            if ($uploadedDocuments->isNotEmpty()) {
+                try {
+                    // Cargar relaciones necesarias
+                    $student->load(['user', 'academicLevel', 'paymentPlan']);
+                    
+                    \Mail::to($student->user->email)->send(
+                        new \App\Mail\EnrollmentVerifiedMail(
+                            $student,
+                            $student->user,
+                            auth()->user(),
+                            $uploadedDocuments
+                        )
+                    );
+
+                    Log::info('Email de verificación enviado exitosamente', [
+                        'student_id' => $student->id,
+                        'email' => $student->user->email,
+                        'documents_attached' => $uploadedDocuments->count()
+                    ]);
+                } catch (\Exception $e) {
+                    // No fallar si el email falla, pero registrar el error
+                    Log::error('Error al enviar email de verificación', [
+                        'student_id' => $student->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Matrícula verificada exitosamente',
+                'message' => 'Matrícula verificada exitosamente' . ($uploadedDocuments->isNotEmpty() ? ' y documentos enviados al estudiante' : ''),
                 'student' => [
                     'id' => $student->id,
                     'enrollmentVerified' => true,
@@ -1257,17 +1335,27 @@ class StudentController extends Controller
                         'name' => auth()->user()->name,
                         'email' => auth()->user()->email,
                     ]
-                ]
+                ],
+                'documents_uploaded' => $uploadedDocuments->count()
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
+            \DB::rollBack();
             Log::error('Error al verificar matrícula', [
                 'student_id' => $student->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al verificar la matrícula'
+                'message' => 'Error al verificar la matrícula: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -1318,6 +1406,141 @@ class StudentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al remover la verificación'
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener documentos pendientes del estudiante
+     */
+    public function getPendingDocuments()
+    {
+        $user = auth()->user();
+        
+        if (!$user->student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuario no es estudiante'
+            ], 403);
+        }
+
+        $student = $user->student;
+        
+        // Obtener documentos pendientes de confirmación
+        $pendingDocuments = \App\Models\EnrollmentDocument::where('student_id', $student->id)
+            ->where('requires_signature', true)
+            ->where('student_confirmed', false)
+            ->with('uploadedBy:id,name,email')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($doc) {
+                return [
+                    'id' => $doc->id,
+                    'document_type' => $doc->document_type,
+                    'document_name' => $doc->document_name,
+                    'description' => $doc->description,
+                    'file_path' => $doc->file_path,
+                    'file_name' => $doc->file_name,
+                    'file_url' => asset('storage/' . $doc->file_path),
+                    'uploaded_by' => $doc->uploadedBy ? [
+                        'name' => $doc->uploadedBy->name,
+                        'email' => $doc->uploadedBy->email,
+                    ] : null,
+                    'uploaded_at' => $doc->created_at->toISOString(),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'pending_documents' => $pendingDocuments,
+            'count' => $pendingDocuments->count()
+        ]);
+    }
+
+    /**
+     * Confirmar documento (con o sin archivo firmado)
+     */
+    public function confirmDocument(Request $request, $documentId)
+    {
+        $user = auth()->user();
+        
+        if (!$user->student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuario no es estudiante'
+            ], 403);
+        }
+
+        $student = $user->student;
+
+        // Buscar el documento
+        $document = \App\Models\EnrollmentDocument::where('id', $documentId)
+            ->where('student_id', $student->id)
+            ->first();
+
+        if (!$document) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Documento no encontrado'
+            ], 404);
+        }
+
+        if ($document->student_confirmed) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Este documento ya ha sido confirmado'
+            ], 400);
+        }
+
+        // Validar archivo firmado si se está subiendo
+        $validated = $request->validate([
+            'signed_file' => 'nullable|file|mimes:pdf,png,jpg,jpeg|max:10240', // 10MB max
+        ]);
+
+        try {
+            $signedFilePath = null;
+            $signedFileName = null;
+
+            // Si se subió un archivo firmado, guardarlo
+            if ($request->hasFile('signed_file')) {
+                $file = $request->file('signed_file');
+                $fileName = time() . '_signed_' . $file->getClientOriginalName();
+                $filePath = $file->storeAs('enrollment_documents/signed', $fileName, 'public');
+                
+                $signedFilePath = $filePath;
+                $signedFileName = $fileName;
+            }
+
+            // Confirmar documento
+            $document->confirm($signedFilePath, $signedFileName);
+
+            Log::info('Documento confirmado por estudiante', [
+                'document_id' => $document->id,
+                'student_id' => $student->id,
+                'document_name' => $document->document_name,
+                'has_signed_file' => !is_null($signedFilePath)
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Documento confirmado exitosamente',
+                'document' => [
+                    'id' => $document->id,
+                    'confirmed' => true,
+                    'confirmed_at' => $document->confirmed_at->toISOString(),
+                    'has_signed_file' => !is_null($signedFilePath)
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al confirmar documento', [
+                'document_id' => $documentId,
+                'student_id' => $student->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al confirmar el documento: ' . $e->getMessage()
             ], 500);
         }
     }

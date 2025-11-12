@@ -1,7 +1,10 @@
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode, useState, useEffect } from 'react';
 import Header from '@/components/Layout/Header';
 import Sidebar from '@/components/Layout/Sidebar';
 import { Toaster } from 'sonner';
+import DocumentConfirmationModal from '@/components/DocumentConfirmationModal';
+import axios from 'axios';
+import { usePage } from '@inertiajs/react';
 
 interface AuthenticatedLayoutProps {
     children: ReactNode;
@@ -9,6 +12,35 @@ interface AuthenticatedLayoutProps {
 
 export default function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
     const [activeView, setActiveView] = useState('dashboard');
+    const [showDocumentModal, setShowDocumentModal] = useState(false);
+    const [hasPendingDocuments, setHasPendingDocuments] = useState(false);
+    const { props } = usePage<any>();
+    const isStudent = props.auth?.user?.role === 'student';
+
+    const checkPendingDocuments = async () => {
+        try {
+            const response = await axios.get('/api/student/pending-documents');
+            const pendingCount = response.data.count || 0;
+            if (pendingCount > 0) {
+                setHasPendingDocuments(true);
+                setShowDocumentModal(true);
+            }
+        } catch (error) {
+            console.error('Error checking pending documents:', error);
+        }
+    };
+
+    const handleDocumentsConfirmed = () => {
+        setHasPendingDocuments(false);
+        setShowDocumentModal(false);
+    };
+
+    // Check for pending documents when layout mounts (only for students)
+    useEffect(() => {
+        if (isStudent) {
+            void checkPendingDocuments();
+        }
+    }, [isStudent]);
 
     // Determine the active view based on the current route
     React.useEffect(() => {
@@ -58,6 +90,15 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
                     </div>
                 </main>
             </div>
+
+            {/* Document Confirmation Modal for Students */}
+            {isStudent && showDocumentModal && (
+                <DocumentConfirmationModal
+                    open={showDocumentModal}
+                    onClose={() => setShowDocumentModal(false)}
+                    onDocumentsConfirmed={handleDocumentsConfirmed}
+                />
+            )}
         </div>
     );
 }

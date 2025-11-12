@@ -172,6 +172,24 @@ class Student extends Model
         return $this->belongsTo(PaymentPlan::class, 'payment_plan_id');
     }
 
+    /**
+     * Relación con documentos de matrícula
+     */
+    public function enrollmentDocuments(): HasMany
+    {
+        return $this->hasMany(EnrollmentDocument::class);
+    }
+
+    /**
+     * Documentos pendientes de confirmación
+     */
+    public function pendingDocuments(): HasMany
+    {
+        return $this->hasMany(EnrollmentDocument::class)
+                    ->where('requires_signature', true)
+                    ->where('student_confirmed', false);
+    }
+
     // Accessor for full name
     public function getFullNameAttribute(): string
     {
