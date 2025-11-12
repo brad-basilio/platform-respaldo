@@ -26,6 +26,8 @@ class DashboardController extends Controller
             return $this->salesAdvisorDashboard($user);
         } elseif ($user->role === 'cashier') {
             return $this->cashierDashboard($user);
+        } elseif ($user->role === 'verifier') {
+            return $this->verifierDashboard($user);
         }
 
         return Inertia::render('Dashboard');
@@ -340,6 +342,101 @@ class DashboardController extends Controller
             'stats' => $stats,
             'dailyVerifications' => $dailyData,
             'paymentDistribution' => $paymentDistribution,
+        ]);
+    }
+
+    protected function verifierDashboard($user): Response
+    {
+        $verifierData = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => 'verifier',
+            'createdAt' => $user->created_at,
+        ];
+
+        // Stats generales - FILTRADO POR VERIFICADOR
+        $stats = [
+            'totalStudents' => Student::count(),
+            'activeStudents' => Student::where('status', 'active')->count(),
+            
+            // Stats de prospectos - Solo los que YO verifiqué
+            'totalProspects' => Student::count(),
+            'registrados' => Student::where('prospect_status', 'registrado')->count(),
+            'propuestasEnviadas' => Student::where('prospect_status', 'propuesta_enviada')->count(),
+            'pagosPorVerificar' => Student::where('prospect_status', 'pago_por_verificar')->count(),
+            'matriculados' => Student::where('prospect_status', 'matriculado')->count(),
+            
+            // Verificados POR MÍ - Esta es la métrica clave para el verifier
+            'verificados' => Student::where('prospect_status', 'matriculado')
+                ->where('enrollment_verified', true)
+                ->where('verified_enrollment_by', $user->id)
+                ->count(),
+            
+            // KPIs de hoy
+            'prospectosHoy' => Student::whereDate('created_at', today())->count(),
+            
+            // Verificados HOY por MÍ
+            'verificadosHoy' => Student::where('prospect_status', 'matriculado')
+                ->where('enrollment_verified', true)
+                ->where('verified_enrollment_by', $user->id)
+                ->whereDate('enrollment_verified_at', today())->count(),
+                
+            'enProceso' => Student::whereIn('prospect_status', ['propuesta_enviada', 'pago_por_verificar'])->count(),
+            
+            // Stats de usuarios del sistema
+            'totalUsers' => User::count(),
+            'admins' => User::where('role', 'admin')->count(),
+            'salesAdvisors' => User::where('role', 'sales_advisor')->count(),
+            'cashiers' => User::where('role', 'cashier')->count(),
+            'verifiers' => User::where('role', 'verifier')->count(),
+        ];
+
+        // Datos para gráficos - Prospectos vs Verificados POR MÍ (últimos 30 días)
+        $dailyStudents = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $dailyStudents[] = [
+                'date' => $date->format('d M'),
+                'prospectos' => Student::whereDate('created_at', $date->toDateString())->count(),
+                'verificados' => Student::where('prospect_status', 'matriculado')
+                    ->where('enrollment_verified', true)
+                    ->where('verified_enrollment_by', $user->id)
+                    ->whereDate('enrollment_verified_at', $date->toDateString())->count(),
+            ];
+        }
+
+        // Distribución de prospectos por estado (general, no filtrado)
+        $prospectDistribution = [
+            ['name' => 'Registrado', 'value' => $stats['registrados'], 'color' => '#073372'],
+            ['name' => 'Propuesta Enviada', 'value' => $stats['propuestasEnviadas'], 'color' => '#F98613'],
+            ['name' => 'Pago Por Verificar', 'value' => $stats['pagosPorVerificar'], 'color' => '#FFA726'],
+            ['name' => 'Matriculado', 'value' => $stats['matriculados'], 'color' => '#17BC91'],
+        ];
+
+        // Top verificadores (comparación entre verificadores)
+        $topVerifiers = Student::selectRaw('verified_enrollment_by, COUNT(*) as total')
+            ->where('prospect_status', 'matriculado')
+            ->where('enrollment_verified', true)
+            ->whereNotNull('verified_enrollment_by')
+            ->groupBy('verified_enrollment_by')
+            ->orderByDesc('total')
+            ->limit(5)
+            ->with('verifiedEnrollmentBy:id,name')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'name' => $item->verifiedEnrollmentBy->name ?? 'Desconocido',
+                    'total' => $item->total,
+                ];
+            });
+
+        return Inertia::render('Dashboard/Verifier', [
+            'admin' => $verifierData, // Usamos 'admin' para mantener consistencia con los tipos
+            'stats' => $stats,
+            'dailyStudents' => $dailyStudents,
+            'prospectDistribution' => $prospectDistribution,
+            'topSalesAdvisors' => $topVerifiers, // Reutilizamos el mismo slot para mostrar top verificadores
         ]);
     }
 }

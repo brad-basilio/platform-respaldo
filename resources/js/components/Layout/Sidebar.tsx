@@ -47,10 +47,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
     if (currentComponent === 'Cashier/PaymentControl') return 'cashier-payment-control';
     if (currentComponent === 'Admin/PaymentControl') return 'admin-payment-control';
     if (currentComponent === 'Cashier/PaymentReports') return 'payment-reports';
+    if (currentComponent === 'Dashboard/Verifier') return 'dashboard';
+    if (currentComponent === 'Dashboard/Admin') return 'dashboard';
     
     if (currentUrl.startsWith('/admin/students')) return 'students';
     if (currentUrl.startsWith('/admin/enrolled-students')) return 'enrolled-students';
     if (currentUrl.startsWith('/sales-advisor/enrolled-students')) return 'enrolled-students';
+    if (currentUrl.startsWith('/verifier/enrolled-students')) return 'enrolled-students';
     if (currentUrl.startsWith('/admin/teachers')) return 'teachers';
     if (currentUrl.startsWith('/admin/groups')) return 'groups';
     if (currentUrl.startsWith('/admin/academic-levels')) return 'academic-levels';
@@ -78,7 +81,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
     const routes: Record<string, string> = {
       'dashboard': '/dashboard',
       'students': '/admin/students',
-      'enrolled-students': user?.role === 'sales_advisor' ? '/sales-advisor/enrolled-students' : '/admin/enrolled-students',
+      'enrolled-students': user?.role === 'sales_advisor' 
+        ? '/sales-advisor/enrolled-students' 
+        : '/admin/enrolled-students', // verifier y admin usan la misma ruta
       'teachers': '/admin/teachers',
       'groups': '/admin/groups',
       'academic-levels': '/admin/academic-levels',
@@ -232,8 +237,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
         ];
         case 'verifier':
         return [
-          
-              {
+          {
+            section: 'GESTIÓN',
+            items: [
+              { id: 'dashboard', label: 'Panel Principal', icon: RiDashboard2Line },
+            ]
+          },
+          {
             section: 'PROSPECTOS',
             items: [
               { id: 'students', label: 'Prospectos', icon: RiGroupLine },

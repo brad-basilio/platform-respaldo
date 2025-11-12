@@ -28,11 +28,18 @@ class StudentController extends Controller
         $query = Student::with(['user', 'groups', 'badges', 'registeredBy', 'verifiedPaymentBy', 'verifiedEnrollmentBy'])
             ->where('prospect_status', 'matriculado');
         
-        // Si NO es admin, solo mostrar NO VERIFICADOS (pendientes de verificación)
-        if ($user->role !== 'admin') {
+        // Lógica según rol
+        if ($user->role === 'admin') {
+            // Admin: Ver TODOS (verificados y no verificados)
+            // No se aplica filtro adicional
+        } elseif ($user->role === 'verifier') {
+            // Verifier: Ver solo los que YO he verificado
+            $query->where('enrollment_verified', true)
+                  ->where('verified_enrollment_by', $user->id);
+        } else {
+            // Sales Advisor y otros: Ver solo NO VERIFICADOS (pendientes de verificación)
             $query->where('enrollment_verified', false);
         }
-        // Si es admin, mostrar TODOS (verificados y no verificados)
         
         $students = $query->orderBy('enrollment_date', 'desc')
             ->get()
