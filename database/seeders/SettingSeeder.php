@@ -193,7 +193,7 @@ class SettingSeeder extends Seeder
             // ✅ Email when enrollment is verified (with documents)
             [
                 'key' => 'enrollment_verified',
-                'type' => 'email',
+                'type' => 'mail',
                 'content' => '
 <!DOCTYPE html>
 <html>
