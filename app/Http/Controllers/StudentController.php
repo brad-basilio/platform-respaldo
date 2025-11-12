@@ -1367,6 +1367,10 @@ class StudentController extends Controller
         }
 
         try {
+            // ✅ ELIMINAR TODOS LOS DOCUMENTOS DE MATRÍCULA ANTERIORES
+            $deletedDocuments = $student->enrollmentDocuments()->count();
+            $student->enrollmentDocuments()->delete();
+            
             // Remover verificación
             $student->update([
                 'enrollment_verified' => false,
@@ -1378,11 +1382,13 @@ class StudentController extends Controller
                 'student_id' => $student->id,
                 'student_name' => $student->user->name ?? 'N/A',
                 'unverified_by' => auth()->user()->name,
+                'documents_deleted' => $deletedDocuments,
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Verificación removida exitosamente',
+                'documents_deleted' => $deletedDocuments,
                 'student' => [
                     'id' => $student->id,
                     'enrollmentVerified' => false,
@@ -1399,6 +1405,110 @@ class StudentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al remover la verificación'
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener documentos de matrícula de un estudiante (para Admin/Verifier)
+     */
+    public function getEnrollmentDocuments(string $id)
+    {
+        try {
+            $student = Student::findOrFail($id);
+            $user = auth()->user();
+            
+            // Documentos del estudiante (contract y voucher)
+            $studentDocuments = [];
+            
+            // Contrato
+            if ($student->contract_file_path) {
+                $studentDocuments[] = [
+                    'id' => 'contract_' . $student->id,
+                    'document_name' => 'Contrato de Matrícula',
+                    'document_type' => 'contract',
+                    'file_path' => $student->contract_file_path,
+                    'description' => 'Contrato subido por el estudiante',
+                    'requires_signature' => false,
+                    'student_confirmed' => true, // Ya fue subido por el estudiante
+                    'uploaded_at' => $student->enrollment_date ?? $student->created_at,
+                    'confirmed_at' => $student->enrollment_date ?? $student->created_at,
+                    'uploaded_by_name' => 'Estudiante',
+                    'is_student_upload' => true,
+                ];
+            }
+            
+            // Voucher de pago
+            if ($student->payment_voucher_url) {
+                $studentDocuments[] = [
+                    'id' => 'voucher_' . $student->id,
+                    'document_name' => 'Voucher de Pago',
+                    'document_type' => 'payment',
+                    'file_path' => str_replace('/storage/', '', $student->payment_voucher_url),
+                    'description' => 'Comprobante de pago subido por el estudiante',
+                    'requires_signature' => false,
+                    'student_confirmed' => true, // Ya fue subido por el estudiante
+                    'uploaded_at' => $student->payment_date ?? $student->created_at,
+                    'confirmed_at' => $student->payment_date ?? $student->created_at,
+                    'uploaded_by_name' => 'Estudiante',
+                    'is_student_upload' => true,
+                ];
+            }
+            
+            // Documentos enviados por verifiers/admins (EnrollmentDocument)
+            $query = $student->enrollmentDocuments();
+            
+            // Si es verifier, solo ver los documentos que YO subí
+            // Si es admin, ver todos
+            if ($user->role === 'verifier') {
+                $query->where('uploaded_by', $user->id);
+            }
+            
+            $verifierDocuments = $query->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($doc) {
+                    return [
+                        'id' => $doc->id,
+                        'document_name' => $doc->document_name,
+                        'document_type' => $doc->document_type,
+                        'file_path' => $doc->file_path,
+                        'description' => $doc->description,
+                        'requires_signature' => $doc->requires_signature,
+                        'student_confirmed' => $doc->student_confirmed,
+                        'uploaded_at' => $doc->created_at,
+                        'confirmed_at' => $doc->confirmed_at,
+                        'uploaded_by_name' => $doc->uploadedBy->name ?? 'N/A',
+                        'is_student_upload' => false,
+                    ];
+                })
+                ->toArray();
+            
+            // Combinar ambos tipos de documentos
+            $allDocuments = array_merge($studentDocuments, $verifierDocuments);
+            
+            // Verificar si hay documentos pendientes de confirmación
+            // Solo los EnrollmentDocument pueden estar pendientes (los del estudiante ya están confirmados)
+            $hasPendingDocuments = $student->enrollmentDocuments()
+                ->where('requires_signature', true)
+                ->where('student_confirmed', false)
+                ->exists();
+            
+            return response()->json([
+                'success' => true,
+                'documents' => $allDocuments,
+                'has_pending_documents' => $hasPendingDocuments,
+                'student_documents_count' => count($studentDocuments),
+                'verifier_documents_count' => count($verifierDocuments),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener documentos de matrícula', [
+                'student_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener los documentos'
             ], 500);
         }
     }
