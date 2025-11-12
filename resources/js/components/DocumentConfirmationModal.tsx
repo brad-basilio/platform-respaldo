@@ -75,15 +75,36 @@ const DocumentConfirmationModal: React.FC<DocumentConfirmationModalProps> = ({ o
         },
       });
 
-      Swal.fire({
-        icon: 'success',
-        title: '¡Documento Confirmado!',
-        text: signedFile
-          ? 'Tu documento firmado ha sido cargado exitosamente.'
-          : 'El documento ha sido confirmado.',
-        timer: 2000,
-        showConfirmButton: false,
-      });
+      const isLastDocument = pendingDocuments.length === 1;
+      const enrollmentVerified = response.data.enrollment_verified;
+
+      if (isLastDocument && enrollmentVerified) {
+        // ✅ Todos los documentos confirmados - Matrícula verificada
+        Swal.fire({
+          icon: 'success',
+          title: '🎉 ¡Matrícula Verificada!',
+          html: `
+            <p class="text-lg font-semibold mb-2">Has confirmado todos los documentos exitosamente</p>
+            <p class="text-sm text-gray-600">Tu matrícula ha sido verificada y ya puedes acceder a todas las funcionalidades de la plataforma.</p>
+          `,
+          confirmButtonColor: '#10b981',
+          confirmButtonText: '¡Entendido!',
+        });
+      } else {
+        // Documento individual confirmado
+        Swal.fire({
+          icon: 'success',
+          title: '✓ Documento Confirmado',
+          html: signedFile
+            ? '<p>Tu documento firmado ha sido cargado exitosamente.</p>'
+            : '<p>El documento ha sido confirmado.</p>' +
+              (response.data.pending_documents > 0 
+                ? `<p class="text-sm text-orange-600 mt-2">⏳ Te quedan ${response.data.pending_documents} documento(s) por confirmar</p>`
+                : ''),
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      }
 
       // Remove document from pending list
       setPendingDocuments((prev) => prev.filter((doc) => doc.id !== document.id));
@@ -94,11 +115,11 @@ const DocumentConfirmationModal: React.FC<DocumentConfirmationModalProps> = ({ o
       });
 
       // If no more pending documents, close modal and notify
-      if (pendingDocuments.length === 1) {
+      if (isLastDocument) {
         setTimeout(() => {
           onDocumentsConfirmed?.();
           onClose();
-        }, 2000);
+        }, 2500);
       }
     } catch (error: any) {
       console.error('Error confirming document:', error);
@@ -129,7 +150,7 @@ const DocumentConfirmationModal: React.FC<DocumentConfirmationModalProps> = ({ o
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999] p-4">
+    <div className="fixed inset-0 bg-black/50  flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
         <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6">
           <h2 className="text-2xl font-bold text-white">📋 Documentos Pendientes de Firma</h2>

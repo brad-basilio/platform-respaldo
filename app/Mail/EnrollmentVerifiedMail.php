@@ -102,7 +102,9 @@ class EnrollmentVerifiedMail extends Mailable
     public function attachments(): array
     {
         return $this->documents->map(function (EnrollmentDocument $document) {
-            return Attachment::fromStoragePath($document->file_path)
+            $filePath = storage_path('app/public/' . $document->file_path);
+            
+            return Attachment::fromPath($filePath)
                 ->as($document->file_name)
                 ->withMime('application/pdf'); // Asumimos PDFs, ajustar según necesidad
         })->toArray();

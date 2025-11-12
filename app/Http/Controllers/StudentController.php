@@ -1248,13 +1248,9 @@ class StudentController extends Controller
         try {
             \DB::beginTransaction();
 
-            // Marcar como verificado
-            $student->update([
-                'enrollment_verified' => true,
-                'enrollment_verified_at' => now(),
-                'verified_enrollment_by' => auth()->id(),
-            ]);
-
+            // ❌ NO marcar como verificado todavía
+            // El estudiante se marcará como verificado SOLO cuando confirme TODOS los documentos
+            
             // Procesar y guardar documentos
             $uploadedDocuments = collect();
             
@@ -1286,11 +1282,11 @@ class StudentController extends Controller
 
             \DB::commit();
 
-            Log::info('Matrícula verificada por administrador', [
+            Log::info('Documentos de matrícula enviados al estudiante', [
                 'student_id' => $student->id,
                 'student_name' => $student->user->name ?? 'N/A',
-                'verified_by' => auth()->user()->name,
-                'verified_at' => now(),
+                'uploaded_by' => auth()->user()->name,
+                'uploaded_at' => now(),
                 'documents_count' => $uploadedDocuments->count()
             ]);
 
@@ -1325,16 +1321,13 @@ class StudentController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Matrícula verificada exitosamente' . ($uploadedDocuments->isNotEmpty() ? ' y documentos enviados al estudiante' : ''),
+                'message' => 'Documentos enviados al estudiante exitosamente. La matrícula se verificará cuando el estudiante confirme todos los documentos.',
                 'student' => [
                     'id' => $student->id,
-                    'enrollmentVerified' => true,
-                    'enrollmentVerifiedAt' => $student->enrollment_verified_at->toISOString(),
-                    'verifiedEnrollmentBy' => [
-                        'id' => auth()->id(),
-                        'name' => auth()->user()->name,
-                        'email' => auth()->user()->email,
-                    ]
+                    'enrollmentVerified' => false, // ❌ Todavía NO está verificado
+                    'enrollmentVerifiedAt' => null,
+                    'verifiedEnrollmentBy' => null,
+                    'hasPendingDocuments' => true,
                 ],
                 'documents_uploaded' => $uploadedDocuments->count()
             ]);
@@ -1521,6 +1514,34 @@ class StudentController extends Controller
                 'has_signed_file' => !is_null($signedFilePath)
             ]);
 
+            // ✅ VERIFICAR SI TODOS LOS DOCUMENTOS HAN SIDO CONFIRMADOS
+            $totalDocuments = \App\Models\EnrollmentDocument::where('student_id', $student->id)
+                ->where('requires_signature', true)
+                ->count();
+            
+            $confirmedDocuments = \App\Models\EnrollmentDocument::where('student_id', $student->id)
+                ->where('requires_signature', true)
+                ->where('student_confirmed', true)
+                ->count();
+
+            $allDocumentsConfirmed = ($totalDocuments > 0 && $totalDocuments === $confirmedDocuments);
+
+            // Si todos los documentos están confirmados, marcar matrícula como verificada
+            if ($allDocumentsConfirmed && !$student->enrollment_verified) {
+                $student->update([
+                    'enrollment_verified' => true,
+                    'enrollment_verified_at' => now(),
+                    'verified_enrollment_by' => $document->uploaded_by, // El que subió los documentos
+                ]);
+
+                Log::info('Matrícula verificada automáticamente - Todos los documentos confirmados', [
+                    'student_id' => $student->id,
+                    'student_name' => $student->user->name ?? 'N/A',
+                    'total_documents' => $totalDocuments,
+                    'verified_at' => now()
+                ]);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Documento confirmado exitosamente',
@@ -1529,7 +1550,9 @@ class StudentController extends Controller
                     'confirmed' => true,
                     'confirmed_at' => $document->confirmed_at->toISOString(),
                     'has_signed_file' => !is_null($signedFilePath)
-                ]
+                ],
+                'enrollment_verified' => $allDocumentsConfirmed, // Indicar si ya se verificó la matrícula
+                'pending_documents' => $totalDocuments - $confirmedDocuments
             ]);
         } catch (\Exception $e) {
             Log::error('Error al confirmar documento', [

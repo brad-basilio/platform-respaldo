@@ -282,19 +282,8 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       );
       
       if (response.data.success) {
-        // Actualizar el estudiante en el estado
-        setStudents(prevStudents => 
-          prevStudents.map(s => 
-            s.id === verifyingStudent.id 
-              ? { 
-                  ...s, 
-                  enrollmentVerified: true,
-                  enrollmentVerifiedAt: response.data.student.enrollmentVerifiedAt,
-                  verifiedEnrollmentBy: response.data.student.verifiedEnrollmentBy
-                } 
-              : s
-          )
-        );
+        // ❌ NO actualizar como verificado todavía
+        // El estudiante permanece sin cambios hasta que confirme los documentos
         
         // Cerrar modal
         setShowVerifyModal(false);
@@ -302,12 +291,13 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
         setDocuments([]);
         
         await Swal.fire({
-          title: '¡Verificado!',
+          title: '¡Documentos Enviados!',
           html: `
-            <p>La matrícula ha sido verificada exitosamente</p>
+            <p>Los documentos han sido enviados al estudiante exitosamente</p>
             ${response.data.documents_uploaded > 0 
-              ? `<p class="text-sm text-gray-600 mt-2">Se enviaron ${response.data.documents_uploaded} documento(s) al estudiante</p>` 
+              ? `<p class="text-sm text-gray-600 mt-2">Se enviaron ${response.data.documents_uploaded} documento(s)</p>` 
               : ''}
+            <p class="text-sm text-orange-600 mt-3">⏳ La matrícula se verificará cuando el estudiante confirme todos los documentos</p>
           `,
           icon: 'success',
           confirmButtonColor: '#10b981',
@@ -743,7 +733,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
 
       {/* Modal de Verificación con Documentos */}
       {showVerifyModal && verifyingStudent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50  flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
             <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6">
               <h2 className="text-2xl font-bold text-white">Verificar Matrícula</h2>
