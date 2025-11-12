@@ -72,6 +72,13 @@
 
 # Security headers for better cross-browser compatibility
 <IfModule mod_headers.c>
+    # Allow images to be loaded in emails (Gmail, Outlook, etc.)
+    <FilesMatch "\.(png|jpg|jpeg|gif|svg|webp)$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, OPTIONS"
+        Header set Access-Control-Allow-Headers "Content-Type"
+    </FilesMatch>
+    
     # Force UTF-8 encoding
     Header set Content-Type "text/css; charset=UTF-8" env=CSS_FILE
     Header set Content-Type "application/javascript; charset=UTF-8" env=JS_FILE

@@ -285,20 +285,25 @@ const Settings: React.FC<Props> = ({ settings }) => {
                     }}
                     init={{
                       height: 500,
-                      menubar: false,
+                      menubar: 'file edit view insert format tools table help',
                       plugins: [
                         'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
                         'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                        'insertdatetime', 'media', 'table', 'help', 'wordcount'
+                        'insertdatetime', 'media', 'table', 'help', 'wordcount', 'visualchars', 'pagebreak'
                       ],
-                      toolbar: 'undo redo | blocks | ' +
-                        'bold italic forecolor | alignleft aligncenter ' +
-                        'alignright alignjustify | bullist numlist outdent indent | ' +
-                        'link image | removeformat | code | help',
+                      toolbar: 'undo redo | formatselect | bold italic underline forecolor backcolor | ' +
+                        'alignleft aligncenter alignright alignjustify | ' +
+                        'bullist numlist outdent indent | link image media | ' +
+                        'table tabledelete | code | removeformat | help',
                       image_title: true,
+                      image_advtab: true,
                       automatic_uploads: true,
                       file_picker_types: 'image',
                       images_upload_url: '/admin/upload-image',
+                      relative_urls: false,
+                      remove_script_host: false,
+                      convert_urls: true,
+                      extended_valid_elements: 'img[data-src|src|alt|style|width|height|class]',
                       images_upload_handler: (blobInfo) => new Promise((resolve, reject) => {
                         const formData = new FormData();
                         formData.append('file', blobInfo.blob(), blobInfo.filename());
@@ -322,7 +327,31 @@ const Settings: React.FC<Props> = ({ settings }) => {
                             reject('Error al subir imagen');
                           });
                       }),
-                      content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
+                      content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                      setup: (editor) => {
+                        // Limpia cualquier base antes de variables o URLs absolutas en src y href
+                        const cleanSrcHref = (html: string) => {
+                          // Para src de imágenes
+                          html = html.replace(/src="[^"]*({{[^}]+}})"/g, 'src="$1"');
+                          html = html.replace(/src="[^"]*(https?:\/\/[^"}]+)"/g, 'src="$1"');
+                          // Para href de enlaces
+                          html = html.replace(/href="[^"]*({{[^}]+}})"/g, 'href="$1"');
+                          html = html.replace(/href="[^"]*(https?:\/\/[^"}]+)"/g, 'href="$1"');
+                          return html;
+                        };
+                        
+                        editor.on('BeforeSetContent', function (e) {
+                          if (e.content && typeof e.content === 'string') {
+                            e.content = cleanSrcHref(e.content);
+                          }
+                        });
+                        
+                        editor.on('PostProcess', function (e) {
+                          if (e.content && typeof e.content === 'string') {
+                            e.content = cleanSrcHref(e.content);
+                          }
+                        });
+                      }
                     }}
                   />
 
