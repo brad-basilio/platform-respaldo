@@ -211,13 +211,37 @@ class InstallmentVoucherController extends Controller
                 'notes' => $validated['notes'] ?? $voucher->notes,
             ]);
 
-            // Actualizar cuota a verificada
-            $installment = $voucher->installment;
-            $installment->update([
-                'status' => 'verified',
-                'verified_by' => $user->id,
-                'verified_at' => now(),
-            ]);
+            // Obtener la cuota con un fresh query para asegurar datos actualizados
+            $installment = Installment::find($voucher->installment_id);
+            
+            // Sumar todos los vouchers aprobados para esta cuota (fresh query)
+            $totalApproved = InstallmentVoucher::where('installment_id', $installment->id)
+                ->where('status', 'approved')
+                ->sum('declared_amount');
+            
+            // Calcular cuánto falta por pagar (incluyendo mora)
+            $totalDue = $installment->amount + $installment->late_fee;
+            
+            // Determinar el estado de la cuota basado en el monto pagado
+            if ($totalApproved >= $totalDue) {
+                // Pago completo - marcar como verificada
+                $installment->update([
+                    'status' => 'verified',
+                    'payment_type' => 'full',
+                    'paid_amount' => $totalApproved,
+                    'remaining_amount' => 0,
+                    'verified_by' => $user->id,
+                    'verified_at' => now(),
+                ]);
+            } else {
+                // Pago parcial - mantener como "paid" (en verificación pero incompleta)
+                $installment->update([
+                    'status' => 'paid',
+                    'payment_type' => ($installment->vouchers()->where('status', 'approved')->count() > 1) ? 'combined' : 'partial',
+                    'paid_amount' => $totalApproved,
+                    'remaining_amount' => $totalDue - $totalApproved,
+                ]);
+            }
 
             DB::commit();
 

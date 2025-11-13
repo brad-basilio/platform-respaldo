@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 
 import { 
-  CreditCard, Calendar, CheckCircle, Clock, 
+  Calendar, CheckCircle, Clock, 
   AlertCircle, Download, Upload, FileText,
-  DollarSign, TrendingUp, Award, ChevronRight
+  DollarSign, TrendingUp,
+  RefreshCcw, X, ArrowRight
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
+import { Input } from '@/components/ui/input';
 
 interface Installment {
   id: string;
@@ -17,6 +19,8 @@ interface Installment {
   lateFee: number;
   totalDue: number;
   paidAmount: number;
+  remainingAmount?: number;
+  paymentType?: 'full' | 'partial' | 'combined';
   paidDate: string | null;
   status: 'pending' | 'paid' | 'late' | 'verified';
   isOverdue: boolean;
@@ -60,13 +64,35 @@ interface Enrollment {
   installments: Installment[];
 }
 
+interface PaymentPlan {
+  id: string;
+  name: string;
+  totalAmount: number;
+  installmentsCount: number;
+  monthlyAmount: number;
+}
+
 const PaymentControl: React.FC = () => {
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploadingVoucher, setUploadingVoucher] = useState<string | null>(null);
+  
+  // Estados para cambio de plan
+  const [showPlanChangeModal, setShowPlanChangeModal] = useState(false);
+  const [availablePlans, setAvailablePlans] = useState<PaymentPlan[]>([]);
+  const [canChangePlan, setCanChangePlan] = useState(false);
+  const [planChangeReason, setPlanChangeReason] = useState('');
+  const [selectedNewPlan, setSelectedNewPlan] = useState<string | null>(null);
+  const [changingPlan, setChangingPlan] = useState(false);
+  
+  // Estados para pago parcial
+  const [showPartialPaymentModal, setShowPartialPaymentModal] = useState(false);
+  const [partialAmount, setPartialAmount] = useState('');
+  const [uploadingPartialPayment, setUploadingPartialPayment] = useState(false);
 
   useEffect(() => {
     fetchEnrollment();
+    checkCanChangePlan();
   }, []);
 
   const fetchEnrollment = async () => {
@@ -118,13 +144,111 @@ const PaymentControl: React.FC = () => {
       });
       
       setEnrollment(enrollmentData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching enrollment:', error);
+      const err = error as { response?: { data?: { message?: string } } };
       toast.error('Error al cargar información de pagos', {
-        description: error.response?.data?.message || 'No se pudo obtener tu cronograma de pagos'
+        description: err.response?.data?.message || 'No se pudo obtener tu cronograma de pagos'
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkCanChangePlan = async () => {
+    try {
+      const response = await axios.get('/api/student/can-change-plan');
+      setCanChangePlan(response.data.can_change);
+      
+      if (response.data.can_change) {
+        // Obtener planes disponibles
+        const plansResponse = await axios.get('/api/student/available-plans');
+        setAvailablePlans(plansResponse.data.plans);
+      }
+    } catch (error) {
+      console.error('Error checking plan change eligibility:', error);
+    }
+  };
+
+  const handleChangePlan = async () => {
+    if (!selectedNewPlan) {
+      toast.error('Debes seleccionar un plan');
+      return;
+    }
+
+    try {
+      setChangingPlan(true);
+      await axios.post('/api/student/change-plan', {
+        new_plan_id: selectedNewPlan,
+        reason: planChangeReason || 'Cambio solicitado por el estudiante',
+      });
+
+      toast.success('Plan de pago cambiado exitosamente', {
+        description: 'Tu cronograma de pagos ha sido actualizado'
+      });
+
+      setShowPlanChangeModal(false);
+      await fetchEnrollment();
+      await checkCanChangePlan();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error('Error al cambiar plan de pago', {
+        description: err.response?.data?.message || 'No se pudo cambiar el plan'
+      });
+    } finally {
+      setChangingPlan(false);
+    }
+  };
+
+  const handleUploadPartialPayment = async (file: File) => {
+    if (!partialAmount || parseFloat(partialAmount) <= 0) {
+      toast.error('Ingresa un monto válido');
+      return;
+    }
+
+    // Validar que el monto no sea mayor al pendiente
+    const amount = parseFloat(partialAmount);
+    if (amount > (enrollment?.totalPending || 0)) {
+      toast.error('Monto inválido', {
+        description: `El monto no puede ser mayor a tu deuda pendiente (${formatCurrency(enrollment?.totalPending || 0)})`
+      });
+      return;
+    }
+
+    try {
+      setUploadingPartialPayment(true);
+      
+      const formData = new FormData();
+      formData.append('voucher_file', file);
+      formData.append('declared_amount', partialAmount);
+      formData.append('payment_date', new Date().toISOString().split('T')[0]);
+      formData.append('payment_method', 'transfer');
+      // Enviar bandera como '1' para que Laravel la considere boolean
+      formData.append('is_partial_payment', '1');
+
+      // Debug: log keys (no mostrar contenido binario)
+      for (const key of Array.from(formData.keys())) {
+        console.log('formData key:', key, formData.get(key));
+      }
+
+      const response = await axios.post('/api/student/upload-voucher', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      toast.success('Pago parcial procesado exitosamente', {
+        description: `S/ ${response.data.amount_distributed} distribuido a ${response.data.affected_installments} cuota(s)`
+      });
+      
+      setShowPartialPaymentModal(false);
+      setPartialAmount('');
+      await fetchEnrollment();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error('Error al procesar pago parcial', {
+        description: err.response?.data?.message || 'No se pudo procesar el pago'
+      });
+    } finally {
+      setUploadingPartialPayment(false);
     }
   };
 
@@ -135,7 +259,8 @@ const PaymentControl: React.FC = () => {
       const formData = new FormData();
       formData.append('voucher_file', file);
       formData.append('installment_id', installmentId);
-      formData.append('declared_amount', String(enrollment?.installments.find(i => i.id === installmentId)?.amount || 0));
+      // Enviar el monto total a pagar (incluye mora) para la cuota
+      formData.append('declared_amount', String(enrollment?.installments.find(i => i.id === installmentId)?.totalDue || enrollment?.installments.find(i => i.id === installmentId)?.amount || 0));
       formData.append('payment_date', new Date().toISOString().split('T')[0]);
       formData.append('payment_method', 'transfer');
       
@@ -149,11 +274,18 @@ const PaymentControl: React.FC = () => {
       
       // Recargar datos
       await fetchEnrollment();
-    } catch (error: any) {
-      console.error('Error uploading voucher:', error);
-      toast.error('Error al subir voucher', {
-        description: error.response?.data?.message || 'No se pudo subir el comprobante'
-      });
+    } catch (error: unknown) {
+        console.error('Error uploading voucher:', error);
+        const err = error as { response?: { data?: unknown } };
+        console.error('Server response:', err.response?.data);
+        type ServerResponse = { message?: string } | string | null | undefined;
+        const dataObj = err.response?.data as ServerResponse;
+        const serverMsg = dataObj && typeof dataObj === 'object' && 'message' in dataObj
+          ? (dataObj as { message?: string }).message
+          : String(dataObj ?? '');
+        toast.error('Error al subir voucher', {
+          description: serverMsg || 'No se pudo subir el comprobante'
+        });
     } finally {
       setUploadingVoucher(null);
     }
@@ -165,7 +297,8 @@ const PaymentControl: React.FC = () => {
       
       const formData = new FormData();
       formData.append('voucher_file', file);
-      formData.append('declared_amount', String(enrollment?.installments.find(i => i.id === installmentId)?.amount || 0));
+      // Al reemplazar, enviar también el monto total a pagar (incluye mora cuando corresponda)
+      formData.append('declared_amount', String(enrollment?.installments.find(i => i.id === installmentId)?.totalDue || enrollment?.installments.find(i => i.id === installmentId)?.amount || 0));
       formData.append('payment_date', new Date().toISOString().split('T')[0]);
       formData.append('payment_method', 'transfer');
       
@@ -179,11 +312,18 @@ const PaymentControl: React.FC = () => {
       
       // Recargar datos
       await fetchEnrollment();
-    } catch (error: any) {
-      console.error('Error replacing voucher:', error);
-      toast.error('Error al reemplazar voucher', {
-        description: error.response?.data?.message || 'No se pudo reemplazar el comprobante'
-      });
+    } catch (error: unknown) {
+        console.error('Error replacing voucher:', error);
+        const err = error as { response?: { data?: unknown } };
+        console.error('Server response:', err.response?.data);
+        type ServerResponse2 = { message?: string } | string | null | undefined;
+        const dataObj2 = err.response?.data as ServerResponse2;
+        const serverMsg2 = dataObj2 && typeof dataObj2 === 'object' && 'message' in dataObj2
+          ? (dataObj2 as { message?: string }).message
+          : String(dataObj2 ?? '');
+        toast.error('Error al reemplazar voucher', {
+          description: serverMsg2 || 'No se pudo reemplazar el comprobante'
+        });
     } finally {
       setUploadingVoucher(null);
     }
@@ -200,6 +340,19 @@ const PaymentControl: React.FC = () => {
     }
     
     if (installment.status === 'paid') {
+      // Verificar si es pago parcial
+      if (installment.paymentType === 'partial' || installment.paymentType === 'combined') {
+        const paid = installment.paidAmount || 0;
+        
+        return (
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-300">
+            <Clock className="w-3 h-3 mr-1" />
+            Pago Parcial: {formatCurrency(paid)} de {formatCurrency(installment.totalDue)}
+          </span>
+        );
+      }
+      
+      // Pago completo en verificación
       return (
         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#073372]/10 text-[#073372] border border-[#073372]/30">
           <Clock className="w-3 h-3 mr-1" />
@@ -292,6 +445,26 @@ const PaymentControl: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Control de Pagos</h1>
             <p className="text-slate-600 mt-1">Gestiona tus cuotas y comprobantes de pago</p>
+          </div>
+          
+          {/* Botones de acción */}
+          <div className="flex gap-3">
+            {canChangePlan && (
+              <button
+                onClick={() => setShowPlanChangeModal(true)}
+                className="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg"
+              >
+                <RefreshCcw className="w-4 h-4 mr-2" />
+                Cambiar Plan
+              </button>
+            )}
+            <button
+              onClick={() => setShowPartialPaymentModal(true)}
+              className="inline-flex items-center px-4 py-2 bg-[#17BC91] hover:bg-[#17BC91]/90 text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg"
+            >
+              <DollarSign className="w-4 h-4 mr-2" />
+              Pago Parcial
+            </button>
           </div>
         </div>
 
@@ -422,6 +595,24 @@ const PaymentControl: React.FC = () => {
                           <p className="text-xs text-slate-500 mt-1">
                             (Incluye mora)
                           </p>
+                        )}
+                        
+                        {/* Mostrar progreso de pago parcial */}
+                        {(installment.paymentType === 'partial' || installment.paymentType === 'combined') && installment.remainingAmount && installment.remainingAmount > 0 && (
+                          <div className="mt-2 space-y-1">
+                            <p className="text-xs text-blue-600 font-semibold">
+                              Pagado: {formatCurrency(installment.paidAmount)} 
+                            </p>
+                            <p className="text-xs text-orange-600 font-semibold">
+                              Restante: {formatCurrency(installment.remainingAmount)}
+                            </p>
+                            <div className="w-full bg-slate-200 rounded-full h-1.5 mt-1">
+                              <div 
+                                className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                                style={{ width: `${(installment.paidAmount / installment.totalDue) * 100}%` }}
+                              ></div>
+                            </div>
+                          </div>
                         )}
                       </div>
 
@@ -570,6 +761,247 @@ const PaymentControl: React.FC = () => {
             ))}
           </div>
         </div>
+
+        {/* Modal: Cambiar Plan de Pago */}
+        {showPlanChangeModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-slate-900">Cambiar Plan de Pago</h2>
+                <button
+                  onClick={() => setShowPlanChangeModal(false)}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Plan actual */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm font-medium text-blue-900 mb-2">Plan Actual:</p>
+                  <p className="text-lg font-bold text-blue-700">{enrollment.paymentPlan.name}</p>
+                  <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
+                    <div>
+                      <p className="text-blue-600">Total:</p>
+                      <p className="font-bold text-blue-900">{formatCurrency(enrollment.paymentPlan.totalAmount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-blue-600">Cuotas:</p>
+                      <p className="font-bold text-blue-900">{enrollment.paymentPlan.installmentsCount} mensuales</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Seleccionar nuevo plan */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-3">
+                    Selecciona tu nuevo plan:
+                  </label>
+                  <div className="space-y-3">
+                    {availablePlans.map((plan) => (
+                      <label
+                        key={plan.id}
+                        className={`block p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                          selectedNewPlan === plan.id
+                            ? 'border-[#17BC91] bg-[#17BC91]/5'
+                            : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="new_plan"
+                          value={plan.id}
+                          checked={selectedNewPlan === plan.id}
+                          onChange={() => setSelectedNewPlan(plan.id)}
+                          className="hidden"
+                        />
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-bold text-slate-900">{plan.name}</p>
+                            <p className="text-sm text-slate-600 mt-1">
+                              {plan.installmentsCount} cuotas de {formatCurrency(plan.monthlyAmount)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-slate-600">Total</p>
+                            <p className="text-lg font-bold text-[#073372]">{formatCurrency(plan.totalAmount)}</p>
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Razón del cambio (opcional) */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Razón del cambio (opcional):
+                  </label>
+                  <textarea
+                    value={planChangeReason}
+                    onChange={(e) => setPlanChangeReason(e.target.value)}
+                    placeholder="Ej: Cambio por disponibilidad económica"
+                    rows={3}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#17BC91] focus:border-transparent"
+                  />
+                </div>
+
+                {/* Advertencia */}
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <p className="text-sm text-orange-900">
+                    <strong>⚠️ Importante:</strong> Al cambiar de plan, tus cuotas pendientes serán canceladas y se generarán nuevas según el plan seleccionado.
+                  </p>
+                </div>
+
+                {/* Botones */}
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setShowPlanChangeModal(false)}
+                    className="px-6 py-2 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleChangePlan}
+                    disabled={!selectedNewPlan || changingPlan}
+                    className="px-6 py-2 bg-[#17BC91] hover:bg-[#17BC91]/90 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    {changingPlan ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Cambiando...
+                      </>
+                    ) : (
+                      <>
+                        <ArrowRight className="w-4 h-4 mr-2" />
+                        Confirmar Cambio
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Pago Parcial */}
+        {showPartialPaymentModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+              <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] text-white px-6 py-4 rounded-t-2xl flex items-center justify-between">
+                <h2 className="text-xl font-bold">Pago Parcial</h2>
+                <button
+                  onClick={() => {
+                    setShowPartialPaymentModal(false);
+                    setPartialAmount('');
+                  }}
+                  className="text-white/80 hover:text-white transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Información del plan */}
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-slate-600">Total del plan:</p>
+                      <p className="text-lg font-bold text-slate-900">{formatCurrency(enrollment.paymentPlan.totalAmount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-600">Pendiente:</p>
+                      <p className="text-lg font-bold text-orange-600">{formatCurrency(enrollment.totalPending)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Input de monto */}
+                <div>
+                 
+                  <div className="relative">
+                    <Input
+                      label="Monto a pagar"
+                      type="number"
+                      value={partialAmount}
+                      onChange={(e) => setPartialAmount(e.target.value)}
+                      placeholder="0.00"
+                      min={0.01}
+                      max={enrollment.totalPending}
+                      step={0.01}
+                      icon={<span className="text-slate-500 font-medium">S/</span>}
+                      helperText={`Monto máximo: ${formatCurrency(enrollment.totalPending)}`}
+                      variant="outlined"
+                    />
+                  </div>
+                  
+                  {/* Alerta si el monto excede el pendiente */}
+                  {partialAmount && parseFloat(partialAmount) > enrollment.totalPending && (
+                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-800 font-medium flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-2" />
+                        El monto ingresado ({formatCurrency(parseFloat(partialAmount))}) excede tu deuda pendiente ({formatCurrency(enrollment.totalPending)})
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Distribución estimada */}
+                {partialAmount && parseFloat(partialAmount) > 0 && parseFloat(partialAmount) <= enrollment.totalPending && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-sm font-medium text-green-900 mb-2">
+                      ✅ Distribución automática:
+                    </p>
+                    <p className="text-xs text-green-700">
+                      El monto de {formatCurrency(parseFloat(partialAmount))} se aplicará a tus cuotas más antiguas primero, cubriendo mora si existe.
+                    </p>
+                  </div>
+                )}
+
+                {/* Subir comprobante */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Comprobante de pago:
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleUploadPartialPayment(file);
+                      }
+                    }}
+                    disabled={uploadingPartialPayment || !partialAmount || parseFloat(partialAmount) <= 0 || parseFloat(partialAmount) > enrollment.totalPending}
+                    className="hidden"
+                    id="partial-payment-file"
+                  />
+                  <label
+                    htmlFor="partial-payment-file"
+                    className={`block w-full px-4 py-3 border-2 border-dashed rounded-lg text-center cursor-pointer transition-all ${
+                      uploadingPartialPayment || !partialAmount || parseFloat(partialAmount) <= 0 || parseFloat(partialAmount) > enrollment.totalPending
+                        ? 'border-slate-200 bg-slate-50 cursor-not-allowed'
+                        : 'border-[#17BC91] hover:bg-[#17BC91]/5'
+                    }`}
+                  >
+                    {uploadingPartialPayment ? (
+                      <div className="flex items-center justify-center space-x-2 text-[#17BC91]">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#17BC91]"></div>
+                        <span className="font-medium">Procesando...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center space-x-2 text-slate-700">
+                        <Upload className="w-5 h-5" />
+                        <span className="font-medium">Seleccionar comprobante</span>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AuthenticatedLayout>
   );

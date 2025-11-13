@@ -31,7 +31,7 @@ class ProspectWelcomeMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '¡Bienvenido a InglésProf! 🎓 - Tu proceso de inscripción ha iniciado',
+            subject: '¡Bienvenido a UNCED! 🎓 - Tu proceso de inscripción ha iniciado',
         );
     }
 

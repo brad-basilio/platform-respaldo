@@ -99,30 +99,33 @@ class Enrollment extends Model
      */
     public function getPaymentProgressAttribute(): float
     {
-        $total = $this->installments()->count();
-        if ($total === 0) return 0;
+        $totalAmount = $this->paymentPlan->total_amount;
+        if ($totalAmount == 0) return 0;
 
-        $paid = $this->installments()->whereIn('status', ['paid', 'verified'])->count();
-        return ($paid / $total) * 100;
+        $totalPaid = $this->total_paid;
+        return min(100, ($totalPaid / $totalAmount) * 100);
     }
 
     /**
-     * Total pagado hasta ahora
+     * Total pagado hasta ahora (suma de todos los paid_amount aprobados)
      */
     public function getTotalPaidAttribute(): float
     {
+        // Sumar el paid_amount de todas las cuotas
+        // (solo cuenta lo que realmente está aprobado/verificado)
         return $this->installments()
             ->whereIn('status', ['paid', 'verified'])
             ->sum('paid_amount');
     }
 
     /**
-     * Total pendiente
+     * Total pendiente (considerando pagos parciales)
      */
     public function getTotalPendingAttribute(): float
     {
-        return $this->installments()
-            ->where('status', 'pending')
-            ->sum('amount');
+        $totalPlan = $this->paymentPlan->total_amount;
+        $totalPaid = $this->total_paid;
+        
+        return max(0, $totalPlan - $totalPaid);
     }
 }

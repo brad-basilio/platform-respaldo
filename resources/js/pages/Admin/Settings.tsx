@@ -26,6 +26,7 @@ interface Props {
     whatsapp?: Setting[];
     general?: Setting[];
     contact?: Setting[];
+    payment?: Setting[];
   };
 }
 
@@ -36,7 +37,7 @@ interface EmailTemplate {
 }
 
 const Settings: React.FC<Props> = ({ settings }) => {
-  const [activeTab, setActiveTab] = useState<'mail' | 'whatsapp' | 'general' | 'contact'>('mail');
+  const [activeTab, setActiveTab] = useState<'mail' | 'whatsapp' | 'general' | 'contact' | 'payment'>('mail');
   const [selectedMailTemplate, setSelectedMailTemplate] = useState<string>('prospect_welcome');
   
   // Configuración de templates de email
@@ -80,9 +81,15 @@ const Settings: React.FC<Props> = ({ settings }) => {
     support_email: settings.contact?.find(s => s.key === 'support_email')?.content || '',
   });
 
+  const paymentForm = useForm({
+    plan_change_deadline_days: settings.payment?.find(s => s.key === 'plan_change_deadline_days')?.content || '7',
+    allow_partial_payments: settings.payment?.find(s => s.key === 'allow_partial_payments')?.content || 'true',
+  });
+
   const tabs = [
     { id: 'mail', label: 'Templates de Email', icon: RiMailLine },
     { id: 'whatsapp', label: 'Configuración WhatsApp', icon: RiWhatsappLine },
+    { id: 'payment', label: 'Configuración de Pagos', icon: RiSettings4Line },
     { id: 'general', label: 'Configuración General', icon: RiGlobalLine },
     { id: 'contact', label: 'Información de Contacto', icon: RiMailLine },
   ];
@@ -195,6 +202,41 @@ const Settings: React.FC<Props> = ({ settings }) => {
     });
   };
 
+  const handlePaymentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const settingsArray = [
+      {
+        key: 'plan_change_deadline_days',
+        content: paymentForm.data.plan_change_deadline_days,
+        type: 'payment',
+        description: 'Días límite desde la matrícula para cambiar de plan',
+      },
+      {
+        key: 'allow_partial_payments',
+        content: paymentForm.data.allow_partial_payments,
+        type: 'payment',
+        description: 'Permitir pagos parciales de cualquier monto aplicados al total',
+      },
+    ];
+
+    paymentForm.transform(() => ({ settings: settingsArray }));
+    paymentForm.post('/admin/settings', {
+      onSuccess: () => {
+        toast.success('Configuración guardada', {
+          description: 'Las configuraciones de pago han sido actualizadas',
+          duration: 4000,
+        });
+      },
+      onError: () => {
+        toast.error('Error', {
+          description: 'No se pudieron guardar las configuraciones',
+          duration: 4000,
+        });
+      }
+    });
+  };
+
   const getMailTemplateDescription = (key: string) => {
     const descriptions: Record<string, string> = {
       'welcome_email': 'Email de bienvenida para nuevos usuarios',
@@ -229,7 +271,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as 'mail' | 'whatsapp' | 'general')}
+                    onClick={() => setActiveTab(tab.id as 'mail' | 'whatsapp' | 'general' | 'contact' | 'payment')}
                     className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${
                       activeTab === tab.id
                         ? 'bg-gradient-to-r from-[#073372] to-[#17BC91] text-white shadow-md'
@@ -485,6 +527,101 @@ const Settings: React.FC<Props> = ({ settings }) => {
                   >
                     <RiSaveLine className="h-5 w-5 mr-2" />
                     {contactForm.processing ? 'Guardando...' : 'Guardar Email'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Payment Configuration Tab */}
+            {activeTab === 'payment' && (
+              <form onSubmit={handlePaymentSubmit} className="space-y-6">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 mb-6">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">
+                    ⚙️ Configuraciones de Sistema de Pagos
+                  </h3>
+                  <p className="text-sm text-slate-700">
+                    Estas configuraciones afectan el comportamiento del sistema de pagos y cambios de plan para todos los estudiantes.
+                  </p>
+                </div>
+
+                {/* Días para cambiar de plan */}
+                <div>
+                  <Input
+                    label="Días límite para cambiar de plan"
+                    type="number"
+                    min="0"
+                    max="30"
+                    value={paymentForm.data.plan_change_deadline_days}
+                    onChange={(e) => paymentForm.setData('plan_change_deadline_days', e.target.value)}
+                    helperText="Número de días desde la matrícula en que el estudiante puede cambiar su plan de pago (ej: 7 días)"
+                    variant="outlined"
+                  />
+                  <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-xs text-yellow-900">
+                      <strong>⚠️ Importante:</strong> Solo los estudiantes que no tengan cuotas pagadas o verificadas podrán cambiar de plan, incluso dentro de este período.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Permitir pagos parciales */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Permitir pagos parciales
+                  </label>
+                  <div className="flex items-center space-x-4">
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="allow_partial_payments"
+                        value="true"
+                        checked={paymentForm.data.allow_partial_payments === 'true'}
+                        onChange={(e) => paymentForm.setData('allow_partial_payments', e.target.value)}
+                        className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">Sí, permitir pagos parciales</span>
+                    </label>
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="allow_partial_payments"
+                        value="false"
+                        checked={paymentForm.data.allow_partial_payments === 'false'}
+                        onChange={(e) => paymentForm.setData('allow_partial_payments', e.target.value)}
+                        className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">No, solo pagos completos</span>
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Si se habilita, los estudiantes podrán pagar cualquier monto que deseen aplicado al total de su plan de pagos.
+                  </p>
+                </div>
+
+                {/* Vista previa de configuración */}
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                  <h4 className="text-sm font-semibold text-slate-900 mb-3">📊 Resumen de Configuración Actual:</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600">Días para cambiar plan:</span>
+                      <span className="font-bold text-slate-900">{paymentForm.data.plan_change_deadline_days} días</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600">Pagos parciales:</span>
+                      <span className={`font-bold ${paymentForm.data.allow_partial_payments === 'true' ? 'text-green-600' : 'text-red-600'}`}>
+                        {paymentForm.data.allow_partial_payments === 'true' ? '✓ Habilitados (monto libre)' : '✗ Deshabilitados'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={paymentForm.processing}
+                    className="inline-flex items-center px-6 py-3 bg-[#073372] hover:bg-[#17BC91] text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50"
+                  >
+                    <RiSaveLine className="h-5 w-5 mr-2" />
+                    {paymentForm.processing ? 'Guardando...' : 'Guardar Configuración de Pagos'}
                   </button>
                 </div>
               </form>

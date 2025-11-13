@@ -193,6 +193,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/api/student/upload-voucher', [StudentPaymentController::class, 'uploadVoucher'])->name('api.student.upload-voucher');
         Route::post('/api/student/vouchers/{voucher}/replace', [StudentPaymentController::class, 'replaceVoucher'])->name('api.student.replace-voucher');
         
+        // Plan de pago
+        Route::get('/api/student/can-change-plan', [StudentPaymentController::class, 'canChangePlan'])->name('api.student.can-change-plan');
+        Route::post('/api/student/change-plan', [StudentPaymentController::class, 'changePlan'])->name('api.student.change-plan');
+        Route::get('/api/student/available-plans', [StudentPaymentController::class, 'getAvailablePlans'])->name('api.student.available-plans');
+        
         // Enrollment documents
         Route::get('/api/student/pending-documents', [StudentController::class, 'getPendingDocuments'])->name('api.student.pending-documents');
         Route::post('/api/student/documents/{document}/confirm', [StudentController::class, 'confirmDocument'])->name('api.student.confirm-document');

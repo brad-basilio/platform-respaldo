@@ -276,7 +276,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
       <div className="p-6 border-b border-white/10">
         <img 
           src="/logo-white.png" 
-          alt="InglésProf Logo" 
+          alt="UNCED Logo" 
           className="h-12 w-auto mx-auto"
         />
       </div>

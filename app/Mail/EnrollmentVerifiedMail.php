@@ -186,7 +186,7 @@ class EnrollmentVerifiedMail extends Mailable
                 
                 <p style="font-size: 14px; color: #666;">
                     Saludos cordiales,<br>
-                    <strong>Equipo de InglésProf</strong>
+                    <strong>Equipo de UNCED</strong>
                 </p>
             </div>
             

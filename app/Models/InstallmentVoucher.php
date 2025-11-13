@@ -19,6 +19,8 @@ class InstallmentVoucher extends Model
         'payment_method',
         'transaction_reference',
         'status',
+        'payment_type',
+        'applied_to_total',
         'reviewed_by',
         'reviewed_at',
         'rejection_reason',
@@ -29,6 +31,7 @@ class InstallmentVoucher extends Model
         'declared_amount' => 'float',
         'payment_date' => 'date',
         'reviewed_at' => 'datetime',
+        'applied_to_total' => 'boolean',
     ];
 
     /**

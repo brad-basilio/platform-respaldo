@@ -19,6 +19,8 @@ class Installment extends Model
         'amount',
         'late_fee',
         'paid_amount',
+        'remaining_amount',
+        'payment_type',
         'paid_date',
         'status',
         'verified_by',
@@ -31,6 +33,7 @@ class Installment extends Model
         'amount' => 'float',
         'late_fee' => 'float',
         'paid_amount' => 'float',
+        'remaining_amount' => 'float',
         'paid_date' => 'date',
         'verified_at' => 'datetime',
     ];
@@ -134,4 +137,80 @@ class Installment extends Model
 
         return $graceDeadline->diffInDays(Carbon::today());
     }
+
+    /**
+     * Aplicar un pago parcial a esta cuota
+     * 
+     * @param float $amount Monto a aplicar
+     * @return array Resultado de la operación
+     */
+    public function applyPartialPayment(float $amount): array
+    {
+        // Calcular cuánto falta pagar (incluyendo mora si existe)
+        $totalOwed = $this->total_due - $this->paid_amount;
+
+        if ($amount <= 0) {
+            return [
+                'success' => false,
+                'message' => 'El monto debe ser mayor a cero',
+            ];
+        }
+
+        if ($amount > $totalOwed) {
+            // El pago excede lo adeudado, devolver el excedente
+            $this->paid_amount = $this->total_due;
+            $this->remaining_amount = 0;
+            $this->payment_type = 'full';
+            $this->status = 'paid';
+            $this->paid_date = now();
+            $this->save();
+
+            return [
+                'success' => true,
+                'message' => 'Cuota pagada completamente',
+                'amount_applied' => $totalOwed,
+                'amount_remaining' => $amount - $totalOwed,
+            ];
+        }
+
+        // Pago parcial
+        $this->paid_amount += $amount;
+        $this->remaining_amount = $this->total_due - $this->paid_amount;
+        
+        if ($this->remaining_amount <= 0) {
+            $this->payment_type = 'full';
+            $this->status = 'paid';
+            $this->remaining_amount = 0;
+            $this->paid_date = now();
+        } else {
+            $this->payment_type = ($this->payment_type === 'partial' || $this->paid_amount > 0) ? 'combined' : 'partial';
+            $this->status = 'pending'; // Aún está pendiente hasta completar el monto total
+        }
+
+        $this->save();
+
+        return [
+            'success' => true,
+            'message' => 'Pago parcial aplicado correctamente',
+            'amount_applied' => $amount,
+            'amount_remaining' => 0,
+            'installment_remaining' => $this->remaining_amount,
+        ];
+    }
+
+    /**
+     * Calcular monto restante por pagar
+     */
+    public function getRemainingAmountAttribute(): float
+    {
+        $remaining = $this->attributes['remaining_amount'] ?? 0;
+        
+        // Si remaining_amount no está actualizado, calcularlo
+        if ($remaining == 0 && $this->status === 'pending') {
+            $remaining = $this->total_due - $this->paid_amount;
+        }
+
+        return max(0, $remaining);
+    }
 }
+
