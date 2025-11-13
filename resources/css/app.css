@@ -308,7 +308,7 @@
 }
 
 ::-webkit-scrollbar-track {
-    background: #f1f5f9;
+    background: #ffffff;
     border-radius: 6px;
 }
 
@@ -319,7 +319,7 @@
         #94a3b8
     );
     border-radius: 6px;
-    border: 2px solid #f1f5f9;
+    border: 2px solid #4aa2fa;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -333,5 +333,6 @@
 /* Firefox */
 * {
     scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 #f1f5f9;
+    
+    scrollbar-color: var(--unced-blue-light) #4ca2f800;
 }

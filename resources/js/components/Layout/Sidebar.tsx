@@ -15,7 +15,8 @@ import {
   RiSecurePaymentLine,
   RiDashboard2Line,
   RiGroupLine,
-  RiShieldUserLine
+  RiShieldUserLine,
+  RiFileListLine
 } from 'react-icons/ri';
 import { usePage, router } from '@inertiajs/react';
 import { User } from '@/types/models';
@@ -58,6 +59,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
     if (currentUrl.startsWith('/admin/groups')) return 'groups';
     if (currentUrl.startsWith('/admin/academic-levels')) return 'academic-levels';
     if (currentUrl.startsWith('/admin/payment-plans')) return 'payment-plans';
+    if (currentUrl.startsWith('/admin/document-types')) return 'document-types';
     if (currentUrl.startsWith('/admin/payments')) return 'payments';
     if (currentUrl.startsWith('/admin/analytics')) return 'analytics';
     if (currentUrl.startsWith('/student/payment-control')) return 'payment-control';
@@ -88,6 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
       'groups': '/admin/groups',
       'academic-levels': '/admin/academic-levels',
       'payment-plans': '/admin/payment-plans',
+      'document-types': '/admin/document-types',
       'payments': '/admin/payments',
       'payment-control': '/student/payment-control',
       'admin-payment-control': '/admin/payment-control',
@@ -128,6 +131,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
               //{ id: 'groups', label: 'Creación de grupos', icon: RiTeamLine },
               { id: 'academic-levels', label: 'Niveles Académicos', icon: RiGraduationCapLine },
               { id: 'payment-plans', label: 'Planes de Pago', icon: RiSecurePaymentLine },
+              { id: 'document-types', label: 'Tipos de Documentos', icon: RiFileListLine },
               { id: 'users', label: 'Usuarios', icon: RiShieldUserLine },
               { id: 'settings', label: 'Configuraciones', icon: RiSettings4Line },
             ]

@@ -1236,10 +1236,15 @@ class StudentController extends Controller
         }
 
         // Validar documentos si se están subiendo
+        // Obtener códigos válidos de tipos de documentos desde la base de datos
+        $validDocumentTypes = \App\Models\DocumentType::where('is_active', true)
+            ->pluck('code')
+            ->join(',');
+        
         $validatedData = $request->validate([
             'documents' => 'nullable|array',
             'documents.*.file' => 'required|file|mimes:pdf,doc,docx,png,jpg,jpeg|max:10240', // 10MB max
-            'documents.*.document_type' => 'required|string|in:contract,regulation,terms,other',
+            'documents.*.document_type' => 'required|string|in:' . $validDocumentTypes,
             'documents.*.document_name' => 'required|string|max:255',
             'documents.*.description' => 'nullable|string',
             'documents.*.requires_signature' => 'required|boolean',

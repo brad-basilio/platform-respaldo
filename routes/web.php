@@ -146,6 +146,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ]);
         Route::get('/api/admin/payment-plans', [PaymentPlanController::class, 'getPaymentPlansJson'])->name('api.admin.payment-plans');
         
+        // Document Types Management
+        Route::get('/admin/document-types', [\App\Http\Controllers\Admin\DocumentTypeController::class, 'indexPage'])->name('admin.document-types');
+        Route::get('/admin/document-types/active', [\App\Http\Controllers\Admin\DocumentTypeController::class, 'active'])->name('admin.document-types.active');
+        Route::post('/admin/document-types/reorder', [\App\Http\Controllers\Admin\DocumentTypeController::class, 'reorder'])->name('admin.document-types.reorder');
+        Route::resource('admin/document-types', \App\Http\Controllers\Admin\DocumentTypeController::class)
+            ->except(['show', 'create', 'edit', 'index'])
+            ->names([
+                'store' => 'admin.document-types.store',
+                'update' => 'admin.document-types.update',
+                'destroy' => 'admin.document-types.destroy',
+            ]);
+        Route::post('/admin/document-types/{id}/toggle-active', [\App\Http\Controllers\Admin\DocumentTypeController::class, 'toggleActive'])->name('admin.document-types.toggle-active');
+        
         // Enrollments & Installments (Admin only)
         Route::get('/api/admin/enrollments', [EnrollmentController::class, 'index'])->name('api.admin.enrollments');
         Route::get('/api/admin/installments/overdue', [InstallmentController::class, 'overdueInstallments'])->name('api.admin.installments.overdue');

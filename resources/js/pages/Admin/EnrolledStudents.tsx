@@ -629,6 +629,12 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [verifyingStudent, setVerifyingStudent] = useState<Student | null>(null);
   const [isSendingDocuments, setIsSendingDocuments] = useState(false);
+  const [documentTypes, setDocumentTypes] = useState<Array<{
+    id: number;
+    name: string;
+    code: string;
+    description?: string;
+  }>>([]);
   const [documents, setDocuments] = useState<Array<{
     file: File;
     document_type: string;
@@ -660,6 +666,27 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       checkPendingDocuments();
     }
   }, [students]);
+
+  // Cargar tipos de documentos disponibles
+  React.useEffect(() => {
+    const fetchDocumentTypes = async () => {
+      try {
+        const response = await axios.get('/admin/document-types/active');
+        setDocumentTypes(response.data);
+      } catch (error) {
+        console.error('Error loading document types:', error);
+        // Fallback a tipos básicos si falla
+        setDocumentTypes([
+          { id: 1, name: 'Contrato', code: 'contract' },
+          { id: 2, name: 'Reglamento', code: 'regulation' },
+          { id: 3, name: 'Términos y Condiciones', code: 'terms' },
+          { id: 4, name: 'Otro', code: 'other' },
+        ]);
+      }
+    };
+
+    fetchDocumentTypes();
+  }, []);
 
   const handleOpenVerifyModal = (student: Student) => {
     setVerifyingStudent(student);
@@ -1408,10 +1435,20 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                                 required
                                 disabled={isSendingDocuments}
                               >
-                                <option value="contract">📄 Contrato</option>
-                                <option value="regulation">📋 Reglamento</option>
-                                <option value="terms">📜 Términos y Condiciones</option>
-                                <option value="other">📁 Otro</option>
+                                {documentTypes.length > 0 ? (
+                                  documentTypes.map((dt) => (
+                                    <option key={dt.id} value={dt.code}>
+                                      {dt.name}
+                                    </option>
+                                  ))
+                                ) : (
+                                  <>
+                                    <option value="contract">Contrato</option>
+                                    <option value="regulation">Reglamento</option>
+                                    <option value="terms">Términos y Condiciones</option>
+                                    <option value="other">Otro</option>
+                                  </>
+                                )}
                               </Select>
                             </div>
 
