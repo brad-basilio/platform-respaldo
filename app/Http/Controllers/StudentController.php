@@ -183,7 +183,8 @@ class StudentController extends Controller
             'verifiedPaymentBy', 
             'verifiedEnrollmentBy',
             'academicLevel',  // ✅ Nuevo
-            'paymentPlan'     // ✅ Nuevo
+            'paymentPlan',     // ✅ Nuevo
+            'referredByStudent' // ✅ Nuevo: relación con el estudiante que refirió
         ]);
         
         // ✅ EXCLUIR MATRICULADOS VERIFICADOS (ya están en enrolled-students)
@@ -269,6 +270,13 @@ class StudentController extends Controller
                     'guardianBirthDate' => $student->guardian_birth_date?->format('Y-m-d'),
                     'guardianPhone' => $student->guardian_phone,
                     'guardianAddress' => $student->guardian_address,
+                    'source' => $student->source,  // ✅ Nuevo: origen del prospecto
+                    'referredBy' => $student->referred_by,  // ✅ Nuevo: ID del estudiante que refirió
+                    'referredByStudent' => $student->referredByStudent ? [  // ✅ Nuevo: datos del estudiante que refirió
+                        'id' => $student->referredByStudent->id,
+                        'name' => $student->referredByStudent->first_name . ' ' . $student->referredByStudent->paternal_last_name,
+                        'email' => $student->referredByStudent->user->email ?? '',
+                    ] : null,
                     'registeredBy' => $student->registeredBy ? [
                         'id' => $student->registeredBy->id,
                         'name' => $student->registeredBy->name,
@@ -331,7 +339,8 @@ class StudentController extends Controller
             'verifiedPaymentBy', 
             'verifiedEnrollmentBy',
             'academicLevel',  // ✅ Nuevo
-            'paymentPlan'     // ✅ Nuevo
+            'paymentPlan',     // ✅ Nuevo
+            'referredByStudent' // ✅ Nuevo: relación con el estudiante que refirió
         ]);
         
         // ✅ IMPORTANTE: Excluir estudiantes matriculados y verificados (ya están en enrolled-students)
@@ -400,6 +409,13 @@ class StudentController extends Controller
                     'guardianBirthDate' => $student->guardian_birth_date?->format('Y-m-d'),
                     'guardianPhone' => $student->guardian_phone,
                     'guardianAddress' => $student->guardian_address,
+                    'source' => $student->source,  // ✅ Nuevo: origen del prospecto
+                    'referredBy' => $student->referred_by,  // ✅ Nuevo: ID del estudiante que refirió
+                    'referredByStudent' => $student->referredByStudent ? [  // ✅ Nuevo: datos del estudiante que refirió
+                        'id' => $student->referredByStudent->id,
+                        'name' => $student->referredByStudent->first_name . ' ' . $student->referredByStudent->paternal_last_name,
+                        'email' => $student->referredByStudent->user->email ?? '',
+                    ] : null,
                     'registeredBy' => $student->registeredBy ? [
                         'id' => $student->registeredBy->id,
                         'name' => $student->registeredBy->name,
@@ -445,8 +461,22 @@ class StudentController extends Controller
             'document_type' => 'required|string',
             'document_number' => 'required|string|unique:students',
             'education_level' => 'required|string',
-            'academic_level_id' => 'nullable|exists:academic_levels,id',  // ✅ Cambiado de 'level'
+            'academic_level_id' => 'nullable|exists:academic_levels,id',
             'class_type' => 'required|in:theoretical,practical',
+            // Examen de categorización
+            'has_placement_test' => 'nullable|boolean',
+            'test_date' => 'nullable|date',
+            'test_score' => 'nullable|numeric',
+            // Datos del apoderado
+            'guardian_name' => 'nullable|string',
+            'guardian_document_number' => 'nullable|string',
+            'guardian_email' => 'nullable|email',
+            'guardian_birth_date' => 'nullable|date',
+            'guardian_phone' => 'nullable|string',
+            'guardian_address' => 'nullable|string',
+            // Origen y referencia
+            'source' => 'required|in:frio,referido,lead',
+            'referred_by' => 'nullable|exists:students,id|required_if:source,referido',
         ]);
 
         try {
@@ -693,6 +723,8 @@ class StudentController extends Controller
             'guardian_phone' => 'nullable|string',
             'guardian_address' => 'nullable|string',
             'status' => 'sometimes|required|in:active,inactive',
+            'source' => 'nullable|in:frio,referido,lead',
+            'referred_by' => 'nullable|exists:students,id',
         ]);
 
         // Manejar subida del archivo PDF del contrato

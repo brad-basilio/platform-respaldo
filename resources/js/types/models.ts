@@ -75,6 +75,15 @@ export interface Student extends User {
   guardianPhone?: string;
   guardianAddress?: string;
 
+  // Origen y Referencia
+  source?: 'frio' | 'referido' | 'lead';
+  referredBy?: number;  // ✅ Cambiado de string a number (es el ID del estudiante)
+  referredByStudent?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+
   // Datos de Registro
   registeredBy?: {
     id: string;

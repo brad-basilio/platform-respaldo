@@ -308,8 +308,22 @@ const StudentManagement: React.FC<Props> = ({
         document_type: formData.documentType,
         document_number: formData.documentNumber,
         education_level: formData.educationLevel,
-        academic_level_id: formData.academicLevelId,  // ✅ Cambiado de 'level'
+        academic_level_id: formData.academicLevelId,
         class_type: 'theoretical', // Por defecto
+        // Examen de categorización
+        has_placement_test: formData.hasPlacementTest,
+        test_date: formData.testDate,
+        test_score: formData.testScore,
+        // Datos del apoderado
+        guardian_name: formData.guardianName,
+        guardian_document_number: formData.guardianDocumentNumber,
+        guardian_email: formData.guardianEmail,
+        guardian_birth_date: formData.guardianBirthDate,
+        guardian_phone: formData.guardianPhone,
+        guardian_address: formData.guardianAddress,
+        // Origen y referencia
+        source: formData.source,
+        referred_by: formData.referredBy,
       });
 
   // Agregar el nuevo estudiante al estado canónico refrescando desde el servidor
@@ -393,6 +407,8 @@ const StudentManagement: React.FC<Props> = ({
       if (formData.guardianBirthDate) data.append('guardian_birth_date', formData.guardianBirthDate);
       if (formData.guardianPhone) data.append('guardian_phone', formData.guardianPhone);
       if (formData.guardianAddress) data.append('guardian_address', formData.guardianAddress);
+      if (formData.source) data.append('source', formData.source);
+      if (formData.referredBy) data.append('referred_by', formData.referredBy.toString());
       data.append('status', formData.status);
     }
 
@@ -804,8 +820,35 @@ const StudentManagement: React.FC<Props> = ({
       guardianPhone: student?.guardianPhone || '',
       guardianAddress: student?.guardianAddress || '',
 
+      // Origen y Referencia
+      source: student?.source || 'frio',
+      referredBy: student?.referredBy || null,
+
       status: student?.status || 'active',
     });
+
+    // Estado para lista de estudiantes disponibles para referir
+    const [availableStudents, setAvailableStudents] = useState<Array<{value: string | number, label: string}>>([]);
+
+    // Cargar lista de estudiantes para Select2 de referidos
+    React.useEffect(() => {
+      const fetchAvailableStudents = async () => {
+        try {
+          const response = await axios.get('/api/admin/students');
+          const studentOptions = response.data
+            .filter((s: any) => s.id !== student?.id) // Excluir al estudiante actual si está editando
+            .map((s: any) => ({
+              value: s.id,
+              label: `${s.name} (${s.email})`
+            }));
+          setAvailableStudents(studentOptions);
+        } catch (error) {
+          console.error('Error loading students for referral:', error);
+        }
+      };
+      
+      fetchAvailableStudents();
+    }, [student?.id]);
 
     // Debug: Mostrar valores iniciales cuando es cajero
     React.useEffect(() => {
@@ -1044,6 +1087,49 @@ const StudentManagement: React.FC<Props> = ({
                       />
                     </div>
                   </div>
+
+                  {/* Sección: Origen y Referencia */}
+             
+                    <div className="border-t border-gray-200 pt-6 mt-6">
+                      <div className="flex items-center mb-4 pb-2 border-b-2 border-[#F98613]">
+                        <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold mr-3">
+                        1. 1
+                        </div>
+                        <h4 className="text-lg font-semibold text-gray-900">Origen del Prospecto</h4>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Select2
+                          label="¿Cómo llegó el prospecto?"
+                          value={formData.source}
+                          onChange={(value) => {
+                            const source = value as 'frio' | 'referido' | 'lead';
+                            setFormData({ ...formData, source, referredBy: source !== 'referido' ? null : formData.referredBy });
+                          }}
+                          options={[
+                            { value: 'frio', label: 'Frío (Sin referencia)' },
+                            { value: 'referido', label: 'Referido por estudiante' },
+                            { value: 'lead', label: 'Lead (Marketing)' }
+                          ]}
+                          isSearchable={false}
+                          required
+                        />
+
+                        {formData.source === 'referido' && (
+                          <Select2
+                            label="Estudiante que lo refirió"
+                            value={formData.referredBy}
+                            onChange={(value) => setFormData({ ...formData, referredBy: value ? Number(value) : null })}
+                            options={availableStudents}
+                            isSearchable={true}
+                            isClearable={true}
+                            required
+                            helperText="Busca y selecciona el estudiante que lo refirió"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  
 
                   {/* Sección: Datos Académicos - Solo visible cuando el prospecto ya avanzó de "Registrado" */}
                   {student && student.prospectStatus !== 'registrado' && (

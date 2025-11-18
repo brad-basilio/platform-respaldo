@@ -33,18 +33,18 @@ class Student extends Model
         // Estado y Tipo
         'status',
         'class_type',
-        'academic_level_id',  // ✅ Cambiado de 'level'
+        'academic_level_id',
         // Datos Académicos
         'payment_date',
         'enrollment_date',
         'registration_date',
         'enrollment_code',
-        'payment_plan_id',  // ✅ Cambiado de 'contracted_plan'
+        'payment_plan_id',
         'contract_url',
         'contract_file_name',
         'contract_file_path',
-        'payment_voucher_url',       // ✅ NUEVO: URL del voucher de pago
-        'payment_voucher_file_name', // ✅ NUEVO: Nombre del archivo del voucher
+        'payment_voucher_url',
+        'payment_voucher_file_name',
         'payment_verified',
         // Examen de Categorización
         'has_placement_test',
@@ -61,6 +61,9 @@ class Student extends Model
         'points',
         // Estado del Prospecto
         'prospect_status',
+        // Origen y Referencia
+        'source',
+        'referred_by',
     ];
 
     protected $casts = [
@@ -80,8 +83,9 @@ class Student extends Model
         'registered_by' => 'integer',
         'verified_payment_by' => 'integer',
         'verified_enrollment_by' => 'integer',
-        'academic_level_id' => 'integer',  // ✅ Agregado
-        'payment_plan_id' => 'integer',    // ✅ Agregado
+        'academic_level_id' => 'integer',
+        'payment_plan_id' => 'integer',
+        'referred_by' => 'integer',
     ];
 
     public function user(): BelongsTo
@@ -102,6 +106,16 @@ class Student extends Model
     public function verifiedEnrollmentBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'verified_enrollment_by');
+    }
+
+    public function referredByStudent(): BelongsTo
+    {
+        return $this->belongsTo(Student::class, 'referred_by');
+    }
+
+    public function referrals(): HasMany
+    {
+        return $this->hasMany(Student::class, 'referred_by');
     }
 
     public function groups(): BelongsToMany
