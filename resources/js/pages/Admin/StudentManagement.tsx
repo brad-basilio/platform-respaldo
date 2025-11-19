@@ -91,16 +91,21 @@ const StudentManagement: React.FC<Props> = ({
     console.log('📊 Total students received:', students.length);
     console.log('📊 Students data sample:', students.slice(0, 2));
     
-    // EXCLUIR MATRICULADOS VERIFICADOS para TODOS los roles (ya están en enrolled-students)
+    // EXCLUIR MATRICULADOS VERIFICADOS y ARCHIVADOS para TODOS los roles
     const filtered = students.filter(student => {
       const isVerified = student.prospectStatus === 'matriculado' && student.enrollmentVerified;
+      const isArchived = student.archived;
       
       if (isVerified) {
         console.log('❌ Filtering out verified student:', student.name, student.enrollmentCode);
       }
       
-      // Si está matriculado y verificado, NO mostrarlo
-      return !isVerified;
+      if (isArchived) {
+        console.log('❌ Filtering out archived student:', student.name);
+      }
+      
+      // Si está matriculado y verificado O archivado, NO mostrarlo
+      return !isVerified && !isArchived;
     });
     
     console.log('✅ After filtering:', filtered.length);
@@ -324,6 +329,10 @@ const StudentManagement: React.FC<Props> = ({
         // Origen y referencia
         source: formData.source,
         referred_by: formData.referredBy,
+        // Clase modelo y archivado
+        had_demo_class: formData.hadDemoClass,
+        archived: formData.archived,
+        archived_reason: formData.archivedReason,
       });
 
   // Agregar el nuevo estudiante al estado canónico refrescando desde el servidor
@@ -409,6 +418,9 @@ const StudentManagement: React.FC<Props> = ({
       if (formData.guardianAddress) data.append('guardian_address', formData.guardianAddress);
       if (formData.source) data.append('source', formData.source);
       if (formData.referredBy) data.append('referred_by', formData.referredBy.toString());
+      data.append('had_demo_class', formData.hadDemoClass ? '1' : '0');
+      data.append('archived', formData.archived ? '1' : '0');
+      if (formData.archivedReason) data.append('archived_reason', formData.archivedReason);
       data.append('status', formData.status);
     }
 
@@ -781,6 +793,8 @@ const StudentManagement: React.FC<Props> = ({
     onSubmit: (data: any) => void;
     onCancel: () => void;
   }) => {
+    const [showArchiveConfirmation, setShowArchiveConfirmation] = useState(false);
+    
     const [formData, setFormData] = useState({
       // Datos Personales
       firstName: student?.firstName || '',
@@ -823,6 +837,11 @@ const StudentManagement: React.FC<Props> = ({
       // Origen y Referencia
       source: student?.source || 'frio',
       referredBy: student?.referredBy || null,
+
+      // Clase Modelo y Archivado
+      hadDemoClass: student?.hadDemoClass || false,
+      archived: student?.archived || false,
+      archivedReason: student?.archivedReason || '',
 
       status: student?.status || 'active',
     });
@@ -923,16 +942,93 @@ const StudentManagement: React.FC<Props> = ({
     }, []);
 
     return (
-      <div
-        className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm animate-fade-in flex items-center justify-center p-4"
-        onClick={onCancel}
-        style={{ height: '100vh', width: '100vw' }}
-      >
-        {/* Modal Container */}
+      <>
+        {/* Modal de Confirmación de Archivo */}
+        {showArchiveConfirmation && (
+          <div className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-scale-in">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-[#F98613] to-orange-600 px-6 py-4 rounded-t-2xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Confirmar Archivo</h3>
+                </div>
+              </div>
+
+              {/* Contenido */}
+              <div className="p-6">
+                <p className="text-gray-700 mb-2">
+                  ¿Estás seguro de que deseas archivar este prospecto?
+                </p>
+                <div className="bg-orange-50 border-l-4 border-[#F98613] p-3 rounded mt-4">
+                  <p className="text-sm text-gray-600">
+                    • El prospecto volverá al estado <span className="font-semibold">"Registrado"</span>
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    • Podrás encontrarlo en la sección <span className="font-semibold">"Prospectos Archivados"</span>
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    • Podrás restaurarlo en cualquier momento
+                  </p>
+                </div>
+              </div>
+
+              {/* Footer con botones */}
+              <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowArchiveConfirmation(false)}
+                  className="px-4 py-2 text-gray-700 bg-white hover:bg-gray-100 border-2 border-gray-300 rounded-lg font-semibold transition-all duration-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log('🔥 CONFIRMANDO ARCHIVO');
+                    console.log('📝 formData actual:', formData);
+                    
+                    // Actualizar el formData y cerrar el modal
+                    const updatedFormData = { ...formData, archived: true };
+                    
+                    console.log('✅ formData actualizado:', updatedFormData);
+                    
+                    setFormData(updatedFormData);
+                    setShowArchiveConfirmation(false);
+                    
+                    // Enviar el formulario directamente con los datos actualizados
+                    setTimeout(() => {
+                      console.log('📤 Enviando datos al backend:', updatedFormData);
+                      onSubmit(updatedFormData);
+                    }, 100);
+                  }}
+                  className="px-4 py-2 bg-[#F98613] hover:bg-orange-600 text-white rounded-lg font-semibold transition-all duration-200 flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                  Sí, Archivar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Principal */}
         <div
-          className="relative bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col animate-scale-in"
-          onClick={(e) => e.stopPropagation()}
+          className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm animate-fade-in flex items-center justify-center p-4"
+          onClick={onCancel}
+          style={{ height: '100vh', width: '100vw' }}
         >
+          {/* Modal Container */}
+          <div
+            className="relative bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
           {/* Header del Modal */}
           <div className="relative bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6 rounded-t-3xl flex-shrink-0">
             <div className="flex items-center justify-between">
@@ -1130,6 +1226,68 @@ const StudentManagement: React.FC<Props> = ({
                       </div>
                     </div>
                   
+                  {/* Sección: Clase Modelo y Archivado - Solo visible cuando está en "Reunión Realizada" */}
+                  {student && student.prospectStatus === 'propuesta_enviada' && !student.archived && (
+                    <div className="border-t border-gray-200 pt-6 mt-6">
+                      <div className="flex items-center mb-4 pb-2 border-b-2 border-[#17BC91]">
+                        <div className="w-8 h-8 bg-[#17BC91] text-white rounded-full flex items-center justify-center font-bold mr-3">
+                          1.2
+                        </div>
+                        <h4 className="text-lg font-semibold text-gray-900">Estado de la Reunión</h4>
+                      </div>
+
+                      <div className="space-y-6">
+                        {/* Checkbox: ¿Tuvo clase modelo? */}
+                        <div className="flex items-start space-x-3">
+                          <input
+                            type="checkbox"
+                            id="hadDemoClass"
+                            checked={formData.hadDemoClass}
+                            onChange={(e) => setFormData({ ...formData, hadDemoClass: e.target.checked })}
+                            className="mt-1 w-5 h-5 text-[#17BC91] border-gray-300 rounded focus:ring-[#17BC91] cursor-pointer"
+                          />
+                          <label htmlFor="hadDemoClass" className="flex-1 cursor-pointer">
+                            <span className="text-sm font-semibold text-gray-900">¿El prospecto tuvo clase modelo?</span>
+                            <p className="text-xs text-gray-500 mt-1">Marca esta opción si el prospecto asistió a una clase de demostración</p>
+                          </label>
+                        </div>
+
+                        {/* Sección Archivar con línea divisoria sutil */}
+                        <div className="border-t border-gray-200 pt-6">
+                          <div className="flex items-start space-x-3 mb-4">
+                            <div className="flex-shrink-0 mt-1">
+                              <svg className="w-5 h-5 text-[#F98613]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                              </svg>
+                            </div>
+                            <div className="flex-1">
+                              <h5 className="text-sm font-semibold text-gray-900">Archivar Prospecto</h5>
+                              <p className="text-xs text-gray-500 mt-1">Si no se llegó a un acuerdo o el prospecto no está interesado, puedes archivarlo</p>
+                            </div>
+                          </div>
+                          
+                          <textarea
+                            placeholder="Razón del archivo (opcional)"
+                            value={formData.archivedReason}
+                            onChange={(e) => setFormData({ ...formData, archivedReason: e.target.value })}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F98613] focus:border-transparent mb-3 resize-none"
+                            rows={3}
+                          />
+                          
+                          <button
+                            type="button"
+                            onClick={() => setShowArchiveConfirmation(true)}
+                            className="w-full border-2 border-[#F98613] text-[#F98613] hover:bg-[#F98613] hover:text-white px-4 py-2.5 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                            </svg>
+                            Archivar Prospecto
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Sección: Datos Académicos - Solo visible cuando el prospecto ya avanzó de "Registrado" */}
                   {student && student.prospectStatus !== 'registrado' && (
@@ -1713,6 +1871,7 @@ const StudentManagement: React.FC<Props> = ({
           </form>
         </div>
       </div>
+      </>
     );
   };
 

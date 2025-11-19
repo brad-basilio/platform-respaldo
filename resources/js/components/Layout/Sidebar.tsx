@@ -50,10 +50,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
     if (currentComponent === 'Cashier/PaymentReports') return 'payment-reports';
     if (currentComponent === 'Dashboard/Verifier') return 'dashboard';
     if (currentComponent === 'Dashboard/Admin') return 'dashboard';
+    if (currentComponent === 'SalesAdvisor/ArchivedStudents') return 'archived-students';
     
     if (currentUrl.startsWith('/admin/students')) return 'students';
     if (currentUrl.startsWith('/admin/enrolled-students')) return 'enrolled-students';
     if (currentUrl.startsWith('/sales-advisor/enrolled-students')) return 'enrolled-students';
+    if (currentUrl.startsWith('/sales-advisor/archived-students')) return 'archived-students';
     if (currentUrl.startsWith('/verifier/enrolled-students')) return 'enrolled-students';
     if (currentUrl.startsWith('/admin/teachers')) return 'teachers';
     if (currentUrl.startsWith('/admin/groups')) return 'groups';
@@ -86,6 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
       'enrolled-students': user?.role === 'sales_advisor' 
         ? '/sales-advisor/enrolled-students' 
         : '/admin/enrolled-students', // verifier y admin usan la misma ruta
+      'archived-students': '/sales-advisor/archived-students',
       'teachers': '/admin/teachers',
       'groups': '/admin/groups',
       'academic-levels': '/admin/academic-levels',
@@ -219,6 +222,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
             items: [
               { id: 'students', label: 'Mis Prospectos', icon: RiTeamLine },
               { id: 'enrolled-students', label: 'Inscritos Verificados', icon: RiGraduationCapLine },
+              { id: 'archived-students', label: 'Prospectos Archivados', icon: RiFileListLine },
             ]
           },
         ];

@@ -189,6 +189,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Sales Advisor routes
     Route::middleware('can:sales_advisor')->group(function () {
         Route::get('/sales-advisor/enrolled-students', [StudentController::class, 'salesAdvisorEnrolledStudents'])->name('sales-advisor.enrolled-students');
+        Route::get('/sales-advisor/archived-students', [StudentController::class, 'salesAdvisorArchivedStudents'])->name('sales-advisor.archived-students');
     });
     
     // Settings

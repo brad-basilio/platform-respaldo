@@ -64,6 +64,11 @@ class Student extends Model
         // Origen y Referencia
         'source',
         'referred_by',
+        // Clase Modelo y Archivado
+        'had_demo_class',
+        'archived',
+        'archived_at',
+        'archived_reason',
     ];
 
     protected $casts = [
@@ -86,6 +91,9 @@ class Student extends Model
         'academic_level_id' => 'integer',
         'payment_plan_id' => 'integer',
         'referred_by' => 'integer',
+        'had_demo_class' => 'boolean',
+        'archived' => 'boolean',
+        'archived_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

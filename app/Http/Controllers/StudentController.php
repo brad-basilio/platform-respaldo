@@ -170,6 +170,48 @@ class StudentController extends Controller
         ]);
     }
 
+    public function salesAdvisorArchivedStudents(): Response
+    {
+        $user = auth()->user();
+        
+        // Solo mostrar estudiantes archivados del asesor
+        $students = Student::with(['user', 'academicLevel', 'paymentPlan'])
+            ->where('archived', true)
+            ->where('registered_by', $user->id)
+            ->orderBy('archived_at', 'desc')
+            ->get()
+            ->map(function ($student) {
+                return [
+                    'id' => $student->id,
+                    'name' => $student->user->name ?? '',
+                    'avatar' => $student->user->avatar ?? null,
+                    'firstName' => $student->first_name,
+                    'paternalLastName' => $student->paternal_last_name,
+                    'maternalLastName' => $student->maternal_last_name,
+                    'email' => $student->user->email ?? '',
+                    'phoneNumber' => $student->phone_number,
+                    'prospectStatus' => $student->prospect_status,
+                    'archived' => $student->archived,
+                    'archivedAt' => $student->archived_at?->toISOString(),
+                    'archivedReason' => $student->archived_reason,
+                    'academicLevel' => $student->academicLevel ? [
+                        'id' => $student->academicLevel->id,
+                        'name' => $student->academicLevel->name,
+                        'code' => $student->academicLevel->code,
+                    ] : null,
+                    'paymentPlan' => $student->paymentPlan ? [
+                        'id' => $student->paymentPlan->id,
+                        'name' => $student->paymentPlan->name,
+                        'installments_count' => $student->paymentPlan->installments_count,
+                    ] : null,
+                ];
+            });
+
+        return Inertia::render('SalesAdvisor/ArchivedStudents', [
+            'archivedStudents' => $students,
+        ]);
+    }
+
     public function index(): Response
     {
         $user = auth()->user();
@@ -193,6 +235,9 @@ class StudentController extends Controller
             $q->where('prospect_status', 'matriculado')
               ->where('enrollment_verified', 1);
         });
+        
+        // ✅ EXCLUIR ARCHIVADOS (ya están en archived-students)
+        $query->where('archived', false);
         
         // Filtrar según el rol
         if ($user->role === 'sales_advisor') {
@@ -298,6 +343,10 @@ class StudentController extends Controller
                     'createdAt' => $student->created_at->toISOString(),
                     'enrolledGroups' => $student->groups->pluck('id')->toArray(),
                     'assignedGroupId' => $student->groups->first()?->id,
+                    'hadDemoClass' => $student->had_demo_class ?? false,  // ✅ Nuevo: si tuvo clase modelo
+                    'archived' => $student->archived ?? false,  // ✅ Nuevo: si fue archivado
+                    'archivedAt' => $student->archived_at?->toISOString(),  // ✅ Nuevo: cuándo fue archivado
+                    'archivedReason' => $student->archived_reason,  // ✅ Nuevo: razón del archivo
                 ];
             });
 
@@ -348,6 +397,9 @@ class StudentController extends Controller
             $q->where('prospect_status', 'matriculado')
               ->where('enrollment_verified', 1);
         });
+        
+        // ✅ EXCLUIR ARCHIVADOS (ya están en archived-students)
+        $query->where('archived', false);
         
         // Filtrar según el rol
         if ($user->role === 'sales_advisor') {
@@ -437,6 +489,10 @@ class StudentController extends Controller
                     'createdAt' => $student->created_at->toISOString(),
                     'enrolledGroups' => $student->groups->pluck('id')->toArray(),
                     'assignedGroupId' => $student->groups->first()?->id,
+                    'hadDemoClass' => $student->had_demo_class ?? false,  // ✅ Nuevo: si tuvo clase modelo
+                    'archived' => $student->archived ?? false,  // ✅ Nuevo: si fue archivado
+                    'archivedAt' => $student->archived_at?->toISOString(),  // ✅ Nuevo: cuándo fue archivado
+                    'archivedReason' => $student->archived_reason,  // ✅ Nuevo: razón del archivo
                 ];
             });
 
@@ -477,6 +533,10 @@ class StudentController extends Controller
             // Origen y referencia
             'source' => 'required|in:frio,referido,lead',
             'referred_by' => 'nullable|exists:students,id|required_if:source,referido',
+            // Clase modelo y archivado
+            'had_demo_class' => 'nullable|boolean',
+            'archived' => 'nullable|boolean',
+            'archived_reason' => 'nullable|string',
         ]);
 
         try {
@@ -725,6 +785,10 @@ class StudentController extends Controller
             'status' => 'sometimes|required|in:active,inactive',
             'source' => 'nullable|in:frio,referido,lead',
             'referred_by' => 'nullable|exists:students,id',
+            // Clase modelo y archivado
+            'had_demo_class' => 'nullable|boolean',
+            'archived' => 'nullable|boolean',
+            'archived_reason' => 'nullable|string',
         ]);
 
         // Manejar subida del archivo PDF del contrato
@@ -771,16 +835,34 @@ class StudentController extends Controller
             ]);
         }
 
-        // Update user
-        $student->user->update([
-            'name' => trim("{$validated['first_name']} {$validated['paternal_last_name']} {$validated['maternal_last_name']}"),
-            'email' => $validated['email'],
-        ]);
+        // Update user solo si se proporcionan los campos de nombre y email
+        if (isset($validated['first_name']) && isset($validated['paternal_last_name']) && isset($validated['email'])) {
+            $student->user->update([
+                'name' => trim("{$validated['first_name']} {$validated['paternal_last_name']} {$validated['maternal_last_name']}"),
+                'email' => $validated['email'],
+            ]);
+        }
 
         // Log para debug
         Log::info('Updating student with validated data:', $validated);
 
-        // Update student
+        // ✅ VERIFICAR SI SE ESTÁ ARCHIVANDO ANTES DE ACTUALIZAR
+        $isBeingArchived = isset($validated['archived']) && $validated['archived'] && !$student->archived;
+        
+        if ($isBeingArchived) {
+            // Agregar campos de archivo a los datos validados
+            $validated['archived_at'] = now();
+            $validated['prospect_status'] = 'registrado'; // Volver a registrado para que no aparezca en columnas avanzadas
+            
+            Log::info('Estudiante siendo archivado:', [
+                'student_id' => $student->id,
+                'archived_by' => auth()->id(),
+                'reason' => $validated['archived_reason'] ?? 'Sin razón especificada',
+                'archived_at' => $validated['archived_at'],
+            ]);
+        }
+
+        // Update student con todos los datos (incluido archived_at si aplica)
         $student->update($validated);
 
         // Lógica de cambio de estado automático para Sales Advisor

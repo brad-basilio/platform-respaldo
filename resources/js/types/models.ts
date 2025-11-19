@@ -84,6 +84,12 @@ export interface Student extends User {
     email: string;
   };
 
+  // Clase Modelo y Archivado
+  hadDemoClass?: boolean;  // ✅ Nuevo: si tuvo clase modelo
+  archived?: boolean;  // ✅ Nuevo: si fue archivado
+  archivedAt?: string;  // ✅ Nuevo: cuándo fue archivado
+  archivedReason?: string;  // ✅ Nuevo: razón del archivo
+
   // Datos de Registro
   registeredBy?: {
     id: string;
