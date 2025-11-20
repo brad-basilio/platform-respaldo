@@ -20,7 +20,7 @@ class ContractMail extends Mailable
     public string $token;
     public string $contractUrl;
     public string $pdfPath;
-    public string $emailContent;
+    public ?string $emailContent = null;
 
     /**
      * Create a new message instance.
