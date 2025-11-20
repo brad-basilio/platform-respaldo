@@ -395,6 +395,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                       image_title: true,
                       image_advtab: true,
                       automatic_uploads: true,
+                      paste_data_images: true,
                       file_picker_types: 'image',
                       images_upload_url: '/admin/upload-image',
                       relative_urls: false,
@@ -402,27 +403,44 @@ const Settings: React.FC<Props> = ({ settings }) => {
                       convert_urls: true,
                       extended_valid_elements: 'img[data-src|src|alt|style|width|height|class]',
                       images_upload_handler: (blobInfo) => new Promise((resolve, reject) => {
-                        const formData = new FormData();
-                        formData.append('file', blobInfo.blob(), blobInfo.filename());
+                        (async () => {
+                          try {
+                            // Primero obtener el CSRF cookie
+                            await fetch('/sanctum/csrf-cookie', { credentials: 'same-origin' });
 
-                        fetch('/admin/upload-image', {
-                          method: 'POST',
-                          body: formData,
-                          headers: {
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-                          }
-                        })
-                          .then(response => response.json())
-                          .then(result => {
+                            const formData = new FormData();
+                            formData.append('file', blobInfo.blob(), blobInfo.filename());
+
+                            // Obtener el token CSRF de las cookies
+                            const getCookie = (name: string) => {
+                              const value = `; ${document.cookie}`;
+                              const parts = value.split(`; ${name}=`);
+                              if (parts.length === 2) return parts.pop()?.split(';').shift();
+                              return '';
+                            };
+
+                            const csrfToken = decodeURIComponent(getCookie('XSRF-TOKEN') || '');
+
+                            const response = await fetch('/admin/upload-image', {
+                              method: 'POST',
+                              body: formData,
+                              credentials: 'same-origin',
+                              headers: {
+                                'X-XSRF-TOKEN': csrfToken
+                              }
+                            });
+
+                            const result = await response.json();
+                            
                             if (result.location) {
                               resolve(result.location);
                             } else {
                               reject('Error al subir imagen');
                             }
-                          })
-                          .catch(() => {
+                          } catch {
                             reject('Error al subir imagen');
-                          });
+                          }
+                        })();
                       }),
                       content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
                       setup: (editor) => {
@@ -557,6 +575,53 @@ const Settings: React.FC<Props> = ({ settings }) => {
                         'alignleft aligncenter alignright alignjustify | ' +
                         'bullist numlist outdent indent | link image media | ' +
                         'table tabledelete | code | removeformat | help',
+                      automatic_uploads: true,
+                      paste_data_images: true,
+                      file_picker_types: 'image',
+                      images_upload_url: '/admin/upload-image',
+                      relative_urls: false,
+                      remove_script_host: false,
+                      convert_urls: true,
+                      images_upload_handler: (blobInfo) => new Promise((resolve, reject) => {
+                        (async () => {
+                          try {
+                            // Primero obtener el CSRF cookie
+                            await fetch('/sanctum/csrf-cookie', { credentials: 'same-origin' });
+
+                            const formData = new FormData();
+                            formData.append('file', blobInfo.blob(), blobInfo.filename());
+
+                            // Obtener el token CSRF de las cookies
+                            const getCookie = (name: string) => {
+                              const value = `; ${document.cookie}`;
+                              const parts = value.split(`; ${name}=`);
+                              if (parts.length === 2) return parts.pop()?.split(';').shift();
+                              return '';
+                            };
+
+                            const csrfToken = decodeURIComponent(getCookie('XSRF-TOKEN') || '');
+
+                            const response = await fetch('/admin/upload-image', {
+                              method: 'POST',
+                              body: formData,
+                              credentials: 'same-origin',
+                              headers: {
+                                'X-XSRF-TOKEN': csrfToken
+                              }
+                            });
+
+                            const result = await response.json();
+                            
+                            if (result.location) {
+                              resolve(result.location);
+                            } else {
+                              reject('Error al subir imagen');
+                            }
+                          } catch {
+                            reject('Error al subir imagen');
+                          }
+                        })();
+                      }),
                       content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; padding: 20px; }',
                     }}
                   />
