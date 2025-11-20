@@ -103,11 +103,36 @@ class ContractGeneratorService
         if ($signaturePath) {
             // DomPDF necesita base64 o ruta física del archivo
             $fullPath = Storage::disk('public')->path($signaturePath);
+            
+            \Illuminate\Support\Facades\Log::info('Procesando firma del estudiante', [
+                'signature_path' => $signaturePath,
+                'full_path' => $fullPath,
+                'exists' => file_exists($fullPath),
+            ]);
+            
             if (file_exists($fullPath)) {
-                $imageData = base64_encode(file_get_contents($fullPath));
+                $imageData = file_get_contents($fullPath);
                 $mimeType = mime_content_type($fullPath);
-                $base64Image = 'data:' . $mimeType . ';base64,' . $imageData;
-                $firmaEstudiante = '<img src="' . $base64Image . '" style="max-height: 60px; max-width: 200px; display: block; margin: 0 auto;" alt="Firma del estudiante" />';
+                
+                // Validar que sea una imagen válida
+                if (strpos($mimeType, 'image/') !== 0) {
+                    \Illuminate\Support\Facades\Log::warning('Archivo de firma no es imagen válida', [
+                        'mime_type' => $mimeType,
+                    ]);
+                } else {
+                    $base64Image = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+                    $firmaEstudiante = '<img src="' . $base64Image . '" style="max-height: 60px; max-width: 200px; display: block; margin: 0 auto;" alt="Firma del estudiante" />';
+                    
+                    \Illuminate\Support\Facades\Log::info('Firma convertida a base64', [
+                        'size_bytes' => strlen($imageData),
+                        'mime_type' => $mimeType,
+                        'base64_length' => strlen($base64Image),
+                    ]);
+                }
+            } else {
+                \Illuminate\Support\Facades\Log::error('Archivo de firma no encontrado', [
+                    'full_path' => $fullPath,
+                ]);
             }
         }
 
