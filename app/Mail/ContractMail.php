@@ -89,9 +89,38 @@ class ContractMail extends Mailable
             );
         }
         
-        // Fallback: usar el view Blade
+        // Fallback: crear un template HTML básico inline
+        $fallbackHtml = "
+            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;'>
+                <h2 style='color: #073372;'>📄 Contrato de Matrícula</h2>
+                <p>Hola <strong>{$this->student->first_name} {$this->student->paternal_last_name}</strong>,</p>
+                
+                <p>Hemos generado tu contrato de matrícula. Por favor, revísalo y acéptalo haciendo clic en el siguiente enlace:</p>
+                
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='{$this->contractUrl}' 
+                       style='background-color: #17BC91; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;'>
+                        Ver y Aceptar Contrato
+                    </a>
+                </div>
+                
+                <p><strong>Detalles de tu matrícula:</strong></p>
+                <ul>
+                    <li>Código de Matrícula: <strong>{$this->student->enrollment_code}</strong></li>
+                    <li>Nivel Académico: <strong>" . ($this->student->academicLevel->name ?? 'N/A') . "</strong></li>
+                    <li>Plan de Pago: <strong>" . ($this->student->paymentPlan->name ?? 'N/A') . "</strong></li>
+                </ul>
+                
+                <p>El contrato también se encuentra adjunto como PDF en este correo.</p>
+                
+                <p style='color: #666; font-size: 12px; margin-top: 30px;'>
+                    Este es un correo automático. Por favor, no respondas a este mensaje.
+                </p>
+            </div>
+        ";
+        
         return new Content(
-            view: 'emails.contract',
+            htmlString: $fallbackHtml,
         );
     }
 
