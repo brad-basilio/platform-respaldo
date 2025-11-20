@@ -19,6 +19,7 @@ use App\Http\Controllers\CashierController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ContractController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -124,6 +125,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/admin/settings', [SettingController::class, 'update'])->name('admin.settings.update');
         Route::post('/admin/settings/single', [SettingController::class, 'updateSingle'])->name('admin.settings.update-single');
         
+        // Settings API for contract template and email templates
+        Route::post('/api/admin/settings/general', [\App\Http\Controllers\Admin\SettingsController::class, 'saveGeneralSetting'])->name('api.admin.settings.general');
+        Route::get('/api/admin/settings/general', [\App\Http\Controllers\Admin\SettingsController::class, 'getGeneralSetting'])->name('api.admin.settings.general.get');
+        
         // Academic Levels Management
         Route::resource('admin/academic-levels', AcademicLevelController::class)
             ->except(['show', 'create', 'edit'])
@@ -202,6 +207,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/student/payment-control', function () {
             return inertia('Student/PaymentControl');
         })->name('student.payment-control');
+        
+        // Contract routes
+        Route::get('/contract/accept/{token}', [ContractController::class, 'view'])->name('contract.view');
+        Route::post('/contract/accept/{token}', [ContractController::class, 'accept'])->name('contract.accept');
         
         Route::get('/api/student/enrollment', [StudentPaymentController::class, 'getEnrollment'])->name('api.student.enrollment');
         Route::post('/api/student/upload-voucher', [StudentPaymentController::class, 'uploadVoucher'])->name('api.student.upload-voucher');

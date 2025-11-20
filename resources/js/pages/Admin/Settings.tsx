@@ -8,7 +8,8 @@ import {
   RiMailLine, 
   RiWhatsappLine, 
   RiGlobalLine,
-  RiSaveLine 
+  RiSaveLine,
+  RiFileTextLine
 } from 'react-icons/ri';
 import { toast } from 'sonner';
 
@@ -37,7 +38,7 @@ interface EmailTemplate {
 }
 
 const Settings: React.FC<Props> = ({ settings }) => {
-  const [activeTab, setActiveTab] = useState<'mail' | 'whatsapp' | 'general' | 'contact' | 'payment'>('mail');
+  const [activeTab, setActiveTab] = useState<'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract'>('mail');
   const [selectedMailTemplate, setSelectedMailTemplate] = useState<string>('prospect_welcome');
   
   // Configuración de templates de email
@@ -46,6 +47,26 @@ const Settings: React.FC<Props> = ({ settings }) => {
       key: 'prospect_welcome',
       label: 'Email de Bienvenida a Prospectos',
       variables: ['nombre_estudiante', 'nombre_asesor', 'email_asesor', 'telefono_asesor', 'fecha_registro', 'url_plataforma']
+    },
+    {
+      key: 'contract_email',
+      label: 'Email de Contrato de Matrícula (con PDF adjunto)',
+      variables: ['nombre_estudiante', 'codigo_matricula', 'nivel_academico', 'plan_pago', 'url_contrato', 'fecha_actual']
+    },
+    {
+      key: 'contract_signed_student',
+      label: 'Email de Confirmación de Firma (Estudiante)',
+      variables: ['nombre_estudiante', 'codigo_matricula', 'nivel_academico', 'plan_pago', 'fecha_actual']
+    },
+    {
+      key: 'contract_signed_admin',
+      label: 'Notificación de Contrato Firmado (Admin)',
+      variables: ['nombre_estudiante', 'codigo_matricula', 'nivel_academico', 'plan_pago', 'asesor', 'fecha_firma']
+    },
+    {
+      key: 'contract_signed_advisor',
+      label: 'Notificación de Contrato Firmado (Asesor)',
+      variables: ['nombre_asesor', 'nombre_estudiante', 'codigo_matricula', 'nivel_academico', 'plan_pago', 'fecha_firma']
     },
     {
       key: 'student_enrolled',
@@ -65,6 +86,10 @@ const Settings: React.FC<Props> = ({ settings }) => {
       acc[s.key] = s.content;
       return acc;
     }, {} as Record<string, string>)
+  });
+
+  const contractForm = useForm({
+    contract_template: settings.general?.find(s => s.key === 'contract_template')?.content || '',
   });
 
   const whatsappForm = useForm({
@@ -88,6 +113,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
 
   const tabs = [
     { id: 'mail', label: 'Templates de Email', icon: RiMailLine },
+    { id: 'contract', label: 'Plantilla de Contrato', icon: RiFileTextLine },
     { id: 'whatsapp', label: 'Configuración WhatsApp', icon: RiWhatsappLine },
     { id: 'payment', label: 'Configuración de Pagos', icon: RiSettings4Line },
     { id: 'general', label: 'Configuración General', icon: RiGlobalLine },
@@ -237,6 +263,35 @@ const Settings: React.FC<Props> = ({ settings }) => {
     });
   };
 
+  const handleContractSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const settingsArray = [
+      {
+        key: 'contract_template',
+        content: contractForm.data.contract_template,
+        type: 'general',
+        description: 'Plantilla de contrato digital para estudiantes',
+      },
+    ];
+
+    contractForm.transform(() => ({ settings: settingsArray }));
+    contractForm.post('/admin/settings', {
+      onSuccess: () => {
+        toast.success('Configuración guardada', {
+          description: 'La plantilla de contrato ha sido actualizada',
+          duration: 4000,
+        });
+      },
+      onError: () => {
+        toast.error('Error', {
+          description: 'No se pudo guardar la plantilla de contrato',
+          duration: 4000,
+        });
+      }
+    });
+  };
+
   const getMailTemplateDescription = (key: string) => {
     const descriptions: Record<string, string> = {
       'welcome_email': 'Email de bienvenida para nuevos usuarios',
@@ -271,7 +326,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as 'mail' | 'whatsapp' | 'general' | 'contact' | 'payment')}
+                    onClick={() => setActiveTab(tab.id as 'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract')}
                     className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${
                       activeTab === tab.id
                         ? 'bg-gradient-to-r from-[#073372] to-[#17BC91] text-white shadow-md'
@@ -459,6 +514,86 @@ const Settings: React.FC<Props> = ({ settings }) => {
                   >
                     <RiSaveLine className="h-5 w-5 mr-2" />
                     {whatsappForm.processing ? 'Guardando...' : 'Guardar Configuración'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Contract Template Tab */}
+            {activeTab === 'contract' && (
+              <form onSubmit={handleContractSubmit} className="space-y-6">
+                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-xl p-6 mb-6">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <RiFileTextLine className="w-6 h-6 text-emerald-600" />
+                    📄 Plantilla de Contrato Digital
+                  </h3>
+                  <p className="text-sm text-slate-700">
+                    Esta plantilla se genera automáticamente cuando un prospecto pasa de <strong>"Reunión Realizada"</strong> a <strong>"Pago Por Verificar"</strong>. 
+                    El estudiante recibirá un email con un enlace para revisar y aceptar el contrato digitalmente.
+                  </p>
+                </div>
+
+                {/* Editor for Contract Template */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-900">Contenido de la Plantilla de Contrato</h3>
+                  </div>
+
+                  <Editor
+                    apiKey="0nai4nwo1mc0dumfyzl8re1odbzzr1fz4gfwzpgu5ghdnu4n"
+                    value={contractForm.data.contract_template}
+                    onEditorChange={(content) => {
+                      contractForm.setData('contract_template', content);
+                    }}
+                    init={{
+                      height: 600,
+                      menubar: 'file edit view insert format tools table help',
+                      plugins: [
+                        'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                        'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                        'insertdatetime', 'media', 'table', 'help', 'wordcount', 'visualchars', 'pagebreak'
+                      ],
+                      toolbar: 'undo redo | formatselect | bold italic underline forecolor backcolor | ' +
+                        'alignleft aligncenter alignright alignjustify | ' +
+                        'bullist numlist outdent indent | link image media | ' +
+                        'table tabledelete | code | removeformat | help',
+                      content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; padding: 20px; }',
+                    }}
+                  />
+
+                  {/* Variables disponibles */}
+                  <div className="p-4 bg-emerald-50 border-2 border-emerald-200 rounded-lg">
+                    <h4 className="font-semibold text-emerald-900 mb-2">Variables Disponibles:</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                      <code className="bg-white px-2 py-1 rounded border border-emerald-300">{'{{nombre_estudiante}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-emerald-300">{'{{documento_estudiante}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-emerald-300">{'{{email_estudiante}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-emerald-300">{'{{telefono_estudiante}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-emerald-300">{'{{nivel_academico}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-emerald-300">{'{{plan_pago}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-emerald-300">{'{{monto_total}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-emerald-300">{'{{fecha_matricula}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-emerald-300">{'{{codigo_matricula}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-emerald-300">{'{{usuario}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-emerald-300">{'{{contrasena}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-emerald-300">{'{{nombre_apoderado}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-emerald-300">{'{{documento_apoderado}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-emerald-300">{'{{fecha_actual}}'}</code>
+                    </div>
+                    <p className="text-sm text-emerald-800 mt-3">
+                      <strong>Nota:</strong> Estas variables se reemplazarán automáticamente con los datos del estudiante al generar el contrato.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={contractForm.processing}
+                    className="inline-flex items-center px-6 py-3 bg-[#073372] hover:bg-[#17BC91] text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50"
+                  >
+                    <RiSaveLine className="h-5 w-5 mr-2" />
+                    {contractForm.processing ? 'Guardando...' : 'Guardar Plantilla de Contrato'}
                   </button>
                 </div>
               </form>

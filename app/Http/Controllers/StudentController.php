@@ -7,8 +7,11 @@ use App\Models\Group;
 use App\Models\AcademicLevel;
 use App\Models\PaymentPlan;
 use App\Models\Enrollment;
+use App\Models\ContractAcceptance;
 use App\Mail\ProspectWelcomeMail;
 use App\Mail\StudentEnrolledMail;
+use App\Mail\ContractMail;
+use App\Services\ContractGeneratorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -877,6 +880,9 @@ class StudentController extends Controller
                 
                 // 🆕 CREAR ENROLLMENT automáticamente también aquí
                 $this->createEnrollmentForStudent($student);
+                
+                // 📄 GENERAR Y ENVIAR CONTRATO
+                $this->generateAndSendContract($student);
             }
         }
 
@@ -987,6 +993,9 @@ class StudentController extends Controller
         // 🆕 CREAR MATRÍCULA (ENROLLMENT) automáticamente cuando pasa a "pago_por_verificar"
         if ($newStatus === 'pago_por_verificar') {
             $this->createEnrollmentForStudent($student);
+            
+            // 📄 GENERAR Y ENVIAR CONTRATO
+            $this->generateAndSendContract($student);
         }
         
         // Recargar el estudiante con sus relaciones
@@ -1794,6 +1803,78 @@ class StudentController extends Controller
                 'success' => false,
                 'message' => 'Error al confirmar el documento: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Generar y enviar contrato cuando el prospecto pasa a "pago_por_verificar"
+     */
+    private function generateAndSendContract(Student $student): void
+    {
+        try {
+            // Cargar relaciones necesarias
+            $student->load(['academicLevel', 'paymentPlan', 'user']);
+
+            Log::info('Iniciando generación de contrato', [
+                'student_id' => $student->id,
+                'has_academic_level' => $student->academicLevel !== null,
+                'has_payment_plan' => $student->paymentPlan !== null,
+                'has_user' => $student->user !== null,
+            ]);
+
+            // Generar PDF del contrato desde template
+            $contractService = new ContractGeneratorService();
+            $pdfPath = $contractService->generateContractPDF($student);
+            $contractHTML = $contractService->generateContractHTML($student);
+
+            if (!$pdfPath || !$contractHTML) {
+                Log::warning('No se pudo generar contrato - Template no encontrado o datos incompletos', [
+                    'student_id' => $student->id,
+                    'pdf_generated' => $pdfPath !== null,
+                    'html_generated' => $contractHTML !== null,
+                ]);
+                return;
+            }
+
+            Log::info('PDF generado exitosamente', [
+                'student_id' => $student->id,
+                'pdf_path' => $pdfPath,
+            ]);
+
+            // Generar token único
+            $token = ContractAcceptance::generateToken();
+
+            // Guardar en la tabla contract_acceptances
+            ContractAcceptance::create([
+                'student_id' => $student->id,
+                'token' => $token,
+                'contract_content' => $contractHTML,
+                'pdf_path' => $pdfPath,
+                'accepted_at' => null,
+                'ip_address' => null,
+            ]);
+
+            Log::info('Registro de contrato creado en DB', [
+                'student_id' => $student->id,
+                'token' => $token,
+            ]);
+
+            // Enviar email con PDF adjunto y link para aceptar
+            Mail::to($student->user->email)->send(new ContractMail($student, $token, $pdfPath));
+
+            Log::info('Contrato PDF generado y enviado', [
+                'student_id' => $student->id,
+                'student_email' => $student->user->email,
+                'token' => $token,
+                'pdf_path' => $pdfPath,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al generar y enviar contrato', [
+                'student_id' => $student->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
 }

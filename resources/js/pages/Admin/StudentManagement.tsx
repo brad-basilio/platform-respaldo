@@ -425,11 +425,10 @@ const StudentManagement: React.FC<Props> = ({
     }
 
     // Agregar archivos si existen
-    if (formData.contractFile) {
-      data.append('contract_file', formData.contractFile);
-    }
+    // ✅ NOTA: El contrato ya no se sube manualmente, se genera automáticamente
+    // cuando el prospecto pasa a "Pago Por Verificar"
     
-    // ✅ NUEVO: Agregar voucher de pago si existe
+    // ✅ Agregar voucher de pago si existe
     if (formData.paymentVoucherFile) {
       data.append('payment_voucher_file', formData.paymentVoucherFile);
     }
@@ -815,8 +814,6 @@ const StudentManagement: React.FC<Props> = ({
       enrollmentCode: student?.enrollmentCode || '',
       academicLevelId: student?.academicLevelId || undefined,  // ✅ Cambiado de academicLevel
       paymentPlanId: student?.paymentPlanId || undefined,      // ✅ Cambiado de contractedPlan
-      contractFile: null as File | null,
-      contractFileName: student?.contractFileName || '',
       paymentVoucherFile: null as File | null,                 // ✅ Nuevo: archivo del voucher
       paymentVoucherFileName: student?.paymentVoucherFileName || '', // ✅ Nuevo: nombre del voucher
       paymentVerified: student?.paymentVerified || false,
@@ -1481,125 +1478,38 @@ const StudentManagement: React.FC<Props> = ({
                       />
                     </div>
 
-                    {/* Subir Contrato y Verificación de Pago */}
-                    <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                      <div className="grid grid-cols-1 gap-4">
-
-                        {/* Mostrar contrato existente si ya hay uno */}
-                        {student?.contractFileName && !formData.contractFile && (
-                          <div className="bg-white rounded-xl p-4 border-2 border-purple-200">
-                            <label className="block text-sm font-medium text-gray-700 mb-3">
-                              Contrato Actual
-                            </label>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                                  <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-                                  </svg>
-                                </div>
-                                <div>
-                                  <p className="font-bold text-gray-900">{student.contractFileName}</p>
-                                  <p className="text-sm text-gray-500">PDF del contrato subido</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <a
-                                  href={`/admin/students/${student.id}/contract`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2 text-sm"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                  </svg>
-                                  Ver
-                                </a>
-                                {!isCashierEditing && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setFormData({ ...formData, contractFileName: '', contractFile: null })}
-                                    className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition-colors text-sm"
-                                  >
-                                    Cambiar
-                                  </button>
-                                )}
-                              </div>
-                            </div>
+                    {/* ✅ NUEVO: Campo para subir voucher de pago ya eliminado - ahora se genera automáticamente */}
+                    {/* El contrato se genera automáticamente cuando el prospecto pasa a "Pago Por Verificar" */}
+                    {/* El estudiante recibirá un email con el link para revisar y aceptar el contrato */}
+                    
+                    {/* Mostrar contrato generado automáticamente si existe */}
+                    {student?.contractFileName && (
+                      <div className="mt-6 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border-2 border-emerald-300">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                            <svg className="w-5 h-5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
+                            </svg>
                           </div>
-                        )}
-
-                        {/* Mostrar input para subir nuevo contrato */}
-                        {(!student?.contractFileName || formData.contractFile || formData.contractFileName === '') && (
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              {student?.contractFileName ? 'Nuevo Contrato (PDF)' : 'Contrato (PDF)'}
-                            </label>
-                            <div className="flex items-center space-x-2">
-                              <label className="flex-1 cursor-pointer">
-                                <div className="flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all">
-                                  <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                  </svg>
-                                  <span className="text-sm text-gray-600">
-                                    {formData.contractFile?.name || 'Seleccionar archivo PDF'}
-                                  </span>
-                                </div>
-                                <input
-                                  type="file"
-                                  accept=".pdf"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      setFormData({
-                                        ...formData,
-                                        contractFile: file,
-                                        contractFileName: file.name
-                                      });
-                                    }
-                                  }}
-                                />
-                              </label>
-                              {formData.contractFile && (
-                                <button
-                                  type="button"
-                                  onClick={() => setFormData({ ...formData, contractFile: null, contractFileName: student?.contractFileName || '' })}
-                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                  title="Eliminar archivo"
-                                >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Adjunta el contrato firmado en formato PDF (máx. 10MB)
-                            </p>
+                            <h4 className="font-bold text-gray-900">📄 Contrato Generado Automáticamente</h4>
+                            <p className="text-sm text-gray-600">El estudiante recibió un email para revisar y aceptar el contrato</p>
                           </div>
-                        )}
-
-                        {/* Verificación de pago - solo para admin y verifier */}
-                        {(userRole === 'admin' || userRole === 'verifier') && (
-                          <div className="flex items-center">
-                            <label className="flex items-center space-x-3 cursor-pointer bg-white p-4 rounded-xl border border-slate-200 hover:border-blue-300 transition-all w-full">
-                              <input
-                                type="checkbox"
-                                checked={formData.paymentVerified}
-                                onChange={(e) => setFormData({ ...formData, paymentVerified: e.target.checked })}
-                                className="w-5 h-5 text-blue-600 focus:ring-blue-500 rounded"
-                              />
-                              <div className="flex-1">
-                                <span className="text-sm font-bold text-gray-900 block">Pago Verificado</span>
-                                <span className="text-xs text-gray-500">Marca si el pago ha sido confirmado</span>
-                              </div>
-                            </label>
-                          </div>
-                        )}
+                        </div>
+                        <a
+                          href={`/admin/students/${student.id}/contract`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors text-sm"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          Ver Contrato
+                        </a>
                       </div>
-                    </div>
+                    )}
 
                     {/* Verificación de Pago - ACCIÓN PRINCIPAL DEL CAJERO */}
                     {isCashierEditing && (
