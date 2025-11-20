@@ -125,6 +125,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/admin/settings', [SettingController::class, 'update'])->name('admin.settings.update');
         Route::post('/admin/settings/single', [SettingController::class, 'updateSingle'])->name('admin.settings.update-single');
         
+        // Image upload for TinyMCE editor
+        Route::post('/admin/upload-image', [\App\Http\Controllers\ImageUploadController::class, 'upload'])->name('admin.upload-image');
+        
         // Settings API for contract template and email templates
         Route::post('/api/admin/settings/general', [\App\Http\Controllers\Admin\SettingsController::class, 'saveGeneralSetting'])->name('api.admin.settings.general');
         Route::get('/api/admin/settings/general', [\App\Http\Controllers\Admin\SettingsController::class, 'getGeneralSetting'])->name('api.admin.settings.general.get');
