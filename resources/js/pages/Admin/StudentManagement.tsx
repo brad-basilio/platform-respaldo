@@ -39,6 +39,7 @@ const StudentManagement: React.FC<Props> = ({
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [draggedStudent, setDraggedStudent] = useState<Student | null>(null);
   const [quickFilterText, setQuickFilterText] = useState<string>('');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null); // ✅ Estado de loading
   
   // ✅ Nuevo: Estado para Payment Schedule Modal
   const [paymentScheduleModalOpen, setPaymentScheduleModalOpen] = useState(false);
@@ -137,6 +138,11 @@ const StudentManagement: React.FC<Props> = ({
     const student = students.find(s => s.id === studentId);
     if (!student) return;
 
+    // ✅ Prevenir múltiples clics
+    if (isUpdatingStatus === studentId) {
+      return;
+    }
+
     // Validar que tenga datos académicos completos antes de pasar a pago_por_verificar
     if (newStatus === 'pago_por_verificar') {
       if (!student.paymentDate || !student.academicLevelId || !student.paymentPlanId) {  // ✅ Actualizado
@@ -175,6 +181,9 @@ const StudentManagement: React.FC<Props> = ({
       }
     }
 
+    // ✅ Activar estado de loading
+    setIsUpdatingStatus(studentId);
+
     // Enviar actualización al servidor usando axios (sin actualización optimista para evitar parpadeo)
     axios.put(`/admin/students/${studentId}/prospect-status`, {
       prospect_status: newStatus
@@ -186,10 +195,18 @@ const StudentManagement: React.FC<Props> = ({
         // Refrescar lista desde el servidor para garantizar consistencia en Kanban y lista
         await fetchStudents();
 
-        toast.success('Estado actualizado', {
-          description: `El prospecto ahora está en estado: ${getProspectStatusLabel(newStatus)}`,
-          duration: 4000,
-        });
+        // ✅ Mensaje especial si pasa a "pago_por_verificar"
+        if (newStatus === 'pago_por_verificar') {
+          toast.success('Estado actualizado', {
+            description: 'El contrato se está generando y será enviado por email en breve.',
+            duration: 6000,
+          });
+        } else {
+          toast.success('Estado actualizado', {
+            description: `El prospecto ahora está en estado: ${getProspectStatusLabel(newStatus)}`,
+            duration: 4000,
+          });
+        }
       })
       .catch((error) => {
         console.error('Error:', error);
@@ -206,6 +223,10 @@ const StudentManagement: React.FC<Props> = ({
             duration: 5000,
           });
         }
+      })
+      .finally(() => {
+        // ✅ Desactivar estado de loading
+        setIsUpdatingStatus(null);
       });
   };
 
@@ -294,6 +315,11 @@ const StudentManagement: React.FC<Props> = ({
   };
 
   const [showAlert, setShowAlert] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ show: boolean; studentId: string; studentName: string }>({
+    show: false,
+    studentId: '',
+    studentName: ''
+  });
 
   const showEnrollmentAlert = () => {
     setShowAlert(true);
@@ -482,27 +508,45 @@ const StudentManagement: React.FC<Props> = ({
   };
 
   const handleDeleteStudent = (studentId: string) => {
-    if (confirm('¿Estás seguro de que quieres eliminar este prospecto?')) {
-      router.delete(`/admin/students/${studentId}`, {
-        preserveScroll: true,
-        onSuccess: () => {
-          // Refrescar lista desde el servidor
-          fetchStudents();
-          
-          toast.success('Prospecto eliminado', {
-            description: 'El prospecto ha sido eliminado exitosamente.',
-            duration: 4000,
-          });
-        },
-        onError: (errors) => {
-          console.error('Error al eliminar:', errors);
-          toast.error('Error al eliminar', {
-            description: 'No se pudo eliminar el prospecto. Intenta nuevamente.',
-            duration: 5000,
-          });
-        }
-      });
-    }
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+    
+    setDeleteConfirmation({
+      show: true,
+      studentId: studentId,
+      studentName: student.name
+    });
+  };
+
+  const confirmDelete = () => {
+    const { studentId } = deleteConfirmation;
+    
+    router.delete(`/admin/students/${studentId}`, {
+      preserveScroll: true,
+      onSuccess: () => {
+        // Refrescar lista desde el servidor
+        fetchStudents();
+        
+        // Cerrar modal
+        setDeleteConfirmation({ show: false, studentId: '', studentName: '' });
+        
+        toast.success('Prospecto eliminado', {
+          description: 'El prospecto ha sido eliminado exitosamente.',
+          duration: 4000,
+        });
+      },
+      onError: (errors) => {
+        console.error('Error al eliminar:', errors);
+        
+        // Cerrar modal
+        setDeleteConfirmation({ show: false, studentId: '', studentName: '' });
+        
+        toast.error('Error al eliminar', {
+          description: 'No se pudo eliminar el prospecto. Intenta nuevamente.',
+          duration: 5000,
+        });
+      }
+    });
   };
 
   const getGroupName = (groupId?: string) => {
@@ -561,53 +605,65 @@ const StudentManagement: React.FC<Props> = ({
         filter: 'agTextColumnFilter',
         cellRenderer: (params: any) => {
           const student = params.data;
+          const isLoading = isUpdatingStatus === student.id;
+          
           return (
             <div className='flex items-center  w-full h-full'>
-                 <select
-              value={student.prospectStatus || 'registrado'}
-              onChange={(e) => {
-                handleProspectStatusChange(student.id, e.target.value);
-              }}
-              className={`text-xs font-medium px-2.5 py-1 rounded-full border-0 focus:ring-2 focus:ring-[#073372] cursor-pointer w-full ${getProspectStatusColor(student.prospectStatus || 'registrado')}`}
-              disabled={
-                (userRole === 'sales_advisor' && (student.prospectStatus !== 'registrado' && student.prospectStatus !== 'propuesta_enviada')) ||
-                (userRole === 'cashier' && student.prospectStatus !== 'pago_por_verificar')
-              }
-            >
-              {(userRole === 'admin' || userRole === 'verifier') && (
-                <>
-                  <option value="registrado">Registrado</option>
-                  <option value="propuesta_enviada">Reunión Realizada</option>
-                  <option value="pago_por_verificar">Pago Por Verificar</option>
-                  <option value="matriculado">Matriculado</option>
-                </>
-              )}
-              {userRole === 'sales_advisor' && (
-                <>
-                  {(student.prospectStatus === 'registrado' || student.prospectStatus === 'propuesta_enviada') ? (
+              {isLoading ? (
+                <div className="flex items-center gap-2 px-2.5 py-1 text-xs">
+                  <svg className="animate-spin h-4 w-4 text-[#073372]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span className="text-gray-600">Actualizando...</span>
+                </div>
+              ) : (
+                <select
+                  value={student.prospectStatus || 'registrado'}
+                  onChange={(e) => {
+                    handleProspectStatusChange(student.id, e.target.value);
+                  }}
+                  className={`text-xs font-medium px-2.5 py-1 rounded-full border-0 focus:ring-2 focus:ring-[#073372] cursor-pointer w-full ${getProspectStatusColor(student.prospectStatus || 'registrado')}`}
+                  disabled={
+                    (userRole === 'sales_advisor' && (student.prospectStatus !== 'registrado' && student.prospectStatus !== 'propuesta_enviada')) ||
+                    (userRole === 'cashier' && student.prospectStatus !== 'pago_por_verificar')
+                  }
+                >
+                  {(userRole === 'admin' || userRole === 'verifier') && (
                     <>
                       <option value="registrado">Registrado</option>
                       <option value="propuesta_enviada">Reunión Realizada</option>
                       <option value="pago_por_verificar">Pago Por Verificar</option>
-                    </>
-                  ) : (
-                    <option value={student.prospectStatus}>{getProspectStatusLabel(student.prospectStatus || 'registrado')}</option>
-                  )}
-                </>
-              )}
-              {userRole === 'cashier' && (
-                <>
-                  {student.prospectStatus === 'pago_por_verificar' ? (
-                    <>
-                      <option value="pago_por_verificar">Pago Por Verificar</option>
                       <option value="matriculado">Matriculado</option>
                     </>
-                  ) : (
-                    <option value={student.prospectStatus}>{getProspectStatusLabel(student.prospectStatus || 'registrado')}</option>
                   )}
-                </>
+                  {userRole === 'sales_advisor' && (
+                    <>
+                      {(student.prospectStatus === 'registrado' || student.prospectStatus === 'propuesta_enviada') ? (
+                        <>
+                          <option value="registrado">Registrado</option>
+                          <option value="propuesta_enviada">Reunión Realizada</option>
+                          <option value="pago_por_verificar">Pago Por Verificar</option>
+                        </>
+                      ) : (
+                        <option value={student.prospectStatus}>{getProspectStatusLabel(student.prospectStatus || 'registrado')}</option>
+                      )}
+                    </>
+                  )}
+                  {userRole === 'cashier' && (
+                    <>
+                      {student.prospectStatus === 'pago_por_verificar' ? (
+                        <>
+                          <option value="pago_por_verificar">Pago Por Verificar</option>
+                          <option value="matriculado">Matriculado</option>
+                        </>
+                      ) : (
+                        <option value={student.prospectStatus}>{getProspectStatusLabel(student.prospectStatus || 'registrado')}</option>
+                      )}
+                    </>
+                  )}
+                </select>
               )}
-            </select>
             </div>
           );
         }
@@ -795,6 +851,7 @@ const StudentManagement: React.FC<Props> = ({
     onCancel: () => void;
   }) => {
     const [showArchiveConfirmation, setShowArchiveConfirmation] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     
     const [formData, setFormData] = useState({
       // Datos Personales
@@ -916,6 +973,7 @@ const StudentManagement: React.FC<Props> = ({
       e.preventDefault();
       console.log('📝 Formulario enviado:', formData);
       console.log('📝 Función onSubmit:', onSubmit);
+      setIsSubmitting(true);
       onSubmit(formData);
     };
 
@@ -1765,17 +1823,27 @@ const StudentManagement: React.FC<Props> = ({
                   </button>
                   <button
                     type="submit"
-                    disabled={isCashierEditing && !formData.paymentVerified}
-                    className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm flex items-center gap-2 ${isCashierEditing && !formData.paymentVerified
+                    disabled={isSubmitting || (isCashierEditing && !formData.paymentVerified)}
+                    className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm flex items-center gap-2 ${(isSubmitting || (isCashierEditing && !formData.paymentVerified))
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-[#073372] hover:bg-[#17BC91] text-white'
                       }`}
                   >
-                    {isCashierEditing
-                      ? (formData.paymentVerified ? 'Verificar y Matricular' : 'Marcar la verificación')
-                      : student
-                        ? 'Actualizar'
-                        : 'Registrar'}
+                    {isSubmitting ? (
+                      <>
+                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Actualizando...
+                      </>
+                    ) : (
+                      isCashierEditing
+                        ? (formData.paymentVerified ? 'Verificar y Matricular' : 'Marcar la verificación')
+                        : student
+                          ? 'Actualizar'
+                          : 'Registrar'
+                    )}
                   </button>
                 </div>
               </div>
@@ -1820,6 +1888,69 @@ const StudentManagement: React.FC<Props> = ({
                     </svg>
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Confirmación de Eliminación */}
+        {deleteConfirmation.show && (
+          <div className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all animate-slideUp">
+              {/* Header con gradiente rojo */}
+              <div className="bg-gradient-to-r from-red-600 to-red-700 p-6 rounded-t-2xl">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">
+                      Confirmar Eliminación
+                    </h3>
+                    <p className="text-red-100 text-sm mt-1">
+                      Esta acción no se puede deshacer
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contenido */}
+              <div className="p-6">
+                <div className="bg-red-50 border border-red-100 rounded-xl p-4 mb-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm text-red-800 font-medium">
+                        ¿Estás seguro de que deseas eliminar a <span className="font-bold">{deleteConfirmation.studentName}</span>?
+                      </p>
+                      <p className="text-sm text-red-600 mt-1">
+                        Se eliminarán todos los datos asociados de forma permanente.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer con botones */}
+              <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => setDeleteConfirmation({ show: false, studentId: '', studentName: '' })}
+                  className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-5 py-2.5 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-[1.02]"
+                >
+                  Sí, Eliminar
+                </button>
               </div>
             </div>
           </div>

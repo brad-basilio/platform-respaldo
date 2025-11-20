@@ -881,8 +881,21 @@ class StudentController extends Controller
                 // 🆕 CREAR ENROLLMENT automáticamente también aquí
                 $this->createEnrollmentForStudent($student);
                 
-                // 📄 GENERAR Y ENVIAR CONTRATO
-                $this->generateAndSendContract($student);
+                // 📄 GENERAR Y ENVIAR CONTRATO (DESPUÉS de enviar respuesta HTTP)
+                dispatch(function() use ($student) {
+                    try {
+                        Log::info('Iniciando generación de contrato después de respuesta HTTP (update)', [
+                            'student_id' => $student->id,
+                        ]);
+                        
+                        $this->generateAndSendContract($student);
+                    } catch (\Exception $e) {
+                        Log::error('Error generando contrato en background (update)', [
+                            'student_id' => $student->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                })->afterResponse();
             }
         }
 
@@ -994,8 +1007,21 @@ class StudentController extends Controller
         if ($newStatus === 'pago_por_verificar') {
             $this->createEnrollmentForStudent($student);
             
-            // 📄 GENERAR Y ENVIAR CONTRATO
-            $this->generateAndSendContract($student);
+            // 📄 GENERAR Y ENVIAR CONTRATO (DESPUÉS de enviar respuesta HTTP para evitar timeout)
+            dispatch(function() use ($student) {
+                try {
+                    Log::info('Iniciando generación de contrato después de respuesta HTTP', [
+                        'student_id' => $student->id,
+                    ]);
+                    
+                    $this->generateAndSendContract($student);
+                } catch (\Exception $e) {
+                    Log::error('Error generando contrato en background', [
+                        'student_id' => $student->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            })->afterResponse();
         }
         
         // Recargar el estudiante con sus relaciones
@@ -1809,9 +1835,15 @@ class StudentController extends Controller
     /**
      * Generar y enviar contrato cuando el prospecto pasa a "pago_por_verificar"
      */
+    /**
+     * Generar y enviar contrato con timeout extendido
+     */
     private function generateAndSendContract(Student $student): void
     {
         try {
+            // 🔥 Aumentar timeout temporalmente para esta operación
+            set_time_limit(120); // 2 minutos para generar el contrato
+            
             // Cargar relaciones necesarias
             $student->load(['academicLevel', 'paymentPlan', 'user']);
 
@@ -1875,6 +1907,9 @@ class StudentController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+        } finally {
+            // Restaurar timeout original
+            set_time_limit(60);
         }
     }
 }

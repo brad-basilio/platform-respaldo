@@ -35,8 +35,13 @@ class ContractGeneratorService
             $contractHTML = str_replace("{{" . $key . "}}", $value, $contractHTML);
         }
 
-        // 🔥 NUEVO: Convertir URLs de imágenes a base64 para DomPDF
-        $contractHTML = $this->convertImagesToBase64($contractHTML);
+        // 🔥 OPTIMIZACIÓN: Solo convertir imágenes si hay URLs HTTP en el HTML
+        if (preg_match('/src=["\']https?:\/\//i', $contractHTML)) {
+            \Illuminate\Support\Facades\Log::info('Convirtiendo imágenes a base64 para DomPDF', [
+                'student_id' => $student->id,
+            ]);
+            $contractHTML = $this->convertImagesToBase64($contractHTML);
+        }
 
         // Generar PDF
         $pdf = Pdf::loadHTML($contractHTML);
@@ -155,55 +160,155 @@ class ContractGeneratorService
      */
     private function convertImagesToBase64(string $html): string
     {
-        // Buscar todas las etiquetas <img> con src que sean URLs (http:// o https://)
-        $pattern = '/<img([^>]*)src=["\']https?:\/\/[^"\']+["\']([^>]*)>/i';
+        // Buscar todas las etiquetas <img> con src
+        $pattern = '/<img([^>]*)src=["\']([^"\']+)["\']/i';
         
         $html = preg_replace_callback($pattern, function($matches) {
             $fullTag = $matches[0];
+            $imageUrl = $matches[2];
             
-            // Extraer la URL
-            preg_match('/src=["\']([^"\']+)["\']/i', $fullTag, $srcMatch);
-            if (empty($srcMatch[1])) {
-                return $fullTag; // No se pudo extraer URL, devolver original
-            }
-            
-            $imageUrl = $srcMatch[1];
+            \Illuminate\Support\Facades\Log::info('Procesando imagen en contrato', [
+                'url' => $imageUrl,
+                'full_tag' => $fullTag,
+            ]);
             
             try {
-                // Intentar descargar la imagen
-                $imageData = @file_get_contents($imageUrl);
+                // 🔥 CASO 1: Imágenes con URL completa del storage (http://localhost:8000/storage/...)
+                $appUrl = rtrim(config('app.url'), '/');
                 
-                if ($imageData === false) {
-                    // Si falla, intentar con curl
-                    $ch = curl_init($imageUrl);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-                    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                    $imageData = curl_exec($ch);
-                    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                    curl_close($ch);
+                // Extraer dominio base sin puerto para comparación flexible
+                $urlParts = parse_url($appUrl);
+                $baseUrl = $urlParts['scheme'] . '://' . $urlParts['host'];
+                
+                // Detectar URLs que empiecen con el dominio (con o sin puerto) + /storage/
+                if (preg_match('#^' . preg_quote($baseUrl, '#') . '(:\d+)?/storage/(.+)$#', $imageUrl, $matches)) {
+                    $relativePath = $matches[2]; // La parte después de /storage/
+                    $fullPath = Storage::disk('public')->path($relativePath);
                     
-                    if ($httpCode !== 200 || $imageData === false) {
-                        return $fullTag; // Fallo, devolver original
+                    \Illuminate\Support\Facades\Log::info('Imagen local detectada (URL completa)', [
+                        'relative_path' => $relativePath,
+                        'full_path' => $fullPath,
+                        'exists' => file_exists($fullPath),
+                    ]);
+                    
+                    if (file_exists($fullPath)) {
+                        $imageData = file_get_contents($fullPath);
+                        $mimeType = mime_content_type($fullPath);
+                        $base64 = base64_encode($imageData);
+                        $dataUri = 'data:' . $mimeType . ';base64,' . $base64;
+                        
+                        \Illuminate\Support\Facades\Log::info('Imagen convertida a base64', [
+                            'size' => strlen($imageData),
+                            'mime' => $mimeType,
+                        ]);
+                        
+                        return str_replace($imageUrl, $dataUri, $fullTag);
                     }
                 }
                 
-                // Convertir a base64
-                $base64 = base64_encode($imageData);
+                // 🔥 CASO 2: Imágenes del dominio local (http://localhost:8000/logo.png) - archivos públicos
+                // Detectar URLs del dominio sin /storage/ (archivos en public/)
+                if (preg_match('#^' . preg_quote($baseUrl, '#') . '(:\d+)?/([^/]+\.(png|jpg|jpeg|gif|svg|webp))$#i', $imageUrl, $matches)) {
+                    $fileName = $matches[2]; // nombre del archivo (ej: logo.png)
+                    $publicPath = public_path($fileName);
+                    
+                    \Illuminate\Support\Facades\Log::info('Imagen pública local detectada', [
+                        'file_name' => $fileName,
+                        'public_path' => $publicPath,
+                        'exists' => file_exists($publicPath),
+                    ]);
+                    
+                    if (file_exists($publicPath)) {
+                        $imageData = file_get_contents($publicPath);
+                        $mimeType = mime_content_type($publicPath);
+                        $base64 = base64_encode($imageData);
+                        $dataUri = 'data:' . $mimeType . ';base64,' . $base64;
+                        
+                        \Illuminate\Support\Facades\Log::info('Imagen pública convertida a base64', [
+                            'size' => strlen($imageData),
+                            'mime' => $mimeType,
+                        ]);
+                        
+                        return str_replace($imageUrl, $dataUri, $fullTag);
+                    }
+                }
                 
-                // Detectar tipo MIME (default a image/png)
-                $finfo = new \finfo(FILEINFO_MIME_TYPE);
-                $mimeType = $finfo->buffer($imageData) ?: 'image/png';
+                // 🔥 CASO 3: Imágenes con ruta relativa (/storage/...)
+                if (str_starts_with($imageUrl, '/storage/')) {
+                    $relativePath = str_replace('/storage/', '', $imageUrl);
+                    $fullPath = Storage::disk('public')->path($relativePath);
+                    
+                    \Illuminate\Support\Facades\Log::info('Imagen local detectada (ruta relativa)', [
+                        'relative_path' => $relativePath,
+                        'full_path' => $fullPath,
+                        'exists' => file_exists($fullPath),
+                    ]);
+                    
+                    if (file_exists($fullPath)) {
+                        $imageData = file_get_contents($fullPath);
+                        $mimeType = mime_content_type($fullPath);
+                        $base64 = base64_encode($imageData);
+                        $dataUri = 'data:' . $mimeType . ';base64,' . $base64;
+                        
+                        \Illuminate\Support\Facades\Log::info('Imagen convertida a base64', [
+                            'size' => strlen($imageData),
+                            'mime' => $mimeType,
+                        ]);
+                        
+                        return str_replace($imageUrl, $dataUri, $fullTag);
+                    }
+                }
                 
-                // Crear data URI
-                $dataUri = 'data:' . $mimeType . ';base64,' . $base64;
+                // 🔥 CASO 4: URLs HTTP/HTTPS externas - Intentar descargar con timeout corto
+                if (str_starts_with($imageUrl, 'http://') || str_starts_with($imageUrl, 'https://')) {
+                    \Illuminate\Support\Facades\Log::info('Imagen externa detectada, intentando descargar', [
+                        'url' => $imageUrl,
+                    ]);
+                    
+                    $context = stream_context_create([
+                        'http' => [
+                            'timeout' => 3, // 3 segundos máximo
+                            'ignore_errors' => true,
+                        ],
+                        'ssl' => [
+                            'verify_peer' => false,
+                            'verify_peer_name' => false,
+                        ]
+                    ]);
+                    
+                    $imageData = @file_get_contents($imageUrl, false, $context);
+                    
+                    if ($imageData !== false && strlen($imageData) > 0) {
+                        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+                        $mimeType = $finfo->buffer($imageData) ?: 'image/png';
+                        $base64 = base64_encode($imageData);
+                        $dataUri = 'data:' . $mimeType . ';base64,' . $base64;
+                        
+                        \Illuminate\Support\Facades\Log::info('Imagen externa descargada y convertida', [
+                            'size' => strlen($imageData),
+                            'mime' => $mimeType,
+                        ]);
+                        
+                        return str_replace($imageUrl, $dataUri, $fullTag);
+                    } else {
+                        \Illuminate\Support\Facades\Log::warning('No se pudo descargar imagen externa', [
+                            'url' => $imageUrl,
+                        ]);
+                    }
+                }
                 
-                // Reemplazar URL con data URI
-                return str_replace($imageUrl, $dataUri, $fullTag);
+                // Si no se pudo procesar, devolver original
+                \Illuminate\Support\Facades\Log::warning('Imagen no procesada, devolviendo original', [
+                    'url' => $imageUrl,
+                ]);
+                return $fullTag;
                 
             } catch (\Exception $e) {
-                // En caso de error, devolver tag original
+                \Illuminate\Support\Facades\Log::error('Error al convertir imagen a base64', [
+                    'url' => $imageUrl,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
                 return $fullTag;
             }
         }, $html);
