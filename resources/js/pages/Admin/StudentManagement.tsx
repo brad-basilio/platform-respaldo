@@ -483,23 +483,25 @@ const StudentManagement: React.FC<Props> = ({
 
   const handleDeleteStudent = (studentId: string) => {
     if (confirm('¿Estás seguro de que quieres eliminar este prospecto?')) {
-      axios.delete(`/admin/students/${studentId}`)
-        .then(() => {
-          // Eliminar del estado local inmediatamente
-          setStudents(prevStudents => prevStudents.filter(s => s.id !== studentId));
-
+      router.delete(`/admin/students/${studentId}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+          // Refrescar lista desde el servidor
+          fetchStudents();
+          
           toast.success('Prospecto eliminado', {
             description: 'El prospecto ha sido eliminado exitosamente.',
             duration: 4000,
           });
-        })
-        .catch((error) => {
+        },
+        onError: (errors) => {
+          console.error('Error al eliminar:', errors);
           toast.error('Error al eliminar', {
             description: 'No se pudo eliminar el prospecto. Intenta nuevamente.',
             duration: 5000,
           });
-          console.error('Error al eliminar:', error);
-        });
+        }
+      });
     }
   };
 
