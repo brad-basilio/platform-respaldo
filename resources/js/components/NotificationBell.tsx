@@ -23,6 +23,9 @@ interface NotificationData {
   status?: string;
   rejection_reason?: string;
   reviewed_by?: string;
+  student_name?: string;
+  contract_acceptance_id?: number;
+  pdf_path?: string;
 }
 
 interface Notification {
@@ -75,23 +78,30 @@ export default function NotificationBell({ userId, userRole }: NotificationBellP
       if (userRole === 'cashier' || userRole === 'admin') {
         echoInstance.leave('private-cashiers');
       }
+      if (userRole === 'sales_advisor' || userRole === 'admin') {
+        echoInstance.leave(`private-advisor.${userId}`);
+      }
     } catch (e) {
       // Si falla el leave, continuar (puede ser que no exista el canal)
       console.log('⚠️ Error al limpiar canales (puede ser normal):', e);
     }
 
     console.log(`🔔 [NotificationBell] Montando listeners NUEVOS para usuario ${userId} con rol ${userRole}...`);
-    
-    // Escuchar notificaciones personales del usuario
-    const userChannel = echoInstance.private(`App.Models.User.${userId}`);
-    
-    userChannel.notification((notification: Notification) => {
-      console.log('🔔 [Canal Personal] Nueva notificación recibida:', notification);
-      
-      // Agregar notificación al inicio de la lista
-      setNotifications((prev) => [notification, ...prev]);
+
+    // Función auxiliar para manejar nuevas notificaciones
+    const handleNewNotification = (notification: Notification) => {
+      // Evitar duplicados si llegan por ambos canales
+      setNotifications((prev) => {
+        const exists = prev.some(n =>
+          n.data.message === notification.data.message &&
+          new Date(n.created_at).getTime() > Date.now() - 5000
+        );
+        if (exists) return prev;
+        return [notification, ...prev];
+      });
+
       setUnreadCount((prev) => prev + 1);
-      
+
       // Mostrar toast
       const message = notification.data.message || 'Nueva notificación';
       toast.info('Nueva notificación', {
@@ -99,16 +109,56 @@ export default function NotificationBell({ userId, userRole }: NotificationBellP
         duration: 6000,
       });
 
-      // Reproducir sonido (opcional)
+      // Si es un contrato firmado, disparar evento global
+      if (notification.data.type === 'contract_signed') {
+        window.dispatchEvent(new CustomEvent('contract-signed-notification', {
+          detail: notification.data
+        }));
+      }
+
+      // Reproducir sonido (Comentado hasta que se agregue el archivo notification.mp3)
+      /*
       try {
         const audio = new Audio('/notification.mp3');
-        audio.play().catch(() => {
-          // Ignorar errores de audio
-        });
-      } catch {
-        // Ignorar errores de audio
-      }
+        audio.play().catch(() => { });
+      } catch { }
+      */
+    };
+
+    // Escuchar notificaciones personales del usuario
+    const userChannel = echoInstance.private(`App.Models.User.${userId}`);
+
+    userChannel.notification((notification: Notification) => {
+      console.log('🔔 [Canal Personal] Nueva notificación recibida:', notification);
+      handleNewNotification(notification);
     });
+
+    // Escuchar eventos de asesor (si el usuario es asesor/admin)
+    if (userRole === 'sales_advisor' || userRole === 'admin') {
+      console.log(`🔔 [NotificationBell] Suscribiéndose al canal de asesor: advisor.${userId}`);
+      const advisorChannel = echoInstance.private(`advisor.${userId}`);
+
+      // Escuchar el evento con el nombre personalizado '.contract.signed'
+      advisorChannel.listen('.contract.signed', (data: any) => {
+        console.log('🔔 [Canal Asesor] Evento ContractSignedByStudent recibido:', data);
+
+        const mockNotification: Notification = {
+          id: `evt_${Date.now()}`,
+          type: 'App\\Notifications\\ContractSignedNotification',
+          data: {
+            type: 'contract_signed',
+            message: `${data.student_name} ha firmado su contrato.`,
+            student_name: data.student_name,
+            contract_acceptance_id: data.contract_acceptance_id,
+            pdf_path: data.pdf_path
+          },
+          read_at: null,
+          created_at: new Date().toISOString()
+        };
+
+        handleNewNotification(mockNotification);
+      });
+    }
 
     // Si es cashier, también escuchar el canal de cashiers
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -116,7 +166,7 @@ export default function NotificationBell({ userId, userRole }: NotificationBellP
     if (userRole === 'cashier' || userRole === 'admin') {
       console.log('🔔 [NotificationBell] Suscribiéndose TAMBIÉN al canal private-cashiers...');
       cashierChannel = echoInstance.private('cashiers');
-      
+
       cashierChannel.listen('.voucher.uploaded', (event: {
         action: string;
         message: string;
@@ -124,7 +174,7 @@ export default function NotificationBell({ userId, userRole }: NotificationBellP
         installment_number: number;
       }) => {
         console.log('🔔 [Canal Cashiers] Nuevo voucher recibido:', event);
-        
+
         // Mostrar notificación con toast
         toast.success(`Nuevo voucher ${event.action === 'replaced' ? 'reemplazado' : 'recibido'}!`, {
           description: event.message,
@@ -136,8 +186,9 @@ export default function NotificationBell({ userId, userRole }: NotificationBellP
             }
           }
         });
-        
-        // Reproducir sonido
+
+        // Reproducir sonido (Comentado hasta que se agregue el archivo notification.mp3)
+        /*
         try {
           const audio = new Audio('/notification.mp3');
           audio.play().catch(() => {
@@ -146,6 +197,7 @@ export default function NotificationBell({ userId, userRole }: NotificationBellP
         } catch {
           // Ignorar errores de audio
         }
+        */
       });
     }
 
@@ -155,6 +207,9 @@ export default function NotificationBell({ userId, userRole }: NotificationBellP
         echoInstance.leave(`private-App.Models.User.${userId}`);
         if (userRole === 'cashier' || userRole === 'admin') {
           echoInstance.leave('private-cashiers');
+        }
+        if (userRole === 'sales_advisor' || userRole === 'admin') {
+          echoInstance.leave(`private-advisor.${userId}`);
         }
         console.log('✅ [NotificationBell] Canales limpiados correctamente');
       } catch (e) {
@@ -213,6 +268,8 @@ export default function NotificationBell({ userId, userRole }: NotificationBellP
         return '✅';
       case 'payment_rejected':
         return '❌';
+      case 'contract_signed':
+        return '📝';
       default:
         return '🔔';
     }
@@ -221,9 +278,9 @@ export default function NotificationBell({ userId, userRole }: NotificationBellP
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           className="relative text-slate-600 hover:text-slate-900 hover:bg-slate-100"
         >
           <Bell className="h-5 w-5" />
@@ -261,9 +318,8 @@ export default function NotificationBell({ userId, userRole }: NotificationBellP
             notifications.map((notification) => (
               <DropdownMenuItem
                 key={notification.id}
-                className={`cursor-pointer p-4 flex flex-col items-start gap-1 ${
-                  !notification.read_at ? 'bg-accent/50' : ''
-                }`}
+                className={`cursor-pointer p-4 flex flex-col items-start gap-1 ${!notification.read_at ? 'bg-accent/50' : ''
+                  }`}
                 onClick={() => {
                   if (!notification.read_at) {
                     markAsRead(notification.id);

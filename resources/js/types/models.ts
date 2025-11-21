@@ -14,7 +14,7 @@ export interface Student extends User {
   assignedGroupId?: string;
   attendanceHistory: AttendanceRecord[];
   enrolledGroups: string[];
-  
+
   // ✅ Campos actualizados
   academicLevelId?: number;  // Nuevo: ID del nivel académico
   academicLevel?: {          // Nuevo: Relación con AcademicLevel
@@ -23,7 +23,7 @@ export interface Student extends User {
     code: string;
     color: string;
   };
-  
+
   paymentPlanId?: number;    // Nuevo: ID del plan de pago
   paymentPlan?: {            // Nuevo: Relación con PaymentPlan
     id: number;
@@ -32,7 +32,7 @@ export interface Student extends User {
     monthly_amount: number;
     total_amount: number;
   };
-  
+
   points: number;
   badges: Badge[];
   certificates: Certificate[];
@@ -97,7 +97,7 @@ export interface Student extends User {
     email: string;
     avatar?: string;
   };
-  
+
   // Datos de Verificación de Pago
   verifiedPaymentBy?: {
     id: string;
@@ -105,7 +105,7 @@ export interface Student extends User {
     email: string;
   };
   paymentVerifiedAt?: string;
-  
+
   // Datos de Verificación de Matrícula
   verifiedEnrollmentBy?: {
     id: string;
@@ -114,9 +114,17 @@ export interface Student extends User {
   };
   enrollmentVerifiedAt?: string;
   enrollmentVerified?: boolean; // Control anti-fraude para comisiones
-  
+
   // Matrícula activa
   enrollment?: Enrollment;
+
+  // Contrato firmado pendiente de aprobación
+  latestContractAcceptance?: {
+    id: number;
+    pdf_path: string;
+    accepted_at: string;
+    advisor_approved: boolean;
+  };
 }
 
 export interface Teacher extends User {
@@ -126,7 +134,7 @@ export interface Teacher extends User {
   availableSchedule: TimeSlot[];
   assignedGroups: AssignedGroup[];
   assignedGroupIds: string[];
-  
+
   // Datos Personales Extendidos
   firstName?: string;
   paternalLastName?: string;
@@ -138,7 +146,7 @@ export interface Teacher extends User {
   documentType?: 'DNI' | 'CE';
   documentNumber?: string;
   educationLevel?: string;
-  
+
   // Datos Laborales
   startDate?: string;
   bankAccount?: string;
@@ -149,7 +157,7 @@ export interface Teacher extends User {
   contractStatus?: 'contratado' | 'en_proceso' | 'finalizado';
   contractPeriod?: string;
   contractModality?: string;
-  
+
   // Datos de Contacto
   currentAddress?: string;
   emergencyContactNumber?: string;
@@ -352,10 +360,10 @@ export interface Enrollment {
   verified_at?: string;
   created_at: string;
   updated_at: string;
-  
+
   // Relaciones
   installments?: Installment[];
-  
+
   // Atributos calculados
   totalPaid?: number;
   totalPending?: number;
@@ -382,10 +390,10 @@ export interface Installment {
   verified_at?: string;
   created_at: string;
   updated_at: string;
-  
+
   // Relaciones
   vouchers?: InstallmentVoucher[];
-  
+
   // Atributos calculados
   totalDue?: number;
   isOverdue?: boolean;

@@ -52,7 +52,13 @@ class ContractGeneratorService
         $filePath = 'contracts/' . $fileName;
 
         // Guardar PDF en storage
-        Storage::disk('public')->put($filePath, $pdf->output());
+        if (!Storage::disk('public')->put($filePath, $pdf->output())) {
+            \Illuminate\Support\Facades\Log::error('Error al guardar el PDF del contrato', [
+                'file_path' => $filePath,
+                'student_id' => $student->id,
+            ]);
+            throw new \Exception('No se pudo guardar el archivo PDF del contrato.');
+        }
 
         return $filePath;
     }

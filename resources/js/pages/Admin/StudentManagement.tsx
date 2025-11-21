@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Users, Plus, CreditCard as Edit, Trash2, UserCheck, UserX, Eye, List, Columns2 as Columns, Search, XCircle, Calendar } from 'lucide-react';
 import { Student, Group, AcademicLevel, PaymentPlan } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import axios from 'axios';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
+import ContractReviewModal from '@/components/ContractReviewModal';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { Select2 } from '@/components/ui/Select2';
@@ -26,12 +27,12 @@ interface Props {
   userRole: string;
 }
 
-const StudentManagement: React.FC<Props> = ({ 
-  students: initialStudents, 
-  groups, 
+const StudentManagement: React.FC<Props> = ({
+  students: initialStudents,
+  groups,
   academicLevels,  // ✅ Nuevo
   paymentPlans,    // ✅ Nuevo
-  userRole 
+  userRole
 }) => {
   const [students, setStudents] = useState<Student[]>(initialStudents);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -40,17 +41,29 @@ const StudentManagement: React.FC<Props> = ({
   const [draggedStudent, setDraggedStudent] = useState<Student | null>(null);
   const [quickFilterText, setQuickFilterText] = useState<string>('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null); // ✅ Estado de loading
-  
+
   // ✅ Nuevo: Estado para Payment Schedule Modal
   const [paymentScheduleModalOpen, setPaymentScheduleModalOpen] = useState(false);
   const [selectedStudentForSchedule, setSelectedStudentForSchedule] = useState<Student | null>(null);
+
+  // ✅ Estado para Contract Review Modal
+  const [contractReviewOpen, setContractReviewOpen] = useState(false);
+  const [pendingContract, setPendingContract] = useState<{
+    id: number;
+    studentName: string;
+    pdfPath: string;
+  } | null>(null);
+
+  // Obtener usuario actual
+  const { props } = usePage<any>();
+  const currentUserId = props.auth?.user?.id;
 
   // Función para obtener la lista de estudiantes desde el backend y mantener el estado canónico
   const fetchStudents = async () => {
     try {
       const response = await axios.get('/api/admin/students');
       const students = response.data;
-      
+
       if (Array.isArray(students)) {
         setStudents(students);
         console.log('✅ Lista actualizada desde el servidor:', students.length, 'prospectos');
@@ -72,9 +85,47 @@ const StudentManagement: React.FC<Props> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ✅ Listener para notificaciones de contratos firmados (Centralizado en NotificationBell)
+  useEffect(() => {
+    const handleContractSigned = (event: CustomEvent) => {
+      const data = event.detail;
+      console.log('🔔 [Global Event] Contrato firmado recibido:', data);
+
+      handleContractNotification({
+        student_name: data.student_name,
+        contract_acceptance_id: data.contract_acceptance_id,
+        pdf_path: data.pdf_path
+      });
+    };
+
+    window.addEventListener('contract-signed-notification', handleContractSigned as EventListener);
+
+    return () => {
+      window.removeEventListener('contract-signed-notification', handleContractSigned as EventListener);
+    };
+  }, []);
+
+  // Manejador unificado de notificaciones
+  const handleContractNotification = (data: any) => {
+    toast.info('🔔 Nuevo contrato firmado', {
+      description: `${data.student_name} ha firmado su contrato. ¡Revísalo ahora!`,
+      duration: 8000,
+    });
+
+    setPendingContract({
+      id: data.contract_acceptance_id,
+      studentName: data.student_name,
+      pdfPath: data.pdf_path,
+    });
+    setContractReviewOpen(true);
+
+    // Refrescar lista de estudiantes
+    fetchStudents();
+  };
+
   // Función para forzar recarga sin caché usando Inertia
   const forceReload = () => {
-    router.reload({ 
+    router.reload({
       only: ['students'],
       preserveState: false,
       preserveScroll: false,
@@ -91,24 +142,24 @@ const StudentManagement: React.FC<Props> = ({
   const filteredStudents = React.useMemo(() => {
     console.log('📊 Total students received:', students.length);
     console.log('📊 Students data sample:', students.slice(0, 2));
-    
+
     // EXCLUIR MATRICULADOS VERIFICADOS y ARCHIVADOS para TODOS los roles
     const filtered = students.filter(student => {
       const isVerified = student.prospectStatus === 'matriculado' && student.enrollmentVerified;
       const isArchived = student.archived;
-      
+
       if (isVerified) {
         console.log('❌ Filtering out verified student:', student.name, student.enrollmentCode);
       }
-      
+
       if (isArchived) {
         console.log('❌ Filtering out archived student:', student.name);
       }
-      
+
       // Si está matriculado y verificado O archivado, NO mostrarlo
       return !isVerified && !isArchived;
     });
-    
+
     console.log('✅ After filtering:', filtered.length);
     return filtered;
   }, [students]);
@@ -191,7 +242,7 @@ const StudentManagement: React.FC<Props> = ({
       .then(async () => {
         // Pequeño delay para permitir que la animación de salida se complete
         await new Promise(resolve => setTimeout(resolve, 250));
-        
+
         // Refrescar lista desde el servidor para garantizar consistencia en Kanban y lista
         await fetchStudents();
 
@@ -361,11 +412,11 @@ const StudentManagement: React.FC<Props> = ({
         archived_reason: formData.archivedReason,
       });
 
-  // Agregar el nuevo estudiante al estado canónico refrescando desde el servidor
-  await fetchStudents();
+      // Agregar el nuevo estudiante al estado canónico refrescando desde el servidor
+      await fetchStudents();
 
-  // Éxito: cerrar modal y mostrar toast
-  setShowCreateForm(false);
+      // Éxito: cerrar modal y mostrar toast
+      setShowCreateForm(false);
       toast.success('Prospecto registrado exitosamente', {
         description: 'El nuevo prospecto ha sido agregado al sistema.',
         duration: 4000,
@@ -453,7 +504,7 @@ const StudentManagement: React.FC<Props> = ({
     // Agregar archivos si existen
     // ✅ NOTA: El contrato ya no se sube manualmente, se genera automáticamente
     // cuando el prospecto pasa a "Pago Por Verificar"
-    
+
     // ✅ Agregar voucher de pago si existe
     if (formData.paymentVoucherFile) {
       data.append('payment_voucher_file', formData.paymentVoucherFile);
@@ -471,17 +522,30 @@ const StudentManagement: React.FC<Props> = ({
         },
       });
 
-  // Actualizar el estudiante en el estado canónico refrescando desde el servidor
-  await fetchStudents();
+      // Actualizar el estudiante en el estado canónico refrescando desde el servidor
+      await fetchStudents();
 
       // Cerrar modal ANTES del toast para que el usuario vea el cambio inmediatamente
       setEditingStudent(null);
 
-      // Éxito: mostrar toast
-      toast.success('Prospecto actualizado exitosamente', {
-        description: 'Los datos del prospecto han sido actualizados.',
-        duration: 4000,
-      });
+      // Éxito: mostrar toast diferente si es sales_advisor actualizando propuesta_enviada con datos académicos
+      const isGeneratingContract = userRole === 'sales_advisor' &&
+        editingStudent.prospectStatus === 'propuesta_enviada' &&
+        formData.paymentDate &&
+        formData.academicLevelId &&
+        formData.paymentPlanId;
+
+      if (isGeneratingContract) {
+        toast.success('Contrato generado y enviado al estudiante', {
+          description: 'El prospecto recibirá un email para firmar el contrato. Recibirás una notificación cuando lo firme.',
+          duration: 6000,
+        });
+      } else {
+        toast.success('Prospecto actualizado exitosamente', {
+          description: 'Los datos del prospecto han sido actualizados.',
+          duration: 4000,
+        });
+      }
 
     } catch (error: any) {
       console.error('❌ Errores de validación:', error);
@@ -510,7 +574,7 @@ const StudentManagement: React.FC<Props> = ({
   const handleDeleteStudent = (studentId: string) => {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
-    
+
     setDeleteConfirmation({
       show: true,
       studentId: studentId,
@@ -520,16 +584,16 @@ const StudentManagement: React.FC<Props> = ({
 
   const confirmDelete = () => {
     const { studentId } = deleteConfirmation;
-    
+
     router.delete(`/admin/students/${studentId}`, {
       preserveScroll: true,
       onSuccess: () => {
         // Refrescar lista desde el servidor
         fetchStudents();
-        
+
         // Cerrar modal
         setDeleteConfirmation({ show: false, studentId: '', studentName: '' });
-        
+
         toast.success('Prospecto eliminado', {
           description: 'El prospecto ha sido eliminado exitosamente.',
           duration: 4000,
@@ -537,10 +601,10 @@ const StudentManagement: React.FC<Props> = ({
       },
       onError: (errors) => {
         console.error('Error al eliminar:', errors);
-        
+
         // Cerrar modal
         setDeleteConfirmation({ show: false, studentId: '', studentName: '' });
-        
+
         toast.error('Error al eliminar', {
           description: 'No se pudo eliminar el prospecto. Intenta nuevamente.',
           duration: 5000,
@@ -606,7 +670,7 @@ const StudentManagement: React.FC<Props> = ({
         cellRenderer: (params: any) => {
           const student = params.data;
           const isLoading = isUpdatingStatus === student.id;
-          
+
           return (
             <div className='flex items-center  w-full h-full'>
               {isLoading ? (
@@ -676,7 +740,7 @@ const StudentManagement: React.FC<Props> = ({
         cellRenderer: (params: any) => {
           const student = params.data;
           const academicLevel = student.academicLevel;
-          
+
           if (!academicLevel) {
             return (
               <div className='flex items-center w-full h-full'>
@@ -684,10 +748,10 @@ const StudentManagement: React.FC<Props> = ({
               </div>
             );
           }
-          
+
           return (
             <div className='flex items-center w-full h-full'>
-              <span 
+              <span
                 className="px-3 py-1 rounded-full text-xs font-semibold text-white"
                 style={{ backgroundColor: academicLevel.color }}
               >
@@ -705,7 +769,7 @@ const StudentManagement: React.FC<Props> = ({
         cellRenderer: (params: any) => {
           const student = params.data;
           const paymentPlan = student.paymentPlan;
-          
+
           if (!paymentPlan) {
             return (
               <div className='flex items-center w-full h-full'>
@@ -713,7 +777,7 @@ const StudentManagement: React.FC<Props> = ({
               </div>
             );
           }
-          
+
           return (
             <div className='flex items-center w-full h-full'>
               <div>
@@ -726,7 +790,7 @@ const StudentManagement: React.FC<Props> = ({
           );
         }
       },
-   
+
       {
         headerName: 'Acciones',
         width: 120,
@@ -836,12 +900,12 @@ const StudentManagement: React.FC<Props> = ({
 
   const getStudentsByStatus = (status: string) => {
     const studentsByStatus = filteredStudents.filter(student => student && student.prospectStatus === status);
-    
+
     // Para asesores de ventas: en la columna "Matriculado" solo mostrar NO verificados
     if (userRole === 'sales_advisor' && status === 'matriculado') {
       return studentsByStatus.filter(student => !student.enrollmentVerified);
     }
-    
+
     return studentsByStatus;
   };
 
@@ -852,7 +916,7 @@ const StudentManagement: React.FC<Props> = ({
   }) => {
     const [showArchiveConfirmation, setShowArchiveConfirmation] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
+
     const [formData, setFormData] = useState({
       // Datos Personales
       firstName: student?.firstName || '',
@@ -903,7 +967,7 @@ const StudentManagement: React.FC<Props> = ({
     });
 
     // Estado para lista de estudiantes disponibles para referir
-    const [availableStudents, setAvailableStudents] = useState<Array<{value: string | number, label: string}>>([]);
+    const [availableStudents, setAvailableStudents] = useState<Array<{ value: string | number, label: string }>>([]);
 
     // Cargar lista de estudiantes para Select2 de referidos
     React.useEffect(() => {
@@ -921,7 +985,7 @@ const StudentManagement: React.FC<Props> = ({
           console.error('Error loading students for referral:', error);
         }
       };
-      
+
       fetchAvailableStudents();
     }, [student?.id]);
 
@@ -1048,15 +1112,15 @@ const StudentManagement: React.FC<Props> = ({
                   onClick={() => {
                     console.log('🔥 CONFIRMANDO ARCHIVO');
                     console.log('📝 formData actual:', formData);
-                    
+
                     // Actualizar el formData y cerrar el modal
                     const updatedFormData = { ...formData, archived: true };
-                    
+
                     console.log('✅ formData actualizado:', updatedFormData);
-                    
+
                     setFormData(updatedFormData);
                     setShowArchiveConfirmation(false);
-                    
+
                     // Enviar el formulario directamente con los datos actualizados
                     setTimeout(() => {
                       console.log('📤 Enviando datos al backend:', updatedFormData);
@@ -1086,47 +1150,47 @@ const StudentManagement: React.FC<Props> = ({
             className="relative bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
-          {/* Header del Modal */}
-          <div className="relative bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6 rounded-t-3xl flex-shrink-0">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-2xl font-bold text-white mb-1">
-                  {isCashierEditing
-                    ? 'Verificación de Pago'
-                    : student
-                      ? 'Editar Prospecto'
-                      : 'Nuevo Prospecto'
-                  }
-                </h3>
-                <p className="text-blue-100">
-                  {isCashierEditing
-                    ? 'Verifica el pago y matricula al estudiante'
-                    : student
-                      ? 'Actualiza la información del prospecto'
-                      : 'Completa la información para registrar un nuevo prospecto'}
-                </p>
-              </div>
-
-              {/* Close Button */}
-              <button
-                type="button"
-                onClick={onCancel}
-                className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-all duration-200"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          {/* Contenido del Modal - Con scroll */}
-          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-            <div className="p-8 space-y-6 overflow-y-auto flex-1">
-              {/* VISTA UNIFICADA PARA TODOS LOS ROLES */}
-              <>
-                {/* Sección: Datos Personales */}
+            {/* Header del Modal */}
+            <div className="relative bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6 rounded-t-3xl flex-shrink-0">
+              <div className="flex items-center justify-between">
                 <div>
+                  <h3 className="text-2xl font-bold text-white mb-1">
+                    {isCashierEditing
+                      ? 'Verificación de Pago'
+                      : student
+                        ? 'Editar Prospecto'
+                        : 'Nuevo Prospecto'
+                    }
+                  </h3>
+                  <p className="text-blue-100">
+                    {isCashierEditing
+                      ? 'Verifica el pago y matricula al estudiante'
+                      : student
+                        ? 'Actualiza la información del prospecto'
+                        : 'Completa la información para registrar un nuevo prospecto'}
+                  </p>
+                </div>
+
+                {/* Close Button */}
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-all duration-200"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Contenido del Modal - Con scroll */}
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-8 space-y-6 overflow-y-auto flex-1">
+                {/* VISTA UNIFICADA PARA TODOS LOS ROLES */}
+                <>
+                  {/* Sección: Datos Personales */}
+                  <div>
                     <div className="flex items-center mb-4 pb-2 border-b-2 border-[#073372]">
                       <div className="w-8 h-8 bg-[#073372] text-white rounded-full flex items-center justify-center font-bold mr-3">
                         1
@@ -1242,47 +1306,47 @@ const StudentManagement: React.FC<Props> = ({
                   </div>
 
                   {/* Sección: Origen y Referencia */}
-             
-                    <div className="border-t border-gray-200 pt-6 mt-6">
-                      <div className="flex items-center mb-4 pb-2 border-b-2 border-[#F98613]">
-                        <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold mr-3">
+
+                  <div className="border-t border-gray-200 pt-6 mt-6">
+                    <div className="flex items-center mb-4 pb-2 border-b-2 border-[#F98613]">
+                      <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold mr-3">
                         1. 1
-                        </div>
-                        <h4 className="text-lg font-semibold text-gray-900">Origen del Prospecto</h4>
                       </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Select2
-                          label="¿Cómo llegó el prospecto?"
-                          value={formData.source}
-                          onChange={(value) => {
-                            const source = value as 'frio' | 'referido' | 'lead';
-                            setFormData({ ...formData, source, referredBy: source !== 'referido' ? null : formData.referredBy });
-                          }}
-                          options={[
-                            { value: 'frio', label: 'Frío (Sin referencia)' },
-                            { value: 'referido', label: 'Referido por estudiante' },
-                            { value: 'lead', label: 'Lead (Marketing)' }
-                          ]}
-                          isSearchable={false}
-                          required
-                        />
-
-                        {formData.source === 'referido' && (
-                          <Select2
-                            label="Estudiante que lo refirió"
-                            value={formData.referredBy}
-                            onChange={(value) => setFormData({ ...formData, referredBy: value ? Number(value) : null })}
-                            options={availableStudents}
-                            isSearchable={true}
-                            isClearable={true}
-                            required
-                            helperText="Busca y selecciona el estudiante que lo refirió"
-                          />
-                        )}
-                      </div>
+                      <h4 className="text-lg font-semibold text-gray-900">Origen del Prospecto</h4>
                     </div>
-                  
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Select2
+                        label="¿Cómo llegó el prospecto?"
+                        value={formData.source}
+                        onChange={(value) => {
+                          const source = value as 'frio' | 'referido' | 'lead';
+                          setFormData({ ...formData, source, referredBy: source !== 'referido' ? null : formData.referredBy });
+                        }}
+                        options={[
+                          { value: 'frio', label: 'Frío (Sin referencia)' },
+                          { value: 'referido', label: 'Referido por estudiante' },
+                          { value: 'lead', label: 'Lead (Marketing)' }
+                        ]}
+                        isSearchable={false}
+                        required
+                      />
+
+                      {formData.source === 'referido' && (
+                        <Select2
+                          label="Estudiante que lo refirió"
+                          value={formData.referredBy}
+                          onChange={(value) => setFormData({ ...formData, referredBy: value ? Number(value) : null })}
+                          options={availableStudents}
+                          isSearchable={true}
+                          isClearable={true}
+                          required
+                          helperText="Busca y selecciona el estudiante que lo refirió"
+                        />
+                      )}
+                    </div>
+                  </div>
+
                   {/* Sección: Clase Modelo y Archivado - Solo visible cuando está en "Reunión Realizada" */}
                   {student && student.prospectStatus === 'propuesta_enviada' && !student.archived && (
                     <div className="border-t border-gray-200 pt-6 mt-6">
@@ -1322,7 +1386,7 @@ const StudentManagement: React.FC<Props> = ({
                               <p className="text-xs text-gray-500 mt-1">Si no se llegó a un acuerdo o el prospecto no está interesado, puedes archivarlo</p>
                             </div>
                           </div>
-                          
+
                           <textarea
                             placeholder="Razón del archivo (opcional)"
                             value={formData.archivedReason}
@@ -1330,7 +1394,7 @@ const StudentManagement: React.FC<Props> = ({
                             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F98613] focus:border-transparent mb-3 resize-none"
                             rows={3}
                           />
-                          
+
                           <button
                             type="button"
                             onClick={() => setShowArchiveConfirmation(true)}
@@ -1348,261 +1412,307 @@ const StudentManagement: React.FC<Props> = ({
 
                   {/* Sección: Datos Académicos - Solo visible cuando el prospecto ya avanzó de "Registrado" */}
                   {student && student.prospectStatus !== 'registrado' && (
-                  <div>
-                    <div className="flex items-center mb-4 pb-2 border-b-2 border-[#17BC91]">
-                      <div className="w-8 h-8 bg-[#17BC91] text-white rounded-full flex items-center justify-center font-bold mr-3">
-                        2
+                    <div>
+                      <div className="flex items-center mb-4 pb-2 border-b-2 border-[#17BC91]">
+                        <div className="w-8 h-8 bg-[#17BC91] text-white rounded-full flex items-center justify-center font-bold mr-3">
+                          2
+                        </div>
+                        <h4 className="text-lg font-semibold text-gray-900">Datos Académicos y de Matrícula</h4>
                       </div>
-                      <h4 className="text-lg font-semibold text-gray-900">Datos Académicos y de Matrícula</h4>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-                      <DatePicker
-                        label="Fecha de Registro"
-                        selected={formData.registrationDate ? new Date(formData.registrationDate) : null}
-                        onChange={() => { }} // No hace nada, es solo lectura
-                        disabled
-                        required
-                        helperText="Se establece automáticamente con la fecha actual"
-                      />
+                        <DatePicker
+                          label="Fecha de Registro"
+                          selected={formData.registrationDate ? new Date(formData.registrationDate) : null}
+                          onChange={() => { }} // No hace nada, es solo lectura
+                          disabled
+                          required
+                          helperText="Se establece automáticamente con la fecha actual"
+                        />
 
-                    </div>
+                      </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                      <DatePicker
-                        label="Fecha de Pago"
-                        selected={formData.paymentDate ? new Date(formData.paymentDate) : null}
-                        onChange={(date) => handlePaymentDateChange(date ? date.toISOString().split('T')[0] : '')}
-                        maxDate={new Date()}
-                        disabled={isCashierEditing}
-                      />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <DatePicker
+                          label="Fecha de Pago"
+                          selected={formData.paymentDate ? new Date(formData.paymentDate) : null}
+                          onChange={(date) => handlePaymentDateChange(date ? date.toISOString().split('T')[0] : '')}
+                          maxDate={new Date()}
+                          disabled={isCashierEditing}
+                        />
 
-                      <Select2
-                        label="Nivel Académico"
-                        value={formData.academicLevelId}
-                        onChange={(value) => {
-                          setFormData({ ...formData, academicLevelId: value as number });
-                        }}
-                        options={academicLevels.map(level => ({
-                          value: level.id,
-                          label: level.name
-                        }))}
-                        isSearchable={false}
-                        isClearable={true}
-                        isDisabled={isCashierEditing}
-                      />
-                    </div>
+                        <Select2
+                          label="Nivel Académico"
+                          value={formData.academicLevelId}
+                          onChange={(value) => {
+                            setFormData({ ...formData, academicLevelId: value as number });
+                          }}
+                          options={academicLevels.map(level => ({
+                            value: level.id,
+                            label: level.name
+                          }))}
+                          isSearchable={false}
+                          isClearable={true}
+                          isDisabled={isCashierEditing}
+                        />
+                      </div>
 
-                    <div className="mt-4">
-                      <Select2
-                        label="Plan de Pago"
-                        value={formData.paymentPlanId}
-                        onChange={(value) => setFormData({ ...formData, paymentPlanId: value as number })}
-                        options={paymentPlans
-                          .filter(plan => plan.is_active)
-                          .map(plan => ({
-                            value: plan.id,
-                            label: `${plan.name} - ${plan.installments_count} cuotas (S/ ${plan.total_amount.toFixed(2)})`
-                          }))
-                        }
-                        isSearchable={false}
-                        isClearable={true}
-                        isDisabled={isCashierEditing}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        El plan de pago es independiente del nivel académico
-                      </p>
-                    </div>
+                      <div className="mt-4">
+                        <Select2
+                          label="Plan de Pago"
+                          value={formData.paymentPlanId}
+                          onChange={(value) => setFormData({ ...formData, paymentPlanId: value as number })}
+                          options={paymentPlans
+                            .filter(plan => plan.is_active)
+                            .map(plan => ({
+                              value: plan.id,
+                              label: `${plan.name} - ${plan.installments_count} cuotas (S/ ${plan.total_amount.toFixed(2)})`
+                            }))
+                          }
+                          isSearchable={false}
+                          isClearable={true}
+                          isDisabled={isCashierEditing}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          El plan de pago es independiente del nivel académico
+                        </p>
+                      </div>
 
-                    {/* ✅ NUEVO: Campo para subir voucher de pago */}
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Voucher/Comprobante de Pago
-                      </label>
-                      
-                      {/* Mostrar voucher existente si ya hay uno */}
-                      {student?.paymentVoucherFileName && !formData.paymentVoucherFile && (
-                        <div className="bg-white rounded-xl p-4 border-2 border-green-200 mb-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                                </svg>
+                      {/* ✅ NUEVO: Campo para subir voucher de pago */}
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Voucher/Comprobante de Pago
+                        </label>
+
+                        {/* Mostrar voucher existente si ya hay uno */}
+                        {student?.paymentVoucherFileName && !formData.paymentVoucherFile && (
+                          <div className="bg-white rounded-xl p-4 border-2 border-green-200 mb-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                  <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <p className="font-bold text-gray-900">{student.paymentVoucherFileName}</p>
+                                  <p className="text-sm text-gray-500">Comprobante de pago subido</p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="font-bold text-gray-900">{student.paymentVoucherFileName}</p>
-                                <p className="text-sm text-gray-500">Comprobante de pago subido</p>
+                              <div className="flex items-center gap-2">
+                                <a
+                                  href={`/admin/students/${student.id}/payment-voucher`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2 text-sm"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                  Ver
+                                </a>
+                                {!isCashierEditing && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, paymentVoucherFileName: '', paymentVoucherFile: null })}
+                                    className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition-colors text-sm"
+                                  >
+                                    Cambiar
+                                  </button>
+                                )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <a
-                                href={`/admin/students/${student.id}/payment-voucher`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2 text-sm"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                Ver
-                              </a>
-                              {!isCashierEditing && (
+                          </div>
+                        )}
+
+                        {/* Input para subir nuevo voucher */}
+                        {(!student?.paymentVoucherFileName || formData.paymentVoucherFile || formData.paymentVoucherFileName === '') && (
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <label className="flex-1 cursor-pointer">
+                                <div className="flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all">
+                                  <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                  <span className="text-sm text-gray-600">
+                                    {formData.paymentVoucherFile?.name || 'Seleccionar imagen o PDF del voucher'}
+                                  </span>
+                                </div>
+                                <input
+                                  type="file"
+                                  accept="image/*,.pdf"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      // Validar tamaño (máx 5MB)
+                                      if (file.size > 5 * 1024 * 1024) {
+                                        toast.error('Archivo muy grande', {
+                                          description: 'El voucher no debe superar 5MB',
+                                          duration: 4000,
+                                        });
+                                        return;
+                                      }
+                                      setFormData({
+                                        ...formData,
+                                        paymentVoucherFile: file,
+                                        paymentVoucherFileName: file.name
+                                      });
+                                    }
+                                  }}
+                                />
+                              </label>
+                              {formData.paymentVoucherFile && (
                                 <button
                                   type="button"
-                                  onClick={() => setFormData({ ...formData, paymentVoucherFileName: '', paymentVoucherFile: null })}
-                                  className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition-colors text-sm"
+                                  onClick={() => setFormData({ ...formData, paymentVoucherFile: null, paymentVoucherFileName: student?.paymentVoucherFileName || '' })}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Eliminar archivo"
                                 >
-                                  Cambiar
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
                                 </button>
                               )}
                             </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              📸 Adjunta la captura o foto del voucher de pago (JPG, PNG o PDF, máx. 5MB)
+                            </p>
                           </div>
-                        </div>
-                      )}
-                      
-                      {/* Input para subir nuevo voucher */}
-                      {(!student?.paymentVoucherFileName || formData.paymentVoucherFile || formData.paymentVoucherFileName === '') && (
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <label className="flex-1 cursor-pointer">
-                              <div className="flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all">
-                                <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <span className="text-sm text-gray-600">
-                                  {formData.paymentVoucherFile?.name || 'Seleccionar imagen o PDF del voucher'}
-                                </span>
-                              </div>
-                              <input
-                                type="file"
-                                accept="image/*,.pdf"
-                                className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    // Validar tamaño (máx 5MB)
-                                    if (file.size > 5 * 1024 * 1024) {
-                                      toast.error('Archivo muy grande', {
-                                        description: 'El voucher no debe superar 5MB',
-                                        duration: 4000,
-                                      });
-                                      return;
-                                    }
-                                    setFormData({
-                                      ...formData,
-                                      paymentVoucherFile: file,
-                                      paymentVoucherFileName: file.name
-                                    });
-                                  }
-                                }}
-                              />
-                            </label>
-                            {formData.paymentVoucherFile && (
-                              <button
-                                type="button"
-                                onClick={() => setFormData({ ...formData, paymentVoucherFile: null, paymentVoucherFileName: student?.paymentVoucherFileName || '' })}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Eliminar archivo"
-                              >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            📸 Adjunta la captura o foto del voucher de pago (JPG, PNG o PDF, máx. 5MB)
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                      <DatePicker
-                        label="Fecha de Matrícula"
-                        selected={formData.enrollmentDate ? new Date(formData.enrollmentDate) : null}
-                        onChange={() => { }} // No hace nada, es solo lectura
-                        disabled
-                        helperText="Se llena automáticamente al seleccionar la fecha de pago"
-                      />
-
-                      <Input
-                        label="Código de Matrícula"
-                        value={formData.enrollmentCode}
-                        onChange={() => { }} // No hace nada, es solo lectura
-                        disabled
-                        helperText="Se genera automáticamente al confirmar el pago"
-                      />
-                    </div>
-
-                    {/* ✅ NUEVO: Campo para subir voucher de pago ya eliminado - ahora se genera automáticamente */}
-                    {/* El contrato se genera automáticamente cuando el prospecto pasa a "Pago Por Verificar" */}
-                    {/* El estudiante recibirá un email con el link para revisar y aceptar el contrato */}
-                    
-                    {/* Mostrar contrato generado automáticamente si existe */}
-                    {student?.contractFileName && (
-                      <div className="mt-6 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border-2 border-emerald-300">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                            <svg className="w-5 h-5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-gray-900">📄 Contrato Generado Automáticamente</h4>
-                            <p className="text-sm text-gray-600">El estudiante recibió un email para revisar y aceptar el contrato</p>
-                          </div>
-                        </div>
-                        <a
-                          href={`/admin/students/${student.id}/contract`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors text-sm"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                          Ver Contrato
-                        </a>
+                        )}
                       </div>
-                    )}
 
-                    {/* Verificación de Pago - ACCIÓN PRINCIPAL DEL CAJERO */}
-                    {isCashierEditing && (
-                      <div className="p-6 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 rounded-2xl border-2 border-green-400 shadow-lg mt-6">
-                        <label className="flex items-start gap-4 cursor-pointer group">
-                          <input
-                            type="checkbox"
-                            checked={formData.paymentVerified}
-                            onChange={(e) => setFormData({ ...formData, paymentVerified: e.target.checked })}
-                            className="w-7 h-7 text-green-600 focus:ring-4 focus:ring-green-300 rounded-lg border-2 border-gray-400 transition-all mt-1 cursor-pointer"
-                          />
-                          <div className="flex-1">
-                            <span className="text-xl font-bold text-gray-900 block mb-2 group-hover:text-green-700 transition-colors">
-                              ✓ Confirmar Verificación de Pago
-                            </span>
-                            <span className="text-sm text-gray-700 leading-relaxed">
-                              He verificado que el pago ha sido recibido correctamente.
-                              <span className="block mt-3 text-green-900 font-semibold bg-green-100 p-3 rounded-lg border-l-4 border-green-600">
-                                💡 Al confirmar, el estudiante será <strong>matriculado automáticamente</strong> en el sistema.
-                              </span>
-                            </span>
-                          </div>
-                          {formData.paymentVerified && (
-                            <div className="flex-shrink-0 animate-bounce">
-                              <svg className="w-12 h-12 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <DatePicker
+                          label="Fecha de Matrícula"
+                          selected={formData.enrollmentDate ? new Date(formData.enrollmentDate) : null}
+                          onChange={() => { }} // No hace nada, es solo lectura
+                          disabled
+                          helperText="Se llena automáticamente al seleccionar la fecha de pago"
+                        />
+
+                        <Input
+                          label="Código de Matrícula"
+                          value={formData.enrollmentCode}
+                          onChange={() => { }} // No hace nada, es solo lectura
+                          disabled
+                          helperText="Se genera automáticamente al confirmar el pago"
+                        />
+                      </div>
+
+                      {/* ✅ NUEVO: Campo para subir voucher de pago ya eliminado - ahora se genera automáticamente */}
+                      {/* El contrato se genera automáticamente cuando el prospecto pasa a "Pago Por Verificar" */}
+                      {/* El estudiante recibirá un email con el link para revisar y aceptar el contrato */}
+
+                      {/* Mostrar contrato generado automáticamente si existe */}
+                      {/* Mostrar contrato */}
+                      {student?.latestContractAcceptance?.accepted_at ? (
+                        <div className="mt-6 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border-2 border-emerald-300">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                              <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                             </div>
+                            <div>
+                              <h4 className="font-bold text-gray-900">📄 Contrato Firmado por Estudiante</h4>
+                              <p className="text-sm text-gray-600">
+                                {student.latestContractAcceptance.advisor_approved
+                                  ? 'El contrato ha sido aprobado por el asesor.'
+                                  : 'El estudiante ha firmado. Pendiente de revisión y aprobación.'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {!student.latestContractAcceptance.advisor_approved ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPendingContract({
+                                  id: student.latestContractAcceptance!.id,
+                                  studentName: student.name,
+                                  pdfPath: student.latestContractAcceptance!.pdf_path,
+                                });
+                                setContractReviewOpen(true);
+                              }}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors text-sm"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              Revisar y Aprobar Contrato
+                            </button>
+                          ) : (
+                            <a
+                              href={`/storage/${student.latestContractAcceptance.pdf_path}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors text-sm"
+                            >
+                              <Eye className="w-4 h-4" />
+                              Ver Contrato Firmado
+                            </a>
                           )}
-                        </label>
-                      </div>
-                    )}
-                  </div>
+                        </div>
+                      ) : student?.contractFileName ? (
+                        <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-300">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-gray-900">📄 Contrato Generado (Pendiente de Firma)</h4>
+                              <p className="text-sm text-gray-600">El estudiante recibió un email para firmar.</p>
+                            </div>
+                          </div>
+                          <a
+                            href={`/admin/students/${student.id}/contract`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors text-sm"
+                          >
+                            <Eye className="w-4 h-4" />
+                            Ver Borrador
+                          </a>
+                        </div>
+                      ) : null}
+
+                      {/* Verificación de Pago - ACCIÓN PRINCIPAL DEL CAJERO */}
+                      {isCashierEditing && (
+                        <div className="p-6 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 rounded-2xl border-2 border-green-400 shadow-lg mt-6">
+                          <label className="flex items-start gap-4 cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              checked={formData.paymentVerified}
+                              onChange={(e) => setFormData({ ...formData, paymentVerified: e.target.checked })}
+                              className="w-7 h-7 text-green-600 focus:ring-4 focus:ring-green-300 rounded-lg border-2 border-gray-400 transition-all mt-1 cursor-pointer"
+                            />
+                            <div className="flex-1">
+                              <span className="text-xl font-bold text-gray-900 block mb-2 group-hover:text-green-700 transition-colors">
+                                ✓ Confirmar Verificación de Pago
+                              </span>
+                              <span className="text-sm text-gray-700 leading-relaxed">
+                                He verificado que el pago ha sido recibido correctamente.
+                                <span className="block mt-3 text-green-900 font-semibold bg-green-100 p-3 rounded-lg border-l-4 border-green-600">
+                                  💡 Al confirmar, el estudiante será <strong>matriculado automáticamente</strong> en el sistema.
+                                </span>
+                              </span>
+                            </div>
+                            {formData.paymentVerified && (
+                              <div className="flex-shrink-0 animate-bounce">
+                                <svg className="w-12 h-12 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            )}
+                          </label>
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {/* Sección: Examen de Categorización */}
@@ -1713,144 +1823,144 @@ const StudentManagement: React.FC<Props> = ({
                     </div>
                   </div>
                 </>
-            </div>
-
-            {/* Footer con Botones */}
-            <div className="bg-gray-50 px-8 py-6 rounded-b-3xl border-t-2 border-gray-200 flex-shrink-0">
-              <div className="flex justify-between items-center gap-4">
-                {/* Botones de Cronograma */}
-              <div className='!hidden'>
-                  {student && (
-                  <>
-                    {/* Ver Cronograma - Solo para estudiantes matriculados */}
-                    {student.prospectStatus === 'matriculado' && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedStudentForSchedule(student);
-                          setPaymentScheduleModalOpen(true);
-                        }}
-                        className="px-6 py-3 text-blue-700 bg-blue-50 hover:bg-blue-100 border-2 border-blue-300 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2"
-                      >
-                        <Calendar className="w-4 h-4" />
-                        Ver Cronograma de Pagos
-                      </button>
-                    )}
-                    
-                    {/* Crear/Ver Cronograma - Para cajeros en pago_por_verificar */}
-                    {student.prospectStatus === 'pago_por_verificar' && userRole === 'cashier' && (
-                      <button
-                        type="button"
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          
-                          console.log('Botón cronograma clickeado');
-                          
-                          if (!student.paymentPlanId) {
-                            toast.error('El estudiante no tiene un plan de pago asignado');
-                            return;
-                          }
-                          
-                          // Cerrar el modal de edición primero
-                          onCancel();
-                          
-                          // Esperar un poco para que se cierre el modal
-                          setTimeout(async () => {
-                            // Primero intentar obtener el enrollment existente
-                            try {
-                              const checkResponse = await axios.get(`/api/students/${student.id}/enrollment`);
-                              
-                              console.log('Enrollment response:', checkResponse.data);
-                              
-                              // Si existe enrollment, abrir modal
-                              if (checkResponse.status === 200) {
-                                setSelectedStudentForSchedule(student);
-                                setPaymentScheduleModalOpen(true);
-                                return;
-                              }
-                            } catch (checkError) {
-                              console.log('No enrollment found, will try to create:', checkError);
-                              
-                              // Si no existe (404), intentar crear uno nuevo
-                              if (!student.enrollmentDate) {
-                                toast.error('El estudiante no tiene fecha de matrícula');
-                                return;
-                              }
-                              
-                              try {
-                                const createResponse = await axios.post('/api/enrollments', {
-                                  student_id: student.id,
-                                  payment_plan_id: student.paymentPlanId,
-                                  enrollment_date: student.enrollmentDate,
-                                  enrollment_fee: 0,
-                                  notes: 'Matrícula creada desde gestión de prospectos'
-                                });
-                                
-                                console.log('Enrollment created:', createResponse.data);
-                                
-                                toast.success('Cronograma de pagos creado exitosamente');
-                                
-                                // Abrir el modal después de crear
-                                setTimeout(() => {
-                                  setSelectedStudentForSchedule(student);
-                                  setPaymentScheduleModalOpen(true);
-                                }, 300);
-                              } catch (createError) {
-                                console.error('Error creating enrollment:', createError);
-                                toast.error('Error al crear el cronograma de pagos');
-                              }
-                            }
-                          }, 200);
-                        }}
-                        className="px-6 py-3 text-green-700 bg-green-50 hover:bg-green-100 border-2 border-green-300 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2"
-                      >
-                        <Calendar className="w-4 h-4" />
-                        Ver/Crear Cronograma de Pagos
-                      </button>
-                    )}
-                  </>
-                )}
               </div>
-                
-                <div className="flex justify-end gap-4 ml-auto">
-                  <button
-                    type="button"
-                    onClick={onCancel}
-                    className="px-6 py-3 text-gray-700 bg-white hover:bg-gray-100 border-2 border-gray-300 rounded-xl font-semibold transition-all duration-200"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting || (isCashierEditing && !formData.paymentVerified)}
-                    className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm flex items-center gap-2 ${(isSubmitting || (isCashierEditing && !formData.paymentVerified))
+
+              {/* Footer con Botones */}
+              <div className="bg-gray-50 px-8 py-6 rounded-b-3xl border-t-2 border-gray-200 flex-shrink-0">
+                <div className="flex justify-between items-center gap-4">
+                  {/* Botones de Cronograma */}
+                  <div className='!hidden'>
+                    {student && (
+                      <>
+                        {/* Ver Cronograma - Solo para estudiantes matriculados */}
+                        {student.prospectStatus === 'matriculado' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedStudentForSchedule(student);
+                              setPaymentScheduleModalOpen(true);
+                            }}
+                            className="px-6 py-3 text-blue-700 bg-blue-50 hover:bg-blue-100 border-2 border-blue-300 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2"
+                          >
+                            <Calendar className="w-4 h-4" />
+                            Ver Cronograma de Pagos
+                          </button>
+                        )}
+
+                        {/* Crear/Ver Cronograma - Para cajeros en pago_por_verificar */}
+                        {student.prospectStatus === 'pago_por_verificar' && userRole === 'cashier' && (
+                          <button
+                            type="button"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+
+                              console.log('Botón cronograma clickeado');
+
+                              if (!student.paymentPlanId) {
+                                toast.error('El estudiante no tiene un plan de pago asignado');
+                                return;
+                              }
+
+                              // Cerrar el modal de edición primero
+                              onCancel();
+
+                              // Esperar un poco para que se cierre el modal
+                              setTimeout(async () => {
+                                // Primero intentar obtener el enrollment existente
+                                try {
+                                  const checkResponse = await axios.get(`/api/students/${student.id}/enrollment`);
+
+                                  console.log('Enrollment response:', checkResponse.data);
+
+                                  // Si existe enrollment, abrir modal
+                                  if (checkResponse.status === 200) {
+                                    setSelectedStudentForSchedule(student);
+                                    setPaymentScheduleModalOpen(true);
+                                    return;
+                                  }
+                                } catch (checkError) {
+                                  console.log('No enrollment found, will try to create:', checkError);
+
+                                  // Si no existe (404), intentar crear uno nuevo
+                                  if (!student.enrollmentDate) {
+                                    toast.error('El estudiante no tiene fecha de matrícula');
+                                    return;
+                                  }
+
+                                  try {
+                                    const createResponse = await axios.post('/api/enrollments', {
+                                      student_id: student.id,
+                                      payment_plan_id: student.paymentPlanId,
+                                      enrollment_date: student.enrollmentDate,
+                                      enrollment_fee: 0,
+                                      notes: 'Matrícula creada desde gestión de prospectos'
+                                    });
+
+                                    console.log('Enrollment created:', createResponse.data);
+
+                                    toast.success('Cronograma de pagos creado exitosamente');
+
+                                    // Abrir el modal después de crear
+                                    setTimeout(() => {
+                                      setSelectedStudentForSchedule(student);
+                                      setPaymentScheduleModalOpen(true);
+                                    }, 300);
+                                  } catch (createError) {
+                                    console.error('Error creating enrollment:', createError);
+                                    toast.error('Error al crear el cronograma de pagos');
+                                  }
+                                }
+                              }, 200);
+                            }}
+                            className="px-6 py-3 text-green-700 bg-green-50 hover:bg-green-100 border-2 border-green-300 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2"
+                          >
+                            <Calendar className="w-4 h-4" />
+                            Ver/Crear Cronograma de Pagos
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-4 ml-auto">
+                    <button
+                      type="button"
+                      onClick={onCancel}
+                      className="px-6 py-3 text-gray-700 bg-white hover:bg-gray-100 border-2 border-gray-300 rounded-xl font-semibold transition-all duration-200"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting || (isCashierEditing && !formData.paymentVerified)}
+                      className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm flex items-center gap-2 ${(isSubmitting || (isCashierEditing && !formData.paymentVerified))
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-[#073372] hover:bg-[#17BC91] text-white'
-                      }`}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Actualizando...
-                      </>
-                    ) : (
-                      isCashierEditing
-                        ? (formData.paymentVerified ? 'Verificar y Matricular' : 'Marcar la verificación')
-                        : student
-                          ? 'Actualizar'
-                          : 'Registrar'
-                    )}
-                  </button>
+                        }`}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Actualizando...
+                        </>
+                      ) : (
+                        isCashierEditing
+                          ? (formData.paymentVerified ? 'Verificar y Matricular' : 'Marcar la verificación')
+                          : student
+                            ? 'Actualizar'
+                            : 'Registrar'
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
-      </div>
       </>
     );
   };
@@ -1968,15 +2078,15 @@ const StudentManagement: React.FC<Props> = ({
             </p>
           </div>
           <div className="flex items-center space-x-4">
-           
+
 
             {/* View Mode Toggle */}
             <div className="flex items-center bg-gray-100 rounded-lg p-1">
               <button
                 onClick={() => setViewMode('list')}
                 className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'list'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
                 <List className="h-4 w-4" />
@@ -1985,8 +2095,8 @@ const StudentManagement: React.FC<Props> = ({
               <button
                 onClick={() => setViewMode('kanban')}
                 className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'kanban'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
                 <Columns className="h-4 w-4" />
@@ -2039,9 +2149,9 @@ const StudentManagement: React.FC<Props> = ({
                     >
                       {/* Column Header - Con color de estado */}
                       <div className={`rounded-lg p-3 mb-3 ${column.id === 'registrado' ? 'bg-blue-500' :
-                          column.id === 'propuesta_enviada' ? 'bg-yellow-500' :
-                            column.id === 'pago_por_verificar' ? 'bg-orange-500' :
-                              'bg-green-500'
+                        column.id === 'propuesta_enviada' ? 'bg-yellow-500' :
+                          column.id === 'pago_por_verificar' ? 'bg-orange-500' :
+                            'bg-green-500'
                         }`}>
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-semibold text-white uppercase tracking-wide">
@@ -2070,7 +2180,7 @@ const StudentManagement: React.FC<Props> = ({
                                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, x: -20, scale: 0.9, transition: { duration: 0.2 } }}
-                                transition={{ 
+                                transition={{
                                   type: "spring",
                                   stiffness: 500,
                                   damping: 35,
@@ -2083,10 +2193,10 @@ const StudentManagement: React.FC<Props> = ({
                                   }
                                 }}
                                 className={`bg-white rounded-lg border border-gray-200 p-3 ${isDraggable
-                                    ? 'cursor-grab active:cursor-grabbing hover:shadow-md hover:border-gray-300'
-                                    : userRole === 'cashier'
-                                      ? 'cursor-pointer hover:shadow-md hover:border-blue-300'
-                                      : 'cursor-default opacity-50'
+                                  ? 'cursor-grab active:cursor-grabbing hover:shadow-md hover:border-gray-300'
+                                  : userRole === 'cashier'
+                                    ? 'cursor-pointer hover:shadow-md hover:border-blue-300'
+                                    : 'cursor-default opacity-50'
                                   } transition-all duration-200`}
                                 whileHover={isDraggable ? { scale: 1.02, y: -2 } : userRole === 'cashier' ? { scale: 1.02, y: -2 } : {}}
                                 whileTap={isDraggable ? { scale: 0.98 } : {}}
@@ -2128,6 +2238,29 @@ const StudentManagement: React.FC<Props> = ({
                                         </span>
                                       )}
                                     </div>
+
+                                    {/* Botón de contrato firmado */}
+                                    {column.id === 'propuesta_enviada' &&
+                                      student.latestContractAcceptance?.accepted_at &&
+                                      !student.latestContractAcceptance?.advisor_approved && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setPendingContract({
+                                              id: student.latestContractAcceptance!.id,
+                                              studentName: student.name,
+                                              pdfPath: student.latestContractAcceptance!.pdf_path,
+                                            });
+                                            setContractReviewOpen(true);
+                                          }}
+                                          className="mt-3 w-full px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-md text-xs font-bold hover:bg-emerald-200 flex items-center justify-center gap-1.5 transition-colors border border-emerald-200 shadow-sm"
+                                        >
+                                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                          </svg>
+                                          Revisar Contrato Firmado
+                                        </button>
+                                      )}
                                   </div>
                                 </div>
 
@@ -2194,26 +2327,26 @@ const StudentManagement: React.FC<Props> = ({
         {viewMode === 'list' && (
           <>
             {/* Barra de búsqueda */}
-              <div className="relative">
-                <Input
-                  type="text"
-                  label="Buscar por nombre, email, código, teléfono, estado, nivel, plan..."
-                  value={quickFilterText}
-                  onChange={(e) => setQuickFilterText(e.target.value)}
-                  icon={<Search className="w-4 h-4" />}
-                  className="pr-10"
-                />
-                {quickFilterText && (
-                  <button
-                    onClick={() => setQuickFilterText('')}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors z-20"
-                  >
-                    <XCircle className="w-5 h-5" />
-                  </button>
-                )}
-              </div>
-             
-           
+            <div className="relative">
+              <Input
+                type="text"
+                label="Buscar por nombre, email, código, teléfono, estado, nivel, plan..."
+                value={quickFilterText}
+                onChange={(e) => setQuickFilterText(e.target.value)}
+                icon={<Search className="w-4 h-4" />}
+                className="pr-10"
+              />
+              {quickFilterText && (
+                <button
+                  onClick={() => setQuickFilterText('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors z-20"
+                >
+                  <XCircle className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+
 
             <div className="ag-theme-quartz" style={{ height: '600px', width: '100%' }}>
               <AgGridReact<Student>
@@ -2244,7 +2377,7 @@ const StudentManagement: React.FC<Props> = ({
         )}
 
       </div>
-      
+
       {/* Payment Schedule Modal */}
       {selectedStudentForSchedule && (
         <PaymentScheduleModal
@@ -2255,6 +2388,23 @@ const StudentManagement: React.FC<Props> = ({
           userRole={userRole}
         />
       )}
+
+      {/* Contract Review Modal */}
+      <ContractReviewModal
+        isOpen={contractReviewOpen}
+        onClose={() => setContractReviewOpen(false)}
+        contractAcceptanceId={pendingContract?.id ?? null}
+        studentName={pendingContract?.studentName ?? ''}
+        pdfPath={pendingContract?.pdfPath ?? ''}
+        onApproved={() => {
+          fetchStudents();
+          setPendingContract(null);
+        }}
+        onResent={() => {
+          fetchStudents();
+          setPendingContract(null);
+        }}
+      />
     </AuthenticatedLayout>
   );
 };

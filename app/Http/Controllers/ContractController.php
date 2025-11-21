@@ -93,30 +93,26 @@ class ContractController extends Controller
         $contractAcceptance->contract_content = $newContractHTML;
         $contractAcceptance->save();
 
-        // Enviar email al estudiante con PDF firmado
-        Mail::to($contractAcceptance->student->user->email)->send(
-            new \App\Mail\ContractSignedStudentMail($contractAcceptance->student, $newPdfPath)
-        );
+        // Disparar evento para notificar al asesor en tiempo real
+        \Illuminate\Support\Facades\Log::info('Disparando evento ContractSignedByStudent', [
+            'student_id' => $contractAcceptance->student_id,
+            'advisor_id' => $contractAcceptance->student->registered_by
+        ]);
+        event(new \App\Events\ContractSignedByStudent($contractAcceptance, $contractAcceptance->student));
 
-        // Enviar email al admin
-        // Buscar un usuario admin para enviar el email
-        $adminUser = \App\Models\User::where('role', 'admin')->first();
-        if ($adminUser) {
-            Mail::to($adminUser->email)->send(
-                new \App\Mail\ContractSignedAdminMail($contractAcceptance->student, $newPdfPath)
-            );
-        }
-
-        // Enviar email al asesor si existe
+        // Notificar al asesor (Notificación persistente + Broadcast estándar)
         if ($contractAcceptance->student->registeredBy) {
-            Mail::to($contractAcceptance->student->registeredBy->email)->send(
-                new \App\Mail\ContractSignedAdvisorMail($contractAcceptance->student, $newPdfPath)
+            $contractAcceptance->student->registeredBy->notify(
+                new \App\Notifications\ContractSignedNotification($contractAcceptance, $contractAcceptance->student)
             );
+            \Illuminate\Support\Facades\Log::info('Notificación enviada al asesor', [
+                'advisor_id' => $contractAcceptance->student->registered_by
+            ]);
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Contrato firmado exitosamente',
+            'message' => 'Contrato firmado exitosamente. Esperando aprobación del asesor.',
             'accepted_at' => $contractAcceptance->accepted_at,
         ]);
     }

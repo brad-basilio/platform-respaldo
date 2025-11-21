@@ -20,6 +20,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ContractController;
+use App\Http\Controllers\Admin\ContractApprovalController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -69,6 +70,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/admin/students/{student}/prospect-status', [StudentController::class, 'updateProspectStatus'])->name('admin.students.prospect-status');
         Route::get('/admin/students/{student}/contract', [StudentController::class, 'downloadContract'])->name('admin.students.contract');
         Route::get('/admin/students/{student}/payment-voucher', [StudentController::class, 'viewPaymentVoucher'])->name('admin.students.payment-voucher');
+        
+        // Contract Approval Routes
+        Route::get('/admin/contracts/{contractAcceptance}', [ContractApprovalController::class, 'show'])->name('admin.contracts.show');
+        Route::post('/admin/contracts/{contractAcceptance}/approve', [ContractApprovalController::class, 'approve'])->name('admin.contracts.approve');
+        Route::post('/admin/contracts/{contractAcceptance}/resend', [ContractApprovalController::class, 'resend'])->name('admin.contracts.resend');
         
         // Enrollments & Payment Schedules
         Route::get('/api/students/{student}/enrollment', [EnrollmentController::class, 'show'])->name('api.students.enrollment');

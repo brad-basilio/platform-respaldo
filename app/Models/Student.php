@@ -223,4 +223,12 @@ class Student extends Model
     {
         return $this->attributes['contract_file_name'] ?? null;
     }
+
+    /**
+     * Relación con aceptaciones de contrato
+     */
+    public function contractAcceptances(): HasMany
+    {
+        return $this->hasMany(ContractAcceptance::class);
+    }
 }

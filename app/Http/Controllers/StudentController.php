@@ -229,7 +229,8 @@ class StudentController extends Controller
             'verifiedEnrollmentBy',
             'academicLevel',  // ✅ Nuevo
             'paymentPlan',     // ✅ Nuevo
-            'referredByStudent' // ✅ Nuevo: relación con el estudiante que refirió
+            'referredByStudent', // ✅ Nuevo: relación con el estudiante que refirió
+            'contractAcceptances' // ✅ Nuevo: historial de contratos
         ]);
         
         // ✅ EXCLUIR MATRICULADOS VERIFICADOS (ya están en enrolled-students)
@@ -350,6 +351,12 @@ class StudentController extends Controller
                     'archived' => $student->archived ?? false,  // ✅ Nuevo: si fue archivado
                     'archivedAt' => $student->archived_at?->toISOString(),  // ✅ Nuevo: cuándo fue archivado
                     'archivedReason' => $student->archived_reason,  // ✅ Nuevo: razón del archivo
+                    'latestContractAcceptance' => $student->contractAcceptances->sortByDesc('created_at')->first() ? [
+                        'id' => $student->contractAcceptances->sortByDesc('created_at')->first()->id,
+                        'pdf_path' => $student->contractAcceptances->sortByDesc('created_at')->first()->pdf_path,
+                        'accepted_at' => $student->contractAcceptances->sortByDesc('created_at')->first()->accepted_at,
+                        'advisor_approved' => $student->contractAcceptances->sortByDesc('created_at')->first()->advisor_approved,
+                    ] : null,
                 ];
             });
 
@@ -392,7 +399,8 @@ class StudentController extends Controller
             'verifiedEnrollmentBy',
             'academicLevel',  // ✅ Nuevo
             'paymentPlan',     // ✅ Nuevo
-            'referredByStudent' // ✅ Nuevo: relación con el estudiante que refirió
+            'referredByStudent', // ✅ Nuevo: relación con el estudiante que refirió
+            'contractAcceptances' // ✅ Nuevo: historial de contratos
         ]);
         
         // ✅ IMPORTANTE: Excluir estudiantes matriculados y verificados (ya están en enrolled-students)
@@ -496,6 +504,12 @@ class StudentController extends Controller
                     'archived' => $student->archived ?? false,  // ✅ Nuevo: si fue archivado
                     'archivedAt' => $student->archived_at?->toISOString(),  // ✅ Nuevo: cuándo fue archivado
                     'archivedReason' => $student->archived_reason,  // ✅ Nuevo: razón del archivo
+                    'latestContractAcceptance' => $student->contractAcceptances->sortByDesc('created_at')->first() ? [
+                        'id' => $student->contractAcceptances->sortByDesc('created_at')->first()->id,
+                        'pdf_path' => $student->contractAcceptances->sortByDesc('created_at')->first()->pdf_path,
+                        'accepted_at' => $student->contractAcceptances->sortByDesc('created_at')->first()->accepted_at,
+                        'advisor_approved' => $student->contractAcceptances->sortByDesc('created_at')->first()->advisor_approved,
+                    ] : null,
                 ];
             });
 
@@ -870,18 +884,19 @@ class StudentController extends Controller
 
         // Lógica de cambio de estado automático para Sales Advisor
         if ($user->role === 'sales_advisor') {
-            // Si completa fecha de pago, nivel académico y plan de pago, puede marcar como listo para verificar
+            // Si completa fecha de pago, nivel académico y plan de pago, generar contrato pero NO cambiar estado
             if (!empty($validated['payment_date']) && 
                 !empty($validated['academic_level_id']) &&  // ✅ Cambiado de 'level'
                 !empty($validated['payment_plan_id']) &&    // ✅ Cambiado de 'contracted_plan'
                 $student->prospect_status === 'propuesta_enviada') {
-                // Auto-cambiar a pago_por_verificar
-                $student->update(['prospect_status' => 'pago_por_verificar']);
                 
-                // 🆕 CREAR ENROLLMENT automáticamente también aquí
+                // ✅ NO CAMBIAR A pago_por_verificar automáticamente
+                // El estudiante debe firmar primero, luego el asesor aprueba, y solo entonces pasa a pago_por_verificar
+                
+                // 🆕 CREAR ENROLLMENT automáticamente (necesario para el contrato)
                 $this->createEnrollmentForStudent($student);
                 
-                // 📄 GENERAR Y ENVIAR CONTRATO (DESPUÉS de enviar respuesta HTTP)
+                // 📄 GENERAR Y ENVIAR CONTRATO para que el estudiante lo firme (DESPUÉS de enviar respuesta HTTP)
                 dispatch(function() use ($student) {
                     try {
                         Log::info('Iniciando generación de contrato después de respuesta HTTP (update)', [
