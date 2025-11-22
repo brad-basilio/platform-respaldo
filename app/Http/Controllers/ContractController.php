@@ -50,9 +50,9 @@ class ContractController extends Controller
      */
     public function accept(Request $request, string $token)
     {
-        // Validar firma
+        // Validar firma (opcional)
         $request->validate([
-            'signature' => 'required|image|max:2048', // 2MB máximo
+            'signature' => 'nullable|image|max:2048', // 2MB máximo
         ]);
 
         $contractAcceptance = ContractAcceptance::where('token', $token)
@@ -75,10 +75,13 @@ class ContractController extends Controller
             ], 400);
         }
 
-        // Guardar imagen de firma
-        $signatureFile = $request->file('signature');
-        $signatureFileName = 'signature_' . $contractAcceptance->student_id . '_' . time() . '.' . $signatureFile->extension();
-        $signaturePath = $signatureFile->storeAs('signatures', $signatureFileName, 'public');
+        // Guardar imagen de firma (si existe)
+        $signaturePath = null;
+        if ($request->hasFile('signature')) {
+            $signatureFile = $request->file('signature');
+            $signatureFileName = 'signature_' . $contractAcceptance->student_id . '_' . time() . '.' . $signatureFile->extension();
+            $signaturePath = $signatureFile->storeAs('signatures', $signatureFileName, 'public');
+        }
 
         // Regenerar PDF con la firma
         $contractService = new \App\Services\ContractGeneratorService();

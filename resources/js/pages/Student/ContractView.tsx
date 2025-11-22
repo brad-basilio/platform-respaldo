@@ -49,7 +49,7 @@ const ContractView: React.FC<ContractViewProps> = ({ contract, student }) => {
             }
 
             setSignatureFile(file);
-            
+
             // Crear preview
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -68,19 +68,13 @@ const ContractView: React.FC<ContractViewProps> = ({ contract, student }) => {
             return;
         }
 
-        if (!signatureFile) {
-            toast.error('Firma requerida', {
-                description: 'Por favor, sube una imagen de tu firma en fondo blanco',
-                duration: 4000,
-            });
-            return;
-        }
-
         setIsAccepting(true);
 
         try {
             const formData = new FormData();
-            formData.append('signature', signatureFile);
+            if (signatureFile) {
+                formData.append('signature', signatureFile);
+            }
 
             await axios.post(`/contract/accept/${contract.token}`, formData, {
                 headers: {
@@ -88,22 +82,22 @@ const ContractView: React.FC<ContractViewProps> = ({ contract, student }) => {
                 },
             });
 
-            toast.success('¡Contrato firmado exitosamente!', {
-                description: 'Tu matrícula ha sido confirmada. Recibirás un correo con el contrato firmado.',
+            toast.success('¡Contrato aceptado exitosamente!', {
+                description: 'Tu matrícula ha sido confirmada. Recibirás un correo con el contrato.',
                 duration: 5000,
             });
 
-            // Recargar la página para mostrar el estado actualizado
+            // Redirigir al dashboard
             setTimeout(() => {
-                router.reload();
-            }, 2000);
+                window.location.href = '/dashboard';
+            }, 1500);
 
         } catch (error: any) {
             console.error('Error al firmar contrato:', error);
-            
+
             const errorMessage = error.response?.data?.message || 'No se pudo procesar tu solicitud';
-            
-            toast.error('Error al firmar contrato', {
+
+            toast.error('Error al aceptar contrato', {
                 description: errorMessage,
                 duration: 5000,
             });
@@ -233,7 +227,7 @@ const ContractView: React.FC<ContractViewProps> = ({ contract, student }) => {
                                 <RiAlertLine className="w-6 h-6 text-[#073372] flex-shrink-0 mt-0.5" />
                                 <div>
                                     <p className="text-sm text-gray-700">
-                                        <strong>Importante:</strong> Asegúrate de haber leído completamente el contrato PDF antes de aceptar. 
+                                        <strong>Importante:</strong> Asegúrate de haber leído completamente el contrato PDF antes de aceptar.
                                         Al aceptar, confirmas que estás de acuerdo con todos los términos y condiciones.
                                     </p>
                                 </div>
@@ -253,7 +247,7 @@ const ContractView: React.FC<ContractViewProps> = ({ contract, student }) => {
                                         Confirmo que he leído el contrato PDF adjunto y acepto todos los términos y condiciones
                                     </span>
                                     <p className="text-sm text-gray-600 mt-1">
-                                        Al marcar esta casilla y hacer clic en "Firmar Contrato", confirmas que has revisado el documento PDF 
+                                        Al marcar esta casilla y hacer clic en "Firmar Contrato", confirmas que has revisado el documento PDF
                                         completo y aceptas todos sus términos de manera consciente y voluntaria.
                                     </p>
                                 </label>
@@ -270,12 +264,11 @@ const ContractView: React.FC<ContractViewProps> = ({ contract, student }) => {
                                         </div>
                                     </div>
                                     <div className="flex-1">
-                                        <h3 className="font-bold text-gray-900 mb-2">Firma Digital Requerida</h3>
+                                        <h3 className="font-bold text-gray-900 mb-2">Firma Digital (Opcional)</h3>
                                         <p className="text-sm text-gray-600 mb-4">
-                                            Para completar tu matrícula, necesitamos una imagen de tu firma en <strong>fondo blanco</strong>. 
-                                            Puedes tomarle una foto a tu firma manuscrita o crear una firma digital.
+                                            Si deseas, puedes subir una imagen de tu firma. <strong>No es obligatorio</strong>; al marcar la casilla de aceptación arriba, tu consentimiento es igualmente válido.
                                         </p>
-                                        
+
                                         <div className="space-y-3">
                                             {!signaturePreview ? (
                                                 <label className="block cursor-pointer">
@@ -311,9 +304,9 @@ const ContractView: React.FC<ContractViewProps> = ({ contract, student }) => {
                                                         </button>
                                                     </div>
                                                     <div className="bg-white border border-gray-200 rounded p-4 flex justify-center">
-                                                        <img 
-                                                            src={signaturePreview} 
-                                                            alt="Vista previa de firma" 
+                                                        <img
+                                                            src={signaturePreview}
+                                                            alt="Vista previa de firma"
                                                             className="max-h-32 object-contain"
                                                         />
                                                     </div>
@@ -323,7 +316,7 @@ const ContractView: React.FC<ContractViewProps> = ({ contract, student }) => {
 
                                         <div className="mt-3 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
                                             <p className="text-xs text-yellow-800">
-                                                <strong>💡 Importante:</strong> La firma debe estar en <strong>fondo blanco</strong> y ser legible. 
+                                                <strong>💡 Importante:</strong> La firma debe estar en <strong>fondo blanco</strong> y ser legible.
                                                 Esta firma aparecerá en tu contrato oficial.
                                             </p>
                                         </div>
@@ -335,12 +328,11 @@ const ContractView: React.FC<ContractViewProps> = ({ contract, student }) => {
                             <div className="flex justify-center">
                                 <button
                                     onClick={handleAcceptContract}
-                                    disabled={!acceptChecked || !signatureFile || isAccepting}
-                                    className={`w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-lg transition-all duration-200 ${
-                                        acceptChecked && signatureFile && !isAccepting
+                                    disabled={!acceptChecked || isAccepting}
+                                    className={`w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-lg transition-all duration-200 ${acceptChecked && !isAccepting
                                             ? 'bg-gradient-to-r from-[#073372] to-[#17BC91] text-white hover:shadow-xl hover:scale-[1.02]'
                                             : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                    }`}
+                                        }`}
                                 >
                                     {isAccepting ? (
                                         <>

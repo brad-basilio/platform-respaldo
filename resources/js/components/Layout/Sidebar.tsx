@@ -1,17 +1,17 @@
 import React from 'react';
-import { 
-  RiHome5Line, 
-  RiTeamLine, 
-  RiBookOpenLine, 
-  RiVideoLine, 
+import {
+  RiHome5Line,
+  RiTeamLine,
+  RiBookOpenLine,
+  RiVideoLine,
   RiMessage3Line,
-  RiBarChartBoxLine, 
-  RiAwardLine, 
-  RiFileTextLine, 
+  RiBarChartBoxLine,
+  RiAwardLine,
+  RiFileTextLine,
   RiSettings4Line,
-  RiGraduationCapLine, 
-  RiUserStarLine, 
-  RiPieChartLine, 
+  RiGraduationCapLine,
+  RiUserStarLine,
+  RiPieChartLine,
   RiSecurePaymentLine,
   RiDashboard2Line,
   RiGroupLine,
@@ -29,9 +29,9 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
   const page = usePage();
   const user = page.props.auth?.user as User;
-  
+
   console.log('📍 Full Inertia Page:', page); // Debug completo
-  
+
   // Obtener URL y component del objeto page
   const currentUrl = page.url || '';
   const currentComponent = page.component || '';
@@ -40,9 +40,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
   const getActiveViewFromUrl = () => {
     console.log('🔍 Current URL:', currentUrl); // Debug
     console.log('🔍 Current Component:', currentComponent); // Debug
-    
+
     if (!currentUrl) return 'dashboard';
-    
+
     // Usar component como respaldo si la URL no coincide
     if (currentComponent === 'Student/PaymentControl') return 'payment-control';
     if (currentComponent === 'Cashier/PaymentControl') return 'cashier-payment-control';
@@ -51,7 +51,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
     if (currentComponent === 'Dashboard/Verifier') return 'dashboard';
     if (currentComponent === 'Dashboard/Admin') return 'dashboard';
     if (currentComponent === 'SalesAdvisor/ArchivedStudents') return 'archived-students';
-    
+
     if (currentUrl.startsWith('/admin/students')) return 'students';
     if (currentUrl.startsWith('/admin/enrolled-students')) return 'enrolled-students';
     if (currentUrl.startsWith('/sales-advisor/enrolled-students')) return 'enrolled-students';
@@ -79,14 +79,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
   console.log('✅ Active view:', currentActiveView); // Debug
 
   const handleNavigation = (view: string) => {
+    // Check if on contract page
+    if (currentUrl.startsWith('/contract/accept/')) return;
+
     onViewChange(view);
-    
+
     // Navigate using Inertia router
     const routes: Record<string, string> = {
       'dashboard': '/dashboard',
       'students': '/admin/students',
-      'enrolled-students': user?.role === 'sales_advisor' 
-        ? '/sales-advisor/enrolled-students' 
+      'enrolled-students': user?.role === 'sales_advisor'
+        ? '/sales-advisor/enrolled-students'
         : '/admin/enrolled-students', // verifier y admin usan la misma ruta
       'archived-students': '/sales-advisor/archived-students',
       'teachers': '/admin/teachers',
@@ -142,17 +145,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
           {
             section: 'FINANZAS',
             items: [
-        
+
               { id: 'admin-payment-control', label: 'Gestión de Pagos', icon: RiSecurePaymentLine },
             ]
           },
-         /* {
-            section: 'REPORTES',
-            items: [
-              { id: 'analytics', label: 'Estadísticas', icon: RiPieChartLine },
-              { id: 'settings', label: 'Configuración', icon: RiSettings4Line },
-            ]
-          },*/
+          /* {
+             section: 'REPORTES',
+             items: [
+               { id: 'analytics', label: 'Estadísticas', icon: RiPieChartLine },
+               { id: 'settings', label: 'Configuración', icon: RiSettings4Line },
+             ]
+           },*/
         ];
       case 'teacher':
         return [
@@ -186,28 +189,28 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
               { id: 'dashboard', label: 'Panel Principal', icon: RiHome5Line },
             ]
           },
-    /*      {
-            section: 'ACADÉMICO',
-            items: [
-          //    { id: 'classes', label: 'Clases', icon: RiBookOpenLine },
-           //   { id: 'workshops', label: 'Talleres', icon: RiVideoLine },
-            //  { id: 'exams', label: 'Exámenes', icon: RiFileTextLine },
-             // { id: 'progress', label: 'Progreso', icon: RiBarChartBoxLine },
-             // { id: 'certificates', label: 'Certificados', icon: RiAwardLine },
-            ]
-          },*/
+          /*      {
+                  section: 'ACADÉMICO',
+                  items: [
+                //    { id: 'classes', label: 'Clases', icon: RiBookOpenLine },
+                 //   { id: 'workshops', label: 'Talleres', icon: RiVideoLine },
+                  //  { id: 'exams', label: 'Exámenes', icon: RiFileTextLine },
+                   // { id: 'progress', label: 'Progreso', icon: RiBarChartBoxLine },
+                   // { id: 'certificates', label: 'Certificados', icon: RiAwardLine },
+                  ]
+                },*/
           {
             section: 'FINANZAS',
             items: [
               { id: 'payment-control', label: 'Control de Pagos', icon: RiSecurePaymentLine },
             ]
           },
-         /* {
-            section: 'COMUNICACIÓN',
-            items: [
-              { id: 'forums', label: 'Foros', icon: RiMessage3Line },
-            ]
-          },*/
+          /* {
+             section: 'COMUNICACIÓN',
+             items: [
+               { id: 'forums', label: 'Foros', icon: RiMessage3Line },
+             ]
+           },*/
         ];
       case 'sales_advisor':
         return [
@@ -239,11 +242,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
             items: [
               { id: 'students', label: 'Prospectos', icon: RiTeamLine },
               { id: 'cashier-payment-control', label: 'Control de Pagos', icon: RiSecurePaymentLine },
-            //  { id: 'payment-reports', label: 'Reportes', icon: RiBarChartBoxLine },
+              //  { id: 'payment-reports', label: 'Reportes', icon: RiBarChartBoxLine },
             ]
           },
         ];
-        case 'verifier':
+      case 'verifier':
         return [
           {
             section: 'GESTIÓN',
@@ -261,7 +264,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
           {
             section: 'FINANZAS',
             items: [
-        
+
               { id: 'admin-payment-control', label: 'Gestión de Pagos', icon: RiSecurePaymentLine },
             ]
           },
@@ -282,9 +285,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
     <div className="bg-[#073372] w-64 border-r border-[#073372]/20 flex flex-col overflow-hidden shadow-xl">
       {/* Logo en el Sidebar */}
       <div className="p-6 border-b border-white/10">
-        <img 
-          src="/logo-white.png" 
-          alt="UNCED Logo" 
+        <img
+          src="/logo-white.png"
+          alt="UNCED Logo"
           className="h-12 w-auto mx-auto"
         />
       </div>
@@ -297,26 +300,31 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
               <h3 className="px-4 text-xs font-semibold text-white/60 uppercase tracking-wider">
                 {section.section}
               </h3>
-              
+
               {/* Items de la sección */}
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentActiveView === item.id;
+                const isContractPage = currentUrl.startsWith('/contract/accept/');
 
                 return (
                   <button
                     key={item.id}
-                    onClick={() => handleNavigation(item.id)}
-                    className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group ${
-                      isActive
+                    onClick={() => !isContractPage && handleNavigation(item.id)}
+                    disabled={isContractPage}
+                    className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group ${isActive
                         ? 'bg-[#17BC91] text-white shadow-lg shadow-[#17BC91]/25'
                         : 'text-white/80 hover:text-white hover:bg-white/10'
-                    }`}
+                      } ${isContractPage ? 'opacity-50 cursor-not-allowed hover:bg-transparent hover:text-white/80' : ''}`}
                   >
-                    <Icon className={`mr-3 h-5 w-5 transition-transform group-hover:scale-110 ${
-                      isActive ? 'text-white' : 'text-white/70 group-hover:text-white'
-                    }`} />
+                    <Icon className={`mr-3 h-5 w-5 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-white/70 group-hover:text-white'
+                      }`} />
                     <span className="truncate">{item.label}</span>
+                    {isContractPage && (
+                      <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded text-white/80">
+                        Bloqueado
+                      </span>
+                    )}
                   </button>
                 );
               })}
