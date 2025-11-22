@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { router } from '@inertiajs/react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -330,8 +329,8 @@ const ContractView: React.FC<ContractViewProps> = ({ contract, student }) => {
                                     onClick={handleAcceptContract}
                                     disabled={!acceptChecked || isAccepting}
                                     className={`w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-lg transition-all duration-200 ${acceptChecked && !isAccepting
-                                            ? 'bg-gradient-to-r from-[#073372] to-[#17BC91] text-white hover:shadow-xl hover:scale-[1.02]'
-                                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                        ? 'bg-gradient-to-r from-[#073372] to-[#17BC91] text-white hover:shadow-xl hover:scale-[1.02]'
+                                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                                         }`}
                                 >
                                     {isAccepting ? (
