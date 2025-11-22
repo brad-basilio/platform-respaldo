@@ -1,6 +1,6 @@
 import React from 'react';
-import { 
-  BookOpen, FileText, 
+import {
+  BookOpen, FileText,
   Award, Clock, Trophy, AlertTriangle, CheckCircle2,
   CreditCard, TrendingUp, Calendar, AlertCircle, FileCheck
 } from 'lucide-react';
@@ -56,36 +56,36 @@ interface StudentDashboardProps {
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
   // KPI Cards para el dashboard
   const paymentKPIs = student.paymentStats ? [
-    { 
-      label: 'Cuotas Pagadas', 
+    {
+      label: 'Cuotas Pagadas',
       value: `${student.paymentStats.paidInstallments}/${student.paymentStats.totalInstallments}`,
-      icon: CheckCircle2, 
+      icon: CheckCircle2,
       color: COLORS.pradera,
       description: 'Cuotas completadas'
     },
-    { 
-      label: 'Cuotas Pendientes', 
+    {
+      label: 'Cuotas Pendientes',
       value: student.paymentStats.pendingInstallments,
-      icon: Clock, 
+      icon: Clock,
       color: COLORS.beer,
       description: 'Por pagar',
       percentage: student.paymentStats.overdueInstallments > 0 ? student.paymentStats.overdueInstallments : undefined
     },
-    { 
-      label: 'Progreso de Pago', 
+    {
+      label: 'Progreso de Pago',
       value: `${student.paymentStats.paymentProgress.toFixed(2)}%`,
-      icon: TrendingUp, 
+      icon: TrendingUp,
       color: COLORS.catalina,
       description: 'Del total'
     },
-    { 
-      label: 'Próximo Pago', 
-      value: student.paymentStats.nextPayment 
+    {
+      label: 'Próximo Pago',
+      value: student.paymentStats.nextPayment
         ? `S/ ${(student.paymentStats.nextPayment.amount || 0).toFixed(2)}`
         : 'Ninguno',
-      icon: Calendar, 
+      icon: Calendar,
       color: student.paymentStats.nextPayment ? COLORS.beer : '#6b7280',
-      description: student.paymentStats.nextPayment 
+      description: student.paymentStats.nextPayment
         ? new Date(student.paymentStats.nextPayment.due_date).toLocaleDateString('es-PE')
         : 'Sin pagos pendientes'
     },
@@ -122,7 +122,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
                 📄 Tienes Documentos Pendientes de Confirmar
               </h3>
               <p className="text-slate-700 mb-3">
-                El equipo administrativo te ha enviado documentos que requieren tu confirmación. 
+                El equipo administrativo te ha enviado documentos que requieren tu confirmación.
                 Por favor revísalos y confírmalos para completar tu proceso de matrícula.
               </p>
               <a
@@ -149,7 +149,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
                 ⚠️ Matrícula Pendiente de Verificación
               </h3>
               <p className="text-slate-700 mb-3">
-                Tu matrícula ha sido registrada pero aún no ha sido verificada por el equipo administrativo. 
+                Tu matrícula ha sido registrada pero aún no ha sido verificada por el equipo administrativo.
                 Algunas funciones pueden estar limitadas hasta que se complete la verificación.
               </p>
               <div className="flex items-center space-x-2 text-sm text-slate-600 mb-2">
@@ -158,10 +158,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
               </div>
               {student.enrollmentDate && (
                 <div className="text-xs text-slate-500">
-                  Fecha de matrícula: {new Date(student.enrollmentDate).toLocaleDateString('es-PE', { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
+                  Fecha de matrícula: {new Date(student.enrollmentDate).toLocaleDateString('es-PE', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
                   })}
                 </div>
               )}
@@ -189,10 +189,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
                   Verificado por: <strong>{student.verifiedEnrollmentBy.name}</strong>
                   {student.enrollmentVerifiedAt && (
                     <span className="ml-2 text-xs text-slate-500">
-                      el {new Date(student.enrollmentVerifiedAt).toLocaleDateString('es-PE', { 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
+                      el {new Date(student.enrollmentVerifiedAt).toLocaleDateString('es-PE', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
                       })}
                     </span>
                   )}
@@ -209,20 +209,20 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
           {paymentKPIs.map((card) => {
             const Icon = card.icon;
             return (
-              <div 
-                key={card.label} 
+              <div
+                key={card.label}
                 className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 relative overflow-hidden"
                 style={{ backgroundColor: `${card.color}03` }}
               >
                 <div className="flex items-start justify-between mb-3">
-                  <div 
+                  <div
                     className="p-3 rounded-lg"
                     style={{ backgroundColor: `${card.color}15` }}
                   >
                     <Icon className="h-6 w-6" style={{ color: card.color }} />
                   </div>
                   {card.percentage && (
-                    <div 
+                    <div
                       className="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white"
                       style={{ backgroundColor: card.color }}
                     >
@@ -230,7 +230,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
                     </div>
                   )}
                 </div>
-                
+
                 <div className="space-y-1">
                   <p className="text-4xl font-black text-gray-900">{card.value}</p>
                   <p className="text-sm font-bold text-gray-700 mt-2">{card.label}</p>
@@ -262,13 +262,13 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold text-gray-700">Progreso de Pago</span>
               <span className="text-lg font-bold" style={{ color: COLORS.pradera }}>
-                {student.paymentStats.paymentProgress}%
+                {student.paymentStats.paymentProgress.toFixed(2)}%
               </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-              <div 
+              <div
                 className="h-full rounded-full transition-all duration-500"
-                style={{ 
+                style={{
                   width: `${student.paymentStats.paymentProgress}%`,
                   backgroundColor: COLORS.pradera
                 }}
@@ -300,13 +300,12 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
 
           {/* Próximo Pago */}
           {student.paymentStats.nextPayment && (
-            <div className={`mt-6 p-5 rounded-xl border-2 ${
-              student.paymentStats.nextPayment.is_overdue && !student.paymentStats.nextPayment.is_in_grace_period
+            <div className={`mt-6 p-5 rounded-xl border-2 ${student.paymentStats.nextPayment.is_overdue && !student.paymentStats.nextPayment.is_in_grace_period
                 ? 'bg-gradient-to-r from-red-50 to-red-100 border-red-300'
                 : student.paymentStats.nextPayment.is_in_grace_period
-                ? 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-300'
-                : 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200'
-            }`}>
+                  ? 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-300'
+                  : 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200'
+              }`}>
               {/* Alerta de período de gracia */}
               {student.paymentStats.nextPayment.is_in_grace_period && student.paymentStats.nextPayment.days_until_grace_limit !== undefined && (
                 <div className="mb-3 p-3 bg-orange-100 border border-orange-300 rounded-lg">
@@ -315,14 +314,14 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
                     ⚠️ Cuota vencida - Período de Gracia
                   </p>
                   <p className="text-xs text-orange-800 mt-1">
-                    Esta cuota venció el {new Date(student.paymentStats.nextPayment.due_date).toLocaleDateString('es-PE')}, 
-                    pero aún tienes <strong>{student.paymentStats.nextPayment.days_until_grace_limit} días de gracia</strong> 
-                    {student.paymentStats.nextPayment.grace_period_days && ` (de ${student.paymentStats.nextPayment.grace_period_days} días totales)`} 
+                    Esta cuota venció el {new Date(student.paymentStats.nextPayment.due_date).toLocaleDateString('es-PE')},
+                    pero aún tienes <strong>{student.paymentStats.nextPayment.days_until_grace_limit} días de gracia</strong>
+                    {student.paymentStats.nextPayment.grace_period_days && ` (de ${student.paymentStats.nextPayment.grace_period_days} días totales)`}
                     para pagar sin mora adicional.
                   </p>
                 </div>
               )}
-              
+
               {/* Alerta de mora aplicada */}
               {student.paymentStats.nextPayment.has_late_fee && student.paymentStats.nextPayment.late_fee && student.paymentStats.nextPayment.late_fee > 0 && (
                 <div className="mb-3 p-3 bg-red-50 border border-red-300 rounded-lg">
@@ -332,13 +331,13 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
                   </p>
                   <p className="text-xs text-red-800 mt-1">
                     Esta cuota tiene un recargo por mora de <strong>S/ {student.paymentStats.nextPayment.late_fee.toFixed(2)}</strong>
-                    {student.paymentStats.nextPayment.days_until_grace_limit !== undefined && student.paymentStats.nextPayment.days_until_grace_limit < 0 && 
+                    {student.paymentStats.nextPayment.days_until_grace_limit !== undefined && student.paymentStats.nextPayment.days_until_grace_limit < 0 &&
                       ` (${Math.abs(student.paymentStats.nextPayment.days_until_grace_limit)} días después del período de gracia)`
                     }
                   </p>
                 </div>
               )}
-              
+
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-bold text-gray-700 mb-1">
@@ -364,18 +363,17 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
                     })}
                   </p>
                   {student.paymentStats.nextPayment.days_until_due !== undefined && (
-                    <p className={`text-xs mt-1 font-semibold ${
-                      student.paymentStats.nextPayment.days_until_due < 0 
-                        ? 'text-red-600' 
-                        : student.paymentStats.nextPayment.days_until_due < 7 
-                        ? 'text-orange-600' 
-                        : 'text-gray-600'
-                    }`}>
-                      {student.paymentStats.nextPayment.days_until_due > 0 
-                        ? `Faltan ${student.paymentStats.nextPayment.days_until_due} días` 
-                        : student.paymentStats.nextPayment.days_until_due === 0 
-                        ? '¡Vence hoy!' 
-                        : `Vencido hace ${Math.abs(student.paymentStats.nextPayment.days_until_due)} días`}
+                    <p className={`text-xs mt-1 font-semibold ${student.paymentStats.nextPayment.days_until_due < 0
+                        ? 'text-red-600'
+                        : student.paymentStats.nextPayment.days_until_due < 7
+                          ? 'text-orange-600'
+                          : 'text-gray-600'
+                      }`}>
+                      {student.paymentStats.nextPayment.days_until_due > 0
+                        ? `Faltan ${student.paymentStats.nextPayment.days_until_due} días`
+                        : student.paymentStats.nextPayment.days_until_due === 0
+                          ? '¡Vence hoy!'
+                          : `Vencido hace ${Math.abs(student.paymentStats.nextPayment.days_until_due)} días`}
                     </p>
                   )}
                 </div>
@@ -388,7 +386,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
             <a
               href="/student/payment-control"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-              style={{ 
+              style={{
                 background: `linear-gradient(135deg, ${COLORS.catalina} 0%, ${COLORS.pradera} 100%)`
               }}
             >
@@ -444,7 +442,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
             href="/student/payment-control"
             className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group"
           >
-            <div 
+            <div
               className="p-3 rounded-xl mb-3 group-hover:scale-110 transition-transform"
               style={{ backgroundColor: `${COLORS.pradera}15` }}
             >
@@ -453,7 +451,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
             <span className="text-sm font-semibold text-slate-900">Ver Pagos</span>
           </a>
           <button className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group">
-            <div 
+            <div
               className="p-3 rounded-xl mb-3 group-hover:scale-110 transition-transform"
               style={{ backgroundColor: `${COLORS.catalina}15` }}
             >
@@ -462,7 +460,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
             <span className="text-sm font-semibold text-slate-900">Mis Clases</span>
           </button>
           <button className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group">
-            <div 
+            <div
               className="p-3 rounded-xl mb-3 group-hover:scale-110 transition-transform"
               style={{ backgroundColor: `${COLORS.beer}15` }}
             >
