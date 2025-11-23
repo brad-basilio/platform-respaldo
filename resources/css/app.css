@@ -336,3 +336,17 @@
     
     scrollbar-color: var(--unced-blue-light) #4ca2f800;
 }
+
+/* SweetAlert2 z-index alto para aparecer sobre modales */
+.swal-high-zindex {
+    z-index: 99999 !important;
+}
+
+.swal-high-zindex-popup {
+    z-index: 99999 !important;
+}
+
+/* Asegurar que el backdrop de SweetAlert también tenga z-index alto */
+.swal2-container.swal-high-zindex {
+    z-index: 99999 !important;
+}

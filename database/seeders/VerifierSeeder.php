@@ -14,19 +14,17 @@ class VerifierSeeder extends Seeder
     public function run(): void
     {
         // Verificador 1
-        User::create([
+        User::UpdateOrCreate([
+          
+            'email' => 'verificador1@english.com',
+          
+        ], [
             'name' => 'Laura Verificación',
             'email' => 'verificador1@english.com',
             'password' => Hash::make('verifier123'),
             'role' => 'verifier',
         ]);
 
-        // Verificador 2
-        User::create([
-            'name' => 'Roberto Control',
-            'email' => 'verificador2@english.com',
-            'password' => Hash::make('verifier123'),
-            'role' => 'verifier',
-        ]);
+      
     }
 }

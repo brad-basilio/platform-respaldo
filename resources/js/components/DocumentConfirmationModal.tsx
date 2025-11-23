@@ -11,6 +11,7 @@ interface PendingDocument {
   file_path: string;
   file_name: string;
   file_url: string;
+  requires_signature: boolean;
   uploaded_by: {
     name: string;
     email: string;
@@ -26,6 +27,7 @@ interface DocumentConfirmationModalProps {
 
 const DocumentConfirmationModal: React.FC<DocumentConfirmationModalProps> = ({ open, onClose, onDocumentsConfirmed }) => {
   const [pendingDocuments, setPendingDocuments] = useState<PendingDocument[]>([]);
+  const [confirmedDocuments, setConfirmedDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmingIds, setConfirmingIds] = useState<number[]>([]);
   const [signedFiles, setSignedFiles] = useState<{ [key: number]: File | null }>({});
@@ -33,7 +35,7 @@ const DocumentConfirmationModal: React.FC<DocumentConfirmationModalProps> = ({ o
 
   useEffect(() => {
     if (open) {
-      fetchPendingDocuments();
+      fetchAllDocuments();
       fetchSupportEmail();
     }
   }, [open]);
@@ -50,17 +52,18 @@ const DocumentConfirmationModal: React.FC<DocumentConfirmationModalProps> = ({ o
     }
   };
 
-  const fetchPendingDocuments = async () => {
+  const fetchAllDocuments = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/student/pending-documents');
+      const response = await axios.get('/api/student/all-documents');
       setPendingDocuments(response.data.pending_documents);
+      setConfirmedDocuments(response.data.confirmed_documents);
     } catch (error: any) {
-      console.error('Error fetching pending documents:', error);
+      console.error('Error fetching documents:', error);
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: error.response?.data?.message || 'No se pudieron cargar los documentos pendientes.',
+        text: error.response?.data?.message || 'No se pudieron cargar los documentos.',
       });
     } finally {
       setLoading(false);
@@ -76,10 +79,30 @@ const DocumentConfirmationModal: React.FC<DocumentConfirmationModalProps> = ({ o
 
   const handleConfirmDocument = async (document: PendingDocument) => {
     try {
+      const signedFile = signedFiles[document.id];
+
+      // ✅ VALIDACIÓN: Si requiere firma, debe tener archivo
+      if (document.requires_signature && !signedFile) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Archivo Requerido',
+          html: `
+            <p class="text-gray-700 mb-2">Este documento requiere tu firma digital.</p>
+            <p class="text-sm text-orange-600">Por favor, descarga el documento, fírmalo y súbelo antes de confirmar.</p>
+          `,
+          confirmButtonColor: '#f59e0b',
+          confirmButtonText: 'Entendido',
+          customClass: {
+            container: 'swal-high-zindex',
+            popup: 'swal-high-zindex-popup'
+          }
+        });
+        return;
+      }
+
       setConfirmingIds((prev) => [...prev, document.id]);
 
       const formData = new FormData();
-      const signedFile = signedFiles[document.id];
       if (signedFile) {
         formData.append('signed_file', signedFile);
       }
@@ -113,9 +136,9 @@ const DocumentConfirmationModal: React.FC<DocumentConfirmationModalProps> = ({ o
           html: signedFile
             ? '<p>Tu documento firmado ha sido cargado exitosamente.</p>'
             : '<p>El documento ha sido confirmado.</p>' +
-              (response.data.pending_documents > 0 
-                ? `<p class="text-sm text-orange-600 mt-2">⏳ Te quedan ${response.data.pending_documents} documento(s) por confirmar</p>`
-                : ''),
+            (response.data.pending_documents > 0
+              ? `<p class="text-sm text-orange-600 mt-2">⏳ Te quedan ${response.data.pending_documents} documento(s) por confirmar</p>`
+              : ''),
           timer: 2000,
           showConfirmButton: false,
         });
@@ -165,11 +188,11 @@ const DocumentConfirmationModal: React.FC<DocumentConfirmationModalProps> = ({ o
   if (!open) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-fade-in"
       onClick={onClose}
     >
-      <div 
+      <div
         className="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
@@ -233,7 +256,7 @@ const DocumentConfirmationModal: React.FC<DocumentConfirmationModalProps> = ({ o
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-bold text-orange-900 mb-2 flex items-center gap-2">
-                      ⚠️ Acción Requerida
+                      Acción Requerida
                       <span className="px-3 py-1 bg-orange-500 text-white text-xs font-bold rounded-full">
                         {pendingDocuments.length} Pendiente{pendingDocuments.length > 1 ? 's' : ''}
                       </span>
@@ -282,13 +305,13 @@ const DocumentConfirmationModal: React.FC<DocumentConfirmationModalProps> = ({ o
                               </div>
                             </div>
                           </div>
-                          
+
                           {document.description && (
                             <div className="bg-blue-50 border-l-2 border-blue-400 rounded-r-lg p-3 mb-3">
                               <p className="text-sm text-gray-700 leading-relaxed">{document.description}</p>
                             </div>
                           )}
-                          
+
                           <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-100 rounded-lg px-3 py-2 w-fit">
                             <User className="h-3 w-3" />
                             <span>Subido por:</span>
@@ -331,11 +354,10 @@ const DocumentConfirmationModal: React.FC<DocumentConfirmationModalProps> = ({ o
                             />
                             <label
                               htmlFor={`file-input-${document.id}`}
-                              className={`group/btn w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl font-medium cursor-pointer transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 ${
-                                hasSignedFile
-                                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-emerald-600 hover:to-green-500 text-white'
-                                  : 'bg-gradient-to-r from-[#17BC91] to-[#14a87d] hover:from-[#14a87d] hover:to-[#17BC91] text-white'
-                              }`}
+                              className={`group/btn w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl font-medium cursor-pointer transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 ${hasSignedFile
+                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-emerald-600 hover:to-green-500 text-white'
+                                : 'bg-gradient-to-r from-[#17BC91] to-[#14a87d] hover:from-[#14a87d] hover:to-[#17BC91] text-white'
+                                }`}
                             >
                               <Upload className="w-5 h-5 group-hover/btn:animate-bounce" />
                               {hasSignedFile ? 'Cambiar Archivo' : 'Seleccionar Archivo'}
@@ -361,11 +383,10 @@ const DocumentConfirmationModal: React.FC<DocumentConfirmationModalProps> = ({ o
                       <button
                         onClick={() => handleConfirmDocument(document)}
                         disabled={isConfirming}
-                        className={`w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-bold text-lg transition-all duration-200 shadow-lg ${
-                          isConfirming
-                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-[#073372] via-[#0d4a8f] to-[#17BC91] hover:from-[#0d4a8f] hover:via-[#073372] hover:to-[#14a87d] text-white hover:shadow-xl transform hover:-translate-y-0.5'
-                        }`}
+                        className={`w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-bold text-lg transition-all duration-200 shadow-lg ${isConfirming
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-[#073372] via-[#0d4a8f] to-[#17BC91] hover:from-[#0d4a8f] hover:via-[#073372] hover:to-[#14a87d] text-white hover:shadow-xl transform hover:-translate-y-0.5'
+                          }`}
                       >
                         {isConfirming ? (
                           <>
@@ -388,6 +409,75 @@ const DocumentConfirmationModal: React.FC<DocumentConfirmationModalProps> = ({ o
                   );
                 })}
               </div>
+
+              {/* Sección de Documentos Confirmados / Otros Documentos */}
+              {confirmedDocuments.length > 0 && (
+                <div className="mt-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+                    <h3 className="text-lg font-bold text-gray-700 flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      Otros Documentos Disponibles
+                    </h3>
+                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {confirmedDocuments.map((document, index) => (
+                      <div
+                        key={document.id || `confirmed-${index}`}
+                        className="border border-gray-200 rounded-xl p-4 bg-white hover:bg-gray-50 transition-all duration-200"
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className={`p-2 rounded-lg ${document.type === 'payment_receipt'
+                              ? 'bg-green-100'
+                              : 'bg-blue-100'
+                              }`}>
+                              <FileText className={`h-5 w-5 ${document.type === 'payment_receipt'
+                                ? 'text-green-600'
+                                : 'text-blue-600'
+                                }`} />
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-gray-900">{document.document_name}</h4>
+                              {document.description && (
+                                <p className="text-sm text-gray-600 mt-0.5">{document.description}</p>
+                              )}
+                              <div className="flex items-center gap-3 mt-1">
+                                <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ${document.type === 'payment_receipt'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                  {document.type === 'payment_receipt' ? 'Comprobante de Pago' : getDocumentTypeLabel(document.document_type)}
+                                </span>
+                                <span className="flex items-center gap-1 text-xs text-gray-500">
+                                  <Clock className="h-3 w-3" />
+                                  {new Date(document.uploaded_at).toLocaleDateString('es-ES', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric'
+                                  })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <a
+                            href={document.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#073372] to-[#0d4a8f] hover:from-[#0d4a8f] hover:to-[#073372] text-white rounded-lg font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                          >
+                            <Download className="h-4 w-4" />
+                            Descargar
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

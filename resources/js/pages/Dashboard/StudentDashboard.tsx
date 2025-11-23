@@ -146,18 +146,28 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-bold text-slate-900 mb-2">
-                ⚠️ Matrícula Pendiente de Verificación
+                ⏳ Tu Matrícula está en Proceso de Verificación
               </h3>
               <p className="text-slate-700 mb-3">
-                Tu matrícula ha sido registrada pero aún no ha sido verificada por el equipo administrativo.
-                Algunas funciones pueden estar limitadas hasta que se complete la verificación.
+                Tu matrícula ha sido registrada exitosamente. Nuestro equipo de verificación está revisando tu información
+                y <strong>pronto recibirás una llamada</strong> para corroborar tus datos y completar el proceso.
               </p>
-              <div className="flex items-center space-x-2 text-sm text-slate-600 mb-2">
+              <div className="bg-white/60 rounded-lg p-4 border border-yellow-300">
+                <p className="text-sm text-slate-700 mb-2">
+                  <strong>📞 ¿Qué sigue?</strong>
+                </p>
+                <ul className="text-sm text-slate-600 space-y-1 ml-4 list-disc">
+                  <li>Recibirás una llamada de nuestro equipo de verificación</li>
+                  <li>Se te enviarán documentos para tu firma digital</li>
+                  <li>Una vez confirmados, tendrás acceso completo a la plataforma</li>
+                </ul>
+              </div>
+              <div className="flex items-center space-x-2 text-sm text-slate-600 mt-3">
                 <Clock className="h-4 w-4" />
-                <span>Estado: <strong className="text-yellow-700">Pendiente de revisión</strong></span>
+                <span>Estado: <strong className="text-yellow-700">Pendiente de verificación</strong></span>
               </div>
               {student.enrollmentDate && (
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-slate-500 mt-2">
                   Fecha de matrícula: {new Date(student.enrollmentDate).toLocaleDateString('es-PE', {
                     year: 'numeric',
                     month: 'long',
@@ -301,10 +311,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
           {/* Próximo Pago */}
           {student.paymentStats.nextPayment && (
             <div className={`mt-6 p-5 rounded-xl border-2 ${student.paymentStats.nextPayment.is_overdue && !student.paymentStats.nextPayment.is_in_grace_period
-                ? 'bg-gradient-to-r from-red-50 to-red-100 border-red-300'
-                : student.paymentStats.nextPayment.is_in_grace_period
-                  ? 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-300'
-                  : 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200'
+              ? 'bg-gradient-to-r from-red-50 to-red-100 border-red-300'
+              : student.paymentStats.nextPayment.is_in_grace_period
+                ? 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-300'
+                : 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200'
               }`}>
               {/* Alerta de período de gracia */}
               {student.paymentStats.nextPayment.is_in_grace_period && student.paymentStats.nextPayment.days_until_grace_limit !== undefined && (
@@ -364,10 +374,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
                   </p>
                   {student.paymentStats.nextPayment.days_until_due !== undefined && (
                     <p className={`text-xs mt-1 font-semibold ${student.paymentStats.nextPayment.days_until_due < 0
-                        ? 'text-red-600'
-                        : student.paymentStats.nextPayment.days_until_due < 7
-                          ? 'text-orange-600'
-                          : 'text-gray-600'
+                      ? 'text-red-600'
+                      : student.paymentStats.nextPayment.days_until_due < 7
+                        ? 'text-orange-600'
+                        : 'text-gray-600'
                       }`}>
                       {student.paymentStats.nextPayment.days_until_due > 0
                         ? `Faltan ${student.paymentStats.nextPayment.days_until_due} días`

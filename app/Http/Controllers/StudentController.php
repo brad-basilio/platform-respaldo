@@ -1509,6 +1509,25 @@ class StudentController extends Controller
                 'documents_count' => $uploadedDocuments->count()
             ]);
 
+            // 🆕 VERIFICAR SI TODOS LOS DOCUMENTOS NO REQUIEREN FIRMA
+            $allDocumentsNoSignature = $uploadedDocuments->every(function ($doc) {
+                return !$doc->requires_signature;
+            });
+
+            // Si NINGÚN documento requiere firma, marcar como verificado automáticamente
+            if ($uploadedDocuments->isNotEmpty() && $allDocumentsNoSignature) {
+                $student->update([
+                    'enrollment_verified' => true,
+                    'verified_enrollment_by' => auth()->id(),
+                    'enrollment_verified_at' => now(),
+                ]);
+
+                Log::info('Matrícula verificada automáticamente (sin documentos que requieran firma)', [
+                    'student_id' => $student->id,
+                    'verified_by' => auth()->user()->name,
+                ]);
+            }
+
             // Enviar email con documentos adjuntos SI hay documentos
             if ($uploadedDocuments->isNotEmpty()) {
                 try {
@@ -1538,17 +1557,92 @@ class StudentController extends Controller
                 }
             }
 
+            // 🆕 ENVIAR COMPROBANTE DE PAGO AUTOMÁTICAMENTE
+            try {
+                // Buscar el enrollment activo del estudiante
+                $enrollment = $student->enrollments()->where('status', 'active')->first();
+                
+                if ($enrollment) {
+                    // Buscar la primera cuota
+                    $firstInstallment = $enrollment->installments()
+                        ->where('status', 'verified')
+                        ->orderBy('installment_number', 'asc')
+                        ->first();
+                    
+                    if ($firstInstallment) {
+                        // Buscar el voucher de la primera cuota
+                        $voucher = $firstInstallment->vouchers()->first();
+                        
+                        if ($voucher) {
+                            // Generar el PDF del comprobante si no existe
+                            if (!$voucher->receipt_path) {
+                                $receiptService = new \App\Services\ReceiptGeneratorService();
+                                $receiptPath = $receiptService->generate($voucher);
+                                $voucher->update(['receipt_path' => $receiptPath]);
+                                
+                                Log::info('Comprobante de pago generado automáticamente', [
+                                    'student_id' => $student->id,
+                                    'voucher_id' => $voucher->id,
+                                    'receipt_path' => $receiptPath
+                                ]);
+                            }
+                            
+                            // Enviar el comprobante por email
+                            \Mail::to($student->user->email)->send(
+                                new \App\Mail\PaymentReceiptMail($voucher, $voucher->receipt_path)
+                            );
+                            
+                            Log::info('Comprobante de pago enviado automáticamente al verificar matrícula', [
+                                'student_id' => $student->id,
+                                'voucher_id' => $voucher->id,
+                                'email' => $student->user->email
+                            ]);
+                        } else {
+                            Log::warning('No se encontró voucher para la primera cuota', [
+                                'student_id' => $student->id,
+                                'installment_id' => $firstInstallment->id
+                            ]);
+                        }
+                    } else {
+                        Log::warning('No se encontró primera cuota verificada', [
+                            'student_id' => $student->id,
+                            'enrollment_id' => $enrollment->id
+                        ]);
+                    }
+                } else {
+                    Log::warning('No se encontró enrollment activo para enviar comprobante', [
+                        'student_id' => $student->id
+                    ]);
+                }
+            } catch (\Exception $e) {
+                // No fallar el proceso si el comprobante no se puede enviar
+                Log::error('Error al enviar comprobante de pago automáticamente', [
+                    'student_id' => $student->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
+
+
+            // Recargar el estudiante para obtener el estado actualizado
+            $student->refresh();
+
+            $message = $allDocumentsNoSignature 
+                ? 'Documentos enviados y matrícula verificada exitosamente (sin documentos que requieran firma).'
+                : 'Documentos enviados al estudiante exitosamente. La matrícula se verificará cuando el estudiante confirme todos los documentos.';
+
             return response()->json([
                 'success' => true,
-                'message' => 'Documentos enviados al estudiante exitosamente. La matrícula se verificará cuando el estudiante confirme todos los documentos.',
+                'message' => $message,
                 'student' => [
                     'id' => $student->id,
-                    'enrollmentVerified' => false, // ❌ Todavía NO está verificado
-                    'enrollmentVerifiedAt' => null,
-                    'verifiedEnrollmentBy' => null,
-                    'hasPendingDocuments' => true,
+                    'enrollmentVerified' => $student->enrollment_verified,
+                    'enrollmentVerifiedAt' => $student->enrollment_verified_at,
+                    'verifiedEnrollmentBy' => $student->verifiedEnrollmentBy,
+                    'hasPendingDocuments' => !$allDocumentsNoSignature,
                 ],
-                'documents_uploaded' => $uploadedDocuments->count()
+                'documents_uploaded' => $uploadedDocuments->count(),
+                'auto_verified' => $allDocumentsNoSignature,
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             \DB::rollBack();
@@ -1778,6 +1872,107 @@ class StudentController extends Controller
             'count' => $pendingDocuments->count()
         ]);
     }
+
+    /**
+     * Obtener TODOS los documentos del estudiante (pendientes y confirmados)
+     * Incluye documentos de matrícula y comprobantes de pago
+     */
+    public function getAllDocuments()
+    {
+        $user = auth()->user();
+        
+        if (!$user->student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuario no es estudiante'
+            ], 403);
+        }
+
+        $student = $user->student;
+        
+        // Obtener documentos de matrícula (pendientes y confirmados)
+        $enrollmentDocuments = \App\Models\EnrollmentDocument::where('student_id', $student->id)
+            ->with('uploadedBy:id,name,email')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($doc) {
+                return [
+                    'id' => $doc->id,
+                    'type' => 'enrollment_document',
+                    'document_type' => $doc->document_type,
+                    'document_name' => $doc->document_name,
+                    'description' => $doc->description,
+                    'file_path' => $doc->file_path,
+                    'file_name' => $doc->file_name,
+                    'file_url' => asset('storage/' . $doc->file_path),
+                    'uploaded_by' => $doc->uploadedBy ? [
+                        'name' => $doc->uploadedBy->name,
+                        'email' => $doc->uploadedBy->email,
+                    ] : null,
+                    'uploaded_at' => $doc->created_at->toISOString(),
+                    'requires_signature' => $doc->requires_signature,
+                    'student_confirmed' => $doc->student_confirmed,
+                    'confirmed_at' => $doc->confirmed_at?->toISOString(),
+                    'is_pending' => $doc->requires_signature && !$doc->student_confirmed,
+                ];
+            });
+
+        // Obtener comprobantes de pago
+        $paymentReceipts = collect();
+        $enrollment = $student->enrollments()->where('status', 'active')->first();
+        
+        if ($enrollment) {
+            $installments = $enrollment->installments()
+                ->where('status', 'verified')
+                ->with('vouchers')
+                ->orderBy('installment_number', 'asc')
+                ->get();
+            
+            foreach ($installments as $installment) {
+                $voucher = $installment->vouchers()->first();
+                if ($voucher && $voucher->receipt_path) {
+                    $paymentReceipts->push([
+                        'id' => 'receipt_' . $voucher->id,
+                        'type' => 'payment_receipt',
+                        'document_type' => 'payment_receipt',
+                        'document_name' => 'Comprobante de Pago - Cuota #' . $installment->installment_number,
+                        'description' => 'Comprobante de pago de la cuota ' . $installment->installment_number . ' - S/ ' . number_format($voucher->verified_amount, 2),
+                        'file_path' => $voucher->receipt_path,
+                        'file_name' => basename($voucher->receipt_path),
+                        'file_url' => asset('storage/' . $voucher->receipt_path),
+                        'uploaded_by' => null,
+                        'uploaded_at' => $voucher->created_at->toISOString(),
+                        'requires_signature' => false,
+                        'student_confirmed' => true,
+                        'confirmed_at' => $voucher->created_at->toISOString(),
+                        'is_pending' => false,
+                        'installment_number' => $installment->installment_number,
+                        'amount' => $voucher->verified_amount,
+                    ]);
+                }
+            }
+        }
+
+        // Combinar todos los documentos
+        $allDocuments = $enrollmentDocuments->concat($paymentReceipts)
+            ->sortByDesc('uploaded_at')
+            ->values();
+
+        // Separar pendientes y confirmados
+        $pendingDocuments = $allDocuments->where('is_pending', true)->values();
+        $confirmedDocuments = $allDocuments->where('is_pending', false)->values();
+
+        return response()->json([
+            'success' => true,
+            'all_documents' => $allDocuments,
+            'pending_documents' => $pendingDocuments,
+            'confirmed_documents' => $confirmedDocuments,
+            'total_count' => $allDocuments->count(),
+            'pending_count' => $pendingDocuments->count(),
+            'confirmed_count' => $confirmedDocuments->count(),
+        ]);
+    }
+
 
     /**
      * Confirmar documento (con o sin archivo firmado)

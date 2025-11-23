@@ -232,6 +232,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         // Enrollment documents
         Route::get('/api/student/pending-documents', [StudentController::class, 'getPendingDocuments'])->name('api.student.pending-documents');
+        Route::get('/api/student/all-documents', [StudentController::class, 'getAllDocuments'])->name('api.student.all-documents');
         Route::post('/api/student/documents/{document}/confirm', [StudentController::class, 'confirmDocument'])->name('api.student.confirm-document');
         
         // Public settings endpoint (no requiere autenticación)

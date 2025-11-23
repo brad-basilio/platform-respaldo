@@ -155,6 +155,12 @@ class DashboardController extends Controller
             'enrolledGroups' => $student->groups->pluck('id')->toArray(),
             'paymentStats' => $paymentStats,
             'hasPendingDocuments' => $hasPendingDocuments,
+            // Asegurar que los campos de verificación estén en camelCase
+            'enrollmentVerified' => $student->enrollment_verified,
+            'enrollmentVerifiedAt' => $student->enrollment_verified_at,
+            'verifiedEnrollmentBy' => $student->verifiedEnrollmentBy,
+            'prospectStatus' => $student->prospect_status,
+            'enrollmentDate' => $student->enrollment_date,
         ]);
 
         return Inertia::render('Dashboard/Student', [

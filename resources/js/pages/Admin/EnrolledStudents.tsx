@@ -435,7 +435,7 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
                   <div className="flex items-center">
                     <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
                     <p className="text-sm text-yellow-800">
-                      <strong>Atención:</strong> Hay documentos enviados al estudiante pendientes de confirmación. 
+                      <strong>Atención:</strong> Hay documentos enviados al estudiante pendientes de confirmación.
                       No se puede enviar más documentos hasta que confirme los actuales.
                     </p>
                   </div>
@@ -476,12 +476,12 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
                                   <div className="flex-1">
                                     <h4 className="font-medium text-gray-900">{doc.document_name}</h4>
                                     <p className="text-xs text-gray-500 mt-0.5">
-                                      Subido por el estudiante • {doc.document_type === 'contract' ? 'Contrato' : 
-                                                                   doc.document_type === 'payment' ? 'Voucher de Pago' : 'Documento'}
+                                      Subido por el estudiante • {doc.document_type === 'contract' ? 'Contrato' :
+                                        doc.document_type === 'payment' ? 'Voucher de Pago' : 'Documento'}
                                     </p>
                                   </div>
                                 </div>
-                                
+
                                 {doc.description && (
                                   <p className="text-sm text-gray-600 mb-2 ml-14">{doc.description}</p>
                                 )}
@@ -499,7 +499,7 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
                               </div>
 
                               <a
-                                href={doc.document_type === 'contract' 
+                                href={doc.document_type === 'contract'
                                   ? `/admin/students/${student.id}/contract`
                                   : `/storage/${doc.file_path}`
                                 }
@@ -536,14 +536,14 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
                                   <div className="flex-1">
                                     <h4 className="font-medium text-gray-900">{doc.document_name}</h4>
                                     <p className="text-xs text-gray-500 mt-0.5">
-                                      Tipo: {doc.document_type === 'contract' ? 'Contrato' : 
-                                             doc.document_type === 'regulation' ? 'Reglamento' : 
-                                             doc.document_type === 'terms' ? 'Términos y Condiciones' : 'Otro'}
+                                      Tipo: {doc.document_type === 'contract' ? 'Contrato' :
+                                        doc.document_type === 'regulation' ? 'Reglamento' :
+                                          doc.document_type === 'terms' ? 'Términos y Condiciones' : 'Otro'}
                                       {doc.uploaded_by_name && ` • Enviado por: ${doc.uploaded_by_name}`}
                                     </p>
                                   </div>
                                 </div>
-                                
+
                                 {doc.description && (
                                   <p className="text-sm text-gray-600 mb-2 ml-14">{doc.description}</p>
                                 )}
@@ -554,11 +554,10 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
                                     Enviado: {new Date(doc.uploaded_at).toLocaleDateString('es-ES')}
                                   </span>
                                   {doc.requires_signature && (
-                                    <span className={`flex items-center gap-1 px-2 py-1 rounded-full ${
-                                      doc.student_confirmed 
-                                        ? 'bg-green-100 text-green-700' 
-                                        : 'bg-yellow-100 text-yellow-700'
-                                    }`}>
+                                    <span className={`flex items-center gap-1 px-2 py-1 rounded-full ${doc.student_confirmed
+                                      ? 'bg-green-100 text-green-700'
+                                      : 'bg-yellow-100 text-yellow-700'
+                                      }`}>
                                       {doc.student_confirmed ? (
                                         <>
                                           <CheckCircle className="h-3 w-3" />
@@ -624,7 +623,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
   const [quickFilterText, setQuickFilterText] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'pending' | 'verified' | 'all'>('verified');
   const [studentsPendingDocs, setStudentsPendingDocs] = useState<Set<string>>(new Set());
-  
+
   // Estados para verificación con documentos
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [verifyingStudent, setVerifyingStudent] = useState<Student | null>(null);
@@ -647,7 +646,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
   React.useEffect(() => {
     const checkPendingDocuments = async () => {
       const pendingSet = new Set<string>();
-      
+
       for (const student of students) {
         try {
           const response = await axios.get(`/admin/students/${student.id}/enrollment-documents`);
@@ -658,7 +657,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
           console.error(`Error checking documents for student ${student.id}:`, error);
         }
       }
-      
+
       setStudentsPendingDocs(pendingSet);
     };
 
@@ -699,11 +698,11 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     fileInput.type = 'file';
     fileInput.accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg';
     fileInput.multiple = true;
-    
+
     fileInput.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement;
       const files = target.files;
-      
+
       if (files) {
         const newDocs = Array.from(files).map(file => ({
           file,
@@ -712,11 +711,11 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
           description: '',
           requires_signature: true
         }));
-        
+
         setDocuments([...documents, ...newDocs]);
       }
     };
-    
+
     fileInput.click();
   };
 
@@ -757,10 +756,10 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
 
     try {
       setIsSendingDocuments(true);
-      
+
       // Crear FormData para enviar archivos
       const formData = new FormData();
-      
+
       // Agregar cada documento con su metadata
       documents.forEach((doc, index) => {
         formData.append(`documents[${index}][file]`, doc.file);
@@ -779,32 +778,60 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
           }
         }
       );
-      
+
       if (response.data.success) {
-        // ❌ NO actualizar como verificado todavía
-        // El estudiante permanece sin cambios hasta que confirme los documentos
-        
-        // Agregar estudiante a la lista de pendientes
-        setStudentsPendingDocs(prev => new Set(prev).add(verifyingStudent.id));
-        
+        const wasAutoVerified = response.data.auto_verified || false;
+
+        if (wasAutoVerified) {
+          // ✅ Verificado automáticamente (sin documentos que requieran firma)
+          // Actualizar el estudiante en la lista
+          setStudents(prevStudents =>
+            prevStudents.map(s =>
+              s.id === verifyingStudent.id
+                ? {
+                  ...s,
+                  enrollmentVerified: true,
+                  enrollmentVerifiedAt: new Date().toISOString(),
+                  verifiedEnrollmentBy: response.data.student.verifiedEnrollmentBy
+                }
+                : s
+            )
+          );
+
+          // NO agregar a pendientes
+          setStudentsPendingDocs(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(verifyingStudent.id);
+            return newSet;
+          });
+        } else {
+          // ⏳ Pendiente de confirmación (tiene documentos que requieren firma)
+          // Agregar estudiante a la lista de pendientes
+          setStudentsPendingDocs(prev => new Set(prev).add(verifyingStudent.id));
+        }
+
         // Cerrar modal
         setShowVerifyModal(false);
         setVerifyingStudent(null);
         setDocuments([]);
-        
+
         await Swal.fire({
-          title: '¡Documentos Enviados!',
+          title: wasAutoVerified ? '¡Matrícula Verificada!' : '¡Documentos Enviados!',
           html: `
-            <p>Los documentos han sido enviados al estudiante exitosamente</p>
-            ${response.data.documents_uploaded > 0 
-              ? `<p class="text-sm text-gray-600 mt-2">Se enviaron ${response.data.documents_uploaded} documento(s)</p>` 
+            <p>${wasAutoVerified
+              ? 'La matrícula ha sido verificada exitosamente (sin documentos que requieran firma)'
+              : 'Los documentos han sido enviados al estudiante exitosamente'}</p>
+            ${response.data.documents_uploaded > 0
+              ? `<p class="text-sm text-gray-600 mt-2">Se enviaron ${response.data.documents_uploaded} documento(s)</p>`
               : ''}
-            <p class="text-sm text-orange-600 mt-3">⏳ La matrícula se verificará cuando el estudiante confirme todos los documentos</p>
+            ${!wasAutoVerified
+              ? '<p class="text-sm text-orange-600 mt-3">La matrícula se verificará cuando el estudiante confirme todos los documentos</p>'
+              : '<p class="text-sm text-green-600 mt-3">El estudiante ya puede acceder a todas las funcionalidades</p>'}
           `,
           icon: 'success',
           confirmButtonColor: '#10b981',
           confirmButtonText: 'Entendido',
-          timer: 3000,
+          timer: wasAutoVerified ? 4000 : 3000,
           timerProgressBar: true,
           customClass: {
             confirmButton: 'px-6 py-2.5 rounded-xl font-medium'
@@ -813,10 +840,10 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       }
     } catch (error: unknown) {
       console.error('Error al verificar matrícula:', error);
-      const errorMessage = axios.isAxiosError(error) 
+      const errorMessage = axios.isAxiosError(error)
         ? error.response?.data?.message || 'Error al verificar la matrícula'
         : 'Error al verificar la matrícula';
-      
+
       await Swal.fire({
         title: 'Error',
         text: errorMessage,
@@ -869,30 +896,30 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
 
     try {
       const response = await axios.post(`/admin/students/${studentId}/unverify-enrollment`);
-      
+
       if (response.data.success) {
         // Actualizar el estudiante en el estado
-        setStudents(prevStudents => 
-          prevStudents.map(s => 
-            s.id === studentId 
-              ? { 
-                  ...s, 
-                  enrollmentVerified: false,
-                  enrollmentVerifiedAt: undefined,
-                  verifiedEnrollmentBy: undefined
-                } 
+        setStudents(prevStudents =>
+          prevStudents.map(s =>
+            s.id === studentId
+              ? {
+                ...s,
+                enrollmentVerified: false,
+                enrollmentVerifiedAt: undefined,
+                verifiedEnrollmentBy: undefined
+              }
               : s
           )
         );
-        
+
         const documentsDeleted = response.data.documents_deleted || 0;
-        
+
         await Swal.fire({
           title: 'Verificación Removida',
           html: `
             <p>La verificación ha sido removida exitosamente</p>
-            ${documentsDeleted > 0 
-              ? `<p class="text-sm text-gray-600 mt-2">✅ Se eliminaron ${documentsDeleted} documento(s) anterior(es)</p>` 
+            ${documentsDeleted > 0
+              ? `<p class="text-sm text-gray-600 mt-2">✅ Se eliminaron ${documentsDeleted} documento(s) anterior(es)</p>`
               : ''}
           `,
           icon: 'success',
@@ -910,7 +937,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       const errorMessage = axios.isAxiosError(error)
         ? error.response?.data?.message || 'Error al remover la verificación'
         : 'Error al remover la verificación';
-      
+
       await Swal.fire({
         title: 'Error',
         text: errorMessage,
@@ -933,13 +960,13 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
   // Filtrar estudiantes según el tab activo
   const filteredStudents = useMemo(() => {
     let filtered = students;
-    
+
     if (activeTab === 'pending') {
       filtered = students.filter(s => !s.enrollmentVerified);
     } else if (activeTab === 'verified') {
       filtered = students.filter(s => s.enrollmentVerified);
     }
-    
+
     return filtered;
   }, [students, activeTab]);
 
@@ -957,7 +984,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       cellRenderer: (params: ICellRendererParams<Student>) => {
         const student = params.data!;
         const hasAvatar = student.avatar;
-        
+
         return (
           <div className="flex items-center justify-between py-2 w-full h-full group">
             <div className="flex items-center">
@@ -980,7 +1007,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                 <div className="text-xs text-gray-400">{student.phoneNumber}</div>
               </div>
             </div>
-            
+
           </div>
         );
       }
@@ -1009,9 +1036,8 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
         const status = params.value;
         return (
           <div className='flex items-center justify-center w-full h-full'>
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-              status === 'active' ? 'bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30' : 'bg-red-100 text-red-800'
-            }`}>
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${status === 'active' ? 'bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30' : 'bg-red-100 text-red-800'
+              }`}>
               {status === 'active' ? <UserCheck className="w-3 h-3 mr-1" /> : <UserX className="w-3 h-3 mr-1" />}
               {status === 'active' ? 'Activo' : 'Inactivo'}
             </span>
@@ -1027,10 +1053,10 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       cellRenderer: (params: ICellRendererParams<Student>) => {
         const level = params.value;
         if (!level) return <div className="flex items-center justify-center w-full h-full"><span className="text-xs text-gray-400">N/A</span></div>;
-        
+
         const colorClass = level === 'basic' ? 'bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30' :
-                         level === 'intermediate' ? 'bg-[#F98613]/10 text-[#F98613] border border-[#F98613]/30' :
-                         'bg-[#073372]/10 text-[#073372] border border-[#073372]/30';
+          level === 'intermediate' ? 'bg-[#F98613]/10 text-[#F98613] border border-[#F98613]/30' :
+            'bg-[#073372]/10 text-[#073372] border border-[#073372]/30';
         return (
           <div className='flex items-center justify-center w-full h-full'>
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>
@@ -1049,7 +1075,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
         const student = params.data!;
         const isVerified = student.enrollmentVerified;
         const hasPending = studentsPendingDocs.has(student.id);
-        
+
         return (
           <div className="flex items-center gap-2 h-full">
             {isVerified ? (
@@ -1068,30 +1094,28 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                 Pendiente
               </span>
             )}
-            
+
             {/* Switch para verificar/desverificar - deshabilitado si hay documentos pendientes */}
             <button
               onClick={() => isVerified ? handleUnverifyEnrollment(student.id) : handleVerifyEnrollment(student)}
               disabled={!isVerified && hasPending}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                isVerified 
-                  ? 'bg-[#17BC91] focus:ring-[#17BC91]' 
-                  : hasPending
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${isVerified
+                ? 'bg-[#17BC91] focus:ring-[#17BC91]'
+                : hasPending
                   ? 'bg-gray-200 cursor-not-allowed opacity-50'
                   : 'bg-gray-300 focus:ring-gray-400'
-              }`}
+                }`}
               title={
-                isVerified 
-                  ? 'Clic para desverificar' 
-                  : hasPending 
-                  ? 'Hay documentos pendientes de confirmación' 
-                  : 'Clic para verificar'
+                isVerified
+                  ? 'Clic para desverificar'
+                  : hasPending
+                    ? 'Hay documentos pendientes de confirmación'
+                    : 'Clic para verificar'
               }
             >
               <span
-                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                  isVerified ? 'translate-x-5' : 'translate-x-0.5'
-                }`}
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${isVerified ? 'translate-x-5' : 'translate-x-0.5'
+                  }`}
               />
             </button>
           </div>
@@ -1143,115 +1167,112 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
             <h1 className="text-2xl font-bold text-gray-900">Alumnos Matriculados</h1>
             <p className="text-gray-600">Gestiona los estudiantes que ya han completado su matrícula</p>
           </div>
-      
+
         </div>
 
-          {/* Barra de búsqueda global */}
-          <div className="relative">
-              <Input
-                type="text"
-                label="Buscar por nombre, email, código, teléfono, nivel, plan..."
-                value={quickFilterText}
-                onChange={(e) => setQuickFilterText(e.target.value)}
-                icon={<Search className="w-4 h-4" />}
-                className="pr-10"
-              />
-              {quickFilterText && (
-                <button
-                  onClick={() => setQuickFilterText('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors z-20"
-                >
-                  <XCircle className="h-5 w-5" />
-                </button>
-              )}
-          </div>
+        {/* Barra de búsqueda global */}
+        <div className="relative">
+          <Input
+            type="text"
+            label="Buscar por nombre, email, código, teléfono, nivel, plan..."
+            value={quickFilterText}
+            onChange={(e) => setQuickFilterText(e.target.value)}
+            icon={<Search className="w-4 h-4" />}
+            className="pr-10"
+          />
+          {quickFilterText && (
+            <button
+              onClick={() => setQuickFilterText('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors z-20"
+            >
+              <XCircle className="h-5 w-5" />
+            </button>
+          )}
+        </div>
 
-          {/* Tabs de filtrado */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1 inline-flex">
-            <div className="flex space-x-2">
-           
-              
-              <button
-                onClick={() => setActiveTab('verified')}
-                className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                  activeTab === 'verified'
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex items-center justify-center space-x-2">
-                  <CheckCircle className="h-4 w-4" />
-                  <span>Verificados</span>
-                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
-                    {students.filter(s => s.enrollmentVerified).length}
-                  </span>
-                </div>
-              </button>
-              
-                 <button
-                onClick={() => setActiveTab('pending')}
-                className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                  activeTab === 'pending'
-                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-md'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex items-center justify-center space-x-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>No Verificados</span>
-                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
-                    {students.filter(s => !s.enrollmentVerified).length}
-                  </span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('all')}
-                className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                  activeTab === 'all'
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex items-center justify-center space-x-2">
-                  <Users className="h-4 w-4" />
-                  <span>Todos</span>
-                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
-                    {students.length}
-                  </span>
-                </div>
-              </button>
-            </div>
-          </div>
-        
+        {/* Tabs de filtrado */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1 inline-flex">
+          <div className="flex space-x-2">
 
-          <div className="ag-theme-quartz" style={{ height: '600px', width: '100%' }}>
-            <AgGridReact<Student>
-              theme={themeQuartz}
-              rowData={filteredStudents}
-              columnDefs={columnDefs}
-              quickFilterText={quickFilterText}
-              defaultColDef={{
-                sortable: true,
-                filter: true,
-                resizable: true,
-                flex: 1,
-                minWidth: 100,
-              }}
-              pagination={true}
-              paginationPageSize={10}
-              paginationPageSizeSelector={[5, 10, 20, 50]}
-              rowSelection={{ mode: 'singleRow' }}
-              animateRows={true}
-              domLayout="normal"
-              rowHeight={70}
-              headerHeight={48}
-              suppressCellFocus={true}
-              rowClass="hover:bg-gray-50"
-            />
-          </div>
-       
 
-   
+            <button
+              onClick={() => setActiveTab('verified')}
+              className={`px-6 py-3 rounded-lg font-medium transition-all ${activeTab === 'verified'
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-50'
+                }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <CheckCircle className="h-4 w-4" />
+                <span>Verificados</span>
+                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                  {students.filter(s => s.enrollmentVerified).length}
+                </span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('pending')}
+              className={`px-6 py-3 rounded-lg font-medium transition-all ${activeTab === 'pending'
+                ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-50'
+                }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <AlertCircle className="h-4 w-4" />
+                <span>No Verificados</span>
+                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                  {students.filter(s => !s.enrollmentVerified).length}
+                </span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-6 py-3 rounded-lg font-medium transition-all ${activeTab === 'all'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-50'
+                }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <Users className="h-4 w-4" />
+                <span>Todos</span>
+                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                  {students.length}
+                </span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+
+        <div className="ag-theme-quartz" style={{ height: '600px', width: '100%' }}>
+          <AgGridReact<Student>
+            theme={themeQuartz}
+            rowData={filteredStudents}
+            columnDefs={columnDefs}
+            quickFilterText={quickFilterText}
+            defaultColDef={{
+              sortable: true,
+              filter: true,
+              resizable: true,
+              flex: 1,
+              minWidth: 100,
+            }}
+            pagination={true}
+            paginationPageSize={10}
+            paginationPageSizeSelector={[5, 10, 20, 50]}
+            rowSelection={{ mode: 'singleRow' }}
+            animateRows={true}
+            domLayout="normal"
+            rowHeight={70}
+            headerHeight={48}
+            suppressCellFocus={true}
+            rowClass="hover:bg-gray-50"
+          />
+        </div>
+
+
+
       </div>
 
       {showViewModal && selectedStudent && (
@@ -1260,7 +1281,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
 
       {/* Modal de Verificación con Documentos */}
       {showVerifyModal && verifyingStudent && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-fade-in"
           onClick={() => {
             if (!isSendingDocuments) {
@@ -1270,7 +1291,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
             }
           }}
         >
-          <div 
+          <div
             className="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
@@ -1298,11 +1319,10 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                       }
                     }}
                     disabled={isSendingDocuments}
-                    className={`rounded-full p-2 transition-colors ${
-                      isSendingDocuments
-                        ? 'text-white/50 cursor-not-allowed'
-                        : 'text-white hover:bg-white/20'
-                    }`}
+                    className={`rounded-full p-2 transition-colors ${isSendingDocuments
+                      ? 'text-white/50 cursor-not-allowed'
+                      : 'text-white hover:bg-white/20'
+                      }`}
                   >
                     <XCircle className="h-6 w-6" />
                   </button>
@@ -1358,11 +1378,10 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                   <button
                     onClick={handleAddDocument}
                     disabled={isSendingDocuments}
-                    className={`group relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-md ${
-                      isSendingDocuments
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-[#17BC91] to-[#14a87d] hover:from-[#14a87d] hover:to-[#17BC91] text-white hover:shadow-lg transform hover:-translate-y-0.5'
-                    }`}
+                    className={`group relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-md ${isSendingDocuments
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-[#17BC91] to-[#14a87d] hover:from-[#14a87d] hover:to-[#17BC91] text-white hover:shadow-lg transform hover:-translate-y-0.5'
+                      }`}
                   >
                     <svg className="w-5 h-5 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1422,7 +1441,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                                 required
                                 disabled={isSendingDocuments}
                               />
-                              
+
                               <Select
                                 label="Tipo de Documento"
                                 value={doc.document_type}
@@ -1466,9 +1485,8 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                               disabled={isSendingDocuments}
                             />
 
-                            <label className={`flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 transition-colors ${
-                              isSendingDocuments ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-gray-50'
-                            }`}>
+                            <label className={`flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 transition-colors ${isSendingDocuments ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-gray-50'
+                              }`}>
                               <input
                                 type="checkbox"
                                 checked={doc.requires_signature}
@@ -1491,11 +1509,10 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                           <button
                             onClick={() => handleRemoveDocument(index)}
                             disabled={isSendingDocuments}
-                            className={`flex-shrink-0 group p-3 rounded-xl transition-all duration-200 ${
-                              isSendingDocuments
-                                ? 'text-gray-400 cursor-not-allowed'
-                                : 'text-red-600 hover:bg-red-50 hover:shadow-md'
-                            }`}
+                            className={`flex-shrink-0 group p-3 rounded-xl transition-all duration-200 ${isSendingDocuments
+                              ? 'text-gray-400 cursor-not-allowed'
+                              : 'text-red-600 hover:bg-red-50 hover:shadow-md'
+                              }`}
                             title={isSendingDocuments ? 'Enviando documentos...' : 'Eliminar documento'}
                           >
                             <XCircle className={`w-6 h-6 ${!isSendingDocuments && 'group-hover:scale-110'} transition-transform`} />
@@ -1520,7 +1537,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                   <span className="text-gray-500">Agrega al menos un documento</span>
                 )}
               </div>
-              
+
               <div className="flex gap-3">
                 <button
                   onClick={() => {
@@ -1529,22 +1546,20 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                     setDocuments([]);
                   }}
                   disabled={isSendingDocuments}
-                  className={`px-6 py-2.5 rounded-xl font-medium transition-all duration-200 border-2 ${
-                    isSendingDocuments
-                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                      : 'text-gray-700 bg-white hover:bg-gray-100 border-gray-300 hover:shadow-md'
-                  }`}
+                  className={`px-6 py-2.5 rounded-xl font-medium transition-all duration-200 border-2 ${isSendingDocuments
+                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                    : 'text-gray-700 bg-white hover:bg-gray-100 border-gray-300 hover:shadow-md'
+                    }`}
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleConfirmVerification}
                   disabled={documents.length === 0 || isSendingDocuments}
-                  className={`group relative inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium transition-all duration-200 ${
-                    documents.length === 0 || isSendingDocuments
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-[#073372] via-[#0d4a8f] to-[#17BC91] hover:from-[#0d4a8f] hover:via-[#073372] hover:to-[#14a87d] text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
-                  }`}
+                  className={`group relative inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium transition-all duration-200 ${documents.length === 0 || isSendingDocuments
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-[#073372] via-[#0d4a8f] to-[#17BC91] hover:from-[#0d4a8f] hover:via-[#073372] hover:to-[#14a87d] text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                    }`}
                 >
                   {isSendingDocuments ? (
                     <>
