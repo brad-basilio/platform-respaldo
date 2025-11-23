@@ -461,6 +461,8 @@ const StudentManagement: React.FC<Props> = ({
       if (formData.academicLevelId) data.append('academic_level_id', formData.academicLevelId.toString());  // ✅ Actualizado
       if (formData.paymentPlanId) data.append('payment_plan_id', formData.paymentPlanId.toString());        // ✅ Actualizado
       data.append('payment_verified', formData.paymentVerified ? '1' : '0');
+      if (formData.paymentMethod) data.append('payment_method', formData.paymentMethod);
+      if (formData.verifiedAmount) data.append('verified_amount', formData.verifiedAmount.toString());
     } else {
       // Admin y Sales Advisor: todos los campos
       data.append('first_name', formData.firstName);
@@ -940,6 +942,8 @@ const StudentManagement: React.FC<Props> = ({
       paymentVoucherFile: null as File | null,                 // ✅ Nuevo: archivo del voucher
       paymentVoucherFileName: student?.paymentVoucherFileName || '', // ✅ Nuevo: nombre del voucher
       paymentVerified: student?.paymentVerified || false,
+      paymentMethod: 'cash', // Default
+      verifiedAmount: student?.paymentPlan?.monthly_amount || 0, // Default to monthly amount
 
       // Examen de Categorización
       hasPlacementTest: student?.hasPlacementTest || false,
@@ -998,7 +1002,7 @@ const StudentManagement: React.FC<Props> = ({
     }, []);
 
     // Determinar si el cajero está editando
-    const isCashierEditing = userRole === 'cashier' && student;
+    const isCashierEditing = userRole === 'cashier' && !!student;
 
     // Función para generar código de matrícula
     const generateEnrollmentCode = () => {
@@ -1437,7 +1441,7 @@ const StudentManagement: React.FC<Props> = ({
                         <DatePicker
                           label="Fecha de Pago"
                           selected={formData.paymentDate ? new Date(formData.paymentDate) : null}
-                          onChange={(date) => handlePaymentDateChange(date ? date.toISOString().split('T')[0] : '')}
+                          onChange={(date) => handlePaymentDateChange(date ? date.toISOString() : '')}
                           maxDate={new Date()}
                           disabled={isCashierEditing}
                         />
@@ -1710,6 +1714,40 @@ const StudentManagement: React.FC<Props> = ({
                               </div>
                             )}
                           </label>
+
+                          {formData.paymentVerified && (
+                            <div className="mt-6 pl-2 md:pl-11 grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in border-t border-green-200 pt-4">
+                              <Select2
+                                label="Método de Pago"
+                                value={formData.paymentMethod}
+                                onChange={(value) => setFormData({ ...formData, paymentMethod: value as string })}
+                                options={[
+                                  { value: 'cash', label: 'Efectivo' },
+                                  { value: 'credit_card', label: 'Tarjeta de Crédito' },
+                                  { value: 'debit_card', label: 'Tarjeta de Débito' },
+                                  { value: 'transfer', label: 'Transferencia Bancaria' },
+                                  { value: 'yape', label: 'Yape' },
+                                  { value: 'plin', label: 'Plin' },
+                                ]}
+                                isSearchable={false}
+                                required
+                              />
+                              <Input
+                                label="Monto Verificado (S/)"
+                                type="number"
+                                value={formData.verifiedAmount}
+                                onChange={(e) => setFormData({ ...formData, verifiedAmount: parseFloat(e.target.value) })}
+                                required
+                                min="0"
+                                step="0.01"
+                              />
+                              <div className="col-span-1 md:col-span-2">
+                                <p className="text-sm text-green-800 bg-green-100 p-2 rounded border border-green-200">
+                                  📝 Se generará automáticamente un comprobante de pago con estos datos y se enviará al estudiante.
+                                </p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

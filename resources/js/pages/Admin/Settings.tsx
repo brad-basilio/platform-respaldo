@@ -3,10 +3,10 @@ import { Head, useForm } from '@inertiajs/react';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import { Editor } from '@tinymce/tinymce-react';
 import { Input, Select } from '@/components/ui/input';
-import { 
-  RiSettings4Line, 
-  RiMailLine, 
-  RiWhatsappLine, 
+import {
+  RiSettings4Line,
+  RiMailLine,
+  RiWhatsappLine,
   RiGlobalLine,
   RiSaveLine,
   RiFileTextLine
@@ -38,9 +38,9 @@ interface EmailTemplate {
 }
 
 const Settings: React.FC<Props> = ({ settings }) => {
-  const [activeTab, setActiveTab] = useState<'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract'>('mail');
+  const [activeTab, setActiveTab] = useState<'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract' | 'receipt'>('mail');
   const [selectedMailTemplate, setSelectedMailTemplate] = useState<string>('prospect_welcome');
-  
+
   // Configuración de templates de email
   const emailTemplates: EmailTemplate[] = [
     {
@@ -78,8 +78,20 @@ const Settings: React.FC<Props> = ({ settings }) => {
       label: 'Email de Matrícula Verificada',
       variables: ['nombre_estudiante', 'codigo_matricula', 'email', 'nivel_academico', 'plan_pago', 'verificado_por', 'fecha_verificacion', 'cantidad_documentos', 'url_plataforma']
     },
+    {
+      key: 'payment_receipt_email',
+      label: 'Email de Comprobante de Pago',
+      variables: [
+        'nombre_estudiante', 'tipo_documento', 'numero_documento', 'direccion_cliente',
+        'descripcion_servicio', 'precio_unitario', 'valor_venta',
+        'monto_pagado', 'fecha_pago', 'numero_cuota', 'codigo_operacion', 'metodo_pago',
+        'op_gravada', 'igv', 'importe_total',
+        'fecha_emision', 'numero_comprobante', 'fecha_autorizacion', 'hash_comprobante',
+        'url_plataforma'
+      ]
+    },
   ];
-  
+
   // Form states por tab
   const mailForm = useForm({
     settings: (settings.mail || []).reduce((acc, s) => {
@@ -90,6 +102,10 @@ const Settings: React.FC<Props> = ({ settings }) => {
 
   const contractForm = useForm({
     contract_template: settings.general?.find(s => s.key === 'contract_template')?.content || '',
+  });
+
+  const receiptForm = useForm({
+    payment_receipt_template: settings.general?.find(s => s.key === 'payment_receipt_template')?.content || '',
   });
 
   const whatsappForm = useForm({
@@ -114,6 +130,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
   const tabs = [
     { id: 'mail', label: 'Templates de Email', icon: RiMailLine },
     { id: 'contract', label: 'Plantilla de Contrato', icon: RiFileTextLine },
+    { id: 'receipt', label: 'Comprobantes', icon: RiFileTextLine },
     { id: 'whatsapp', label: 'Configuración WhatsApp', icon: RiWhatsappLine },
     { id: 'payment', label: 'Configuración de Pagos', icon: RiSettings4Line },
     { id: 'general', label: 'Configuración General', icon: RiGlobalLine },
@@ -122,7 +139,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
 
   const handleMailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const settingsArray = Object.entries(mailForm.data.settings).map(([key, content]) => ({
       key,
       content,
@@ -149,7 +166,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
 
   const handleWhatsAppSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const settingsArray = [
       {
         key: 'whatsapp_number',
@@ -178,7 +195,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
 
   const handleGeneralSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const settingsArray = [
       {
         key: 'site_name',
@@ -207,7 +224,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
 
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const settingsArray = [
       {
         key: 'support_email',
@@ -230,7 +247,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
 
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const settingsArray = [
       {
         key: 'plan_change_deadline_days',
@@ -265,7 +282,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
 
   const handleContractSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const settingsArray = [
       {
         key: 'contract_template',
@@ -286,6 +303,35 @@ const Settings: React.FC<Props> = ({ settings }) => {
       onError: () => {
         toast.error('Error', {
           description: 'No se pudo guardar la plantilla de contrato',
+          duration: 4000,
+        });
+      }
+    });
+  };
+
+  const handleReceiptSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const settingsArray = [
+      {
+        key: 'payment_receipt_template',
+        content: receiptForm.data.payment_receipt_template,
+        type: 'general',
+        description: 'Plantilla de comprobante de pago para estudiantes',
+      },
+    ];
+
+    receiptForm.transform(() => ({ settings: settingsArray }));
+    receiptForm.post('/admin/settings', {
+      onSuccess: () => {
+        toast.success('Configuración guardada', {
+          description: 'La plantilla de comprobante ha sido actualizada',
+          duration: 4000,
+        });
+      },
+      onError: () => {
+        toast.error('Error', {
+          description: 'No se pudo guardar la plantilla de comprobante',
           duration: 4000,
         });
       }
@@ -327,11 +373,10 @@ const Settings: React.FC<Props> = ({ settings }) => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as 'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract')}
-                    className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${
-                      activeTab === tab.id
-                        ? 'bg-gradient-to-r from-[#073372] to-[#17BC91] text-white shadow-md'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
+                    className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${activeTab === tab.id
+                      ? 'bg-gradient-to-r from-[#073372] to-[#17BC91] text-white shadow-md'
+                      : 'text-gray-600 hover:bg-gray-50'
+                      }`}
                   >
                     <Icon className="h-5 w-5 mr-2" />
                     {tab.label}
@@ -431,7 +476,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                             });
 
                             const result = await response.json();
-                            
+
                             if (result.location) {
                               resolve(result.location);
                             } else {
@@ -454,13 +499,13 @@ const Settings: React.FC<Props> = ({ settings }) => {
                           html = html.replace(/href="[^"]*(https?:\/\/[^"}]+)"/g, 'href="$1"');
                           return html;
                         };
-                        
+
                         editor.on('BeforeSetContent', function (e) {
                           if (e.content && typeof e.content === 'string') {
                             e.content = cleanSrcHref(e.content);
                           }
                         });
-                        
+
                         editor.on('PostProcess', function (e) {
                           if (e.content && typeof e.content === 'string') {
                             e.content = cleanSrcHref(e.content);
@@ -546,7 +591,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                     📄 Plantilla de Contrato Digital
                   </h3>
                   <p className="text-sm text-slate-700">
-                    Esta plantilla se genera automáticamente cuando un prospecto pasa de <strong>"Reunión Realizada"</strong> a <strong>"Pago Por Verificar"</strong>. 
+                    Esta plantilla se genera automáticamente cuando un prospecto pasa de <strong>"Reunión Realizada"</strong> a <strong>"Pago Por Verificar"</strong>.
                     El estudiante recibirá un email con un enlace para revisar y aceptar el contrato digitalmente.
                   </p>
                 </div>
@@ -611,7 +656,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                             });
 
                             const result = await response.json();
-                            
+
                             if (result.location) {
                               resolve(result.location);
                             } else {
@@ -659,6 +704,113 @@ const Settings: React.FC<Props> = ({ settings }) => {
                   >
                     <RiSaveLine className="h-5 w-5 mr-2" />
                     {contractForm.processing ? 'Guardando...' : 'Guardar Plantilla de Contrato'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+
+
+            {/* Receipt Template Tab */}
+            {activeTab === 'receipt' && (
+              <form onSubmit={handleReceiptSubmit} className="space-y-6">
+                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl p-6 mb-6">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <RiFileTextLine className="w-6 h-6 text-blue-600" />
+                    📄 Plantilla de Comprobante de Pago
+                  </h3>
+                  <p className="text-sm text-slate-700">
+                    Esta plantilla se utiliza para generar el PDF del comprobante de pago cuando un cajero verifica un pago.
+                    El estudiante recibirá este comprobante por correo electrónico.
+                  </p>
+                </div>
+
+                {/* Editor for Receipt Template */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-900">Contenido del Comprobante</h3>
+                  </div>
+
+                  <Editor
+                    apiKey="0nai4nwo1mc0dumfyzl8re1odbzzr1fz4gfwzpgu5ghdnu4n"
+                    value={receiptForm.data.payment_receipt_template}
+                    onEditorChange={(content) => {
+                      receiptForm.setData('payment_receipt_template', content);
+                    }}
+                    init={{
+                      height: 600,
+                      menubar: 'file edit view insert format tools table help',
+                      plugins: [
+                        'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                        'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                        'insertdatetime', 'media', 'table', 'help', 'wordcount', 'visualchars', 'pagebreak'
+                      ],
+                      toolbar: 'undo redo | formatselect | bold italic underline forecolor backcolor | ' +
+                        'alignleft aligncenter alignright alignjustify | ' +
+                        'bullist numlist outdent indent | link image media | ' +
+                        'table tabledelete | code | removeformat | help',
+                      automatic_uploads: true,
+                      paste_data_images: true,
+                      file_picker_types: 'image',
+                      images_upload_url: '/admin/upload-image',
+                      relative_urls: false,
+                      remove_script_host: false,
+                      convert_urls: true,
+                      images_upload_handler: (blobInfo) => new Promise((resolve, reject) => {
+                        (async () => {
+                          try {
+                            await fetch('/sanctum/csrf-cookie', { credentials: 'same-origin' });
+                            const formData = new FormData();
+                            formData.append('file', blobInfo.blob(), blobInfo.filename());
+                            const getCookie = (name: string) => {
+                              const value = `; ${document.cookie}`;
+                              const parts = value.split(`; ${name}=`);
+                              if (parts.length === 2) return parts.pop()?.split(';').shift();
+                              return '';
+                            };
+                            const csrfToken = decodeURIComponent(getCookie('XSRF-TOKEN') || '');
+                            const response = await fetch('/admin/upload-image', {
+                              method: 'POST',
+                              body: formData,
+                              credentials: 'same-origin',
+                              headers: { 'X-XSRF-TOKEN': csrfToken }
+                            });
+                            const result = await response.json();
+                            if (result.location) resolve(result.location);
+                            else reject('Error al subir imagen');
+                          } catch { reject('Error al subir imagen'); }
+                        })();
+                      }),
+                      content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; padding: 20px; }',
+                    }}
+                  />
+
+                  {/* Variables disponibles */}
+                  <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                    <h4 className="font-semibold text-blue-900 mb-2">Variables Disponibles:</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                      <code className="bg-white px-2 py-1 rounded border border-blue-300">{'{{nombre_estudiante}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-blue-300">{'{{documento_estudiante}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-blue-300">{'{{monto_pagado}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-blue-300">{'{{metodo_pago}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-blue-300">{'{{fecha_pago}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-blue-300">{'{{numero_cuota}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-blue-300">{'{{concepto}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-blue-300">{'{{codigo_operacion}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-blue-300">{'{{fecha_emision}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-blue-300">{'{{cajero}}'}</code>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={receiptForm.processing}
+                    className="inline-flex items-center px-6 py-3 bg-[#073372] hover:bg-[#17BC91] text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50"
+                  >
+                    <RiSaveLine className="h-5 w-5 mr-2" />
+                    {receiptForm.processing ? 'Guardando...' : 'Guardar Plantilla de Comprobante'}
                   </button>
                 </div>
               </form>
@@ -829,7 +981,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
           </div>
         </div>
       </div>
-    </AuthenticatedLayout>
+    </AuthenticatedLayout >
   );
 };
 

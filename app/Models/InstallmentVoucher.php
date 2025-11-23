@@ -25,10 +25,13 @@ class InstallmentVoucher extends Model
         'reviewed_at',
         'rejection_reason',
         'notes',
+        'receipt_path',
+        'verified_amount',
     ];
 
     protected $casts = [
         'declared_amount' => 'float',
+        'verified_amount' => 'float',
         'payment_date' => 'date',
         'reviewed_at' => 'datetime',
         'applied_to_total' => 'boolean',

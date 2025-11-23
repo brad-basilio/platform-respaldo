@@ -278,6 +278,69 @@ class SettingSeeder extends Seeder
                 'description' => 'Email enviado cuando se verifica la matrícula del estudiante (con documentos adjuntos)',
             ],
 
+            // ✅ Email for payment receipt
+            [
+                'key' => 'payment_receipt_email',
+                'type' => 'mail',
+                'content' => '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #073372 0%, #17BC91 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+        <h1 style="margin: 0; font-size: 28px;">💰 Pago Confirmado</h1>
+        <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Hemos recibido tu pago exitosamente</p>
+    </div>
+    
+    <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+        <p style="font-size: 16px; margin-bottom: 20px;">Hola <strong>{{nombre_estudiante}}</strong>,</p>
+        
+        <p style="font-size: 15px; margin-bottom: 20px;">
+            Te confirmamos que hemos recibido y verificado tu pago correctamente. 
+            Adjunto a este correo encontrarás tu comprobante de pago.
+        </p>
+        
+        <div style="background: #f0fdf4; border-left: 4px solid #17BC91; padding: 15px; margin: 20px 0; border-radius: 5px;">
+            <p style="margin: 0; font-size: 14px; color: #166534;">
+                <strong>📋 Detalles del Pago:</strong>
+            </p>
+            <ul style="margin: 10px 0 0 0; padding-left: 20px; font-size: 14px; color: #166534;">
+                <li><strong>Monto:</strong> {{monto_pagado}}</li>
+                <li><strong>Fecha:</strong> {{fecha_pago}}</li>
+                <li><strong>Cuota:</strong> {{numero_cuota}}</li>
+                <li><strong>Método:</strong> {{metodo_pago}}</li>
+                <li><strong>Operación:</strong> {{codigo_operacion}}</li>
+            </ul>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{url_plataforma}}" style="display: inline-block; background: linear-gradient(135deg, #073372 0%, #17BC91 100%); color: white; text-decoration: none; padding: 15px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                📱 Ver en la Plataforma
+            </a>
+        </div>
+        
+        <p style="font-size: 14px; color: #666; margin-top: 30px;">
+            Si tienes alguna duda sobre este pago, por favor contáctanos.
+        </p>
+        
+        <p style="font-size: 14px; color: #666;">
+            Saludos cordiales,<br>
+            <strong>Equipo de UNCED</strong>
+        </p>
+    </div>
+    
+    <div style="text-align: center; padding: 20px; font-size: 12px; color: #999;">
+        <p>Este es un correo automático, por favor no respondas a este mensaje.</p>
+    </div>
+</body>
+</html>
+                ',
+                'description' => 'Email enviado al estudiante con el comprobante de pago adjunto',
+            ],
+
             // General Configuration
             [
                 'key' => 'site_name',
@@ -291,10 +354,233 @@ class SettingSeeder extends Seeder
                 'content' => 'Plataforma de gestión de cursos de inglés profesional',
                 'description' => 'Descripción del sitio',
             ],
+            // ✅ PDF Receipt Template
+            [
+                'key' => 'payment_receipt_template',
+                'type' => 'general',
+                'content' => '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #000; line-height: 1.3; }
+        .container { width: 100%; padding: 10px; }
+        
+        /* Header */
+        .header-table { width: 100%; margin-bottom: 15px; }
+        .logo-section { width: 60%; vertical-align: top; }
+        .logo-section img { max-height: 70px; margin-bottom: 5px; }
+        .company-name { font-size: 14px; font-weight: bold; color: #073372; }
+        .company-address { font-size: 10px; color: #555; }
+        
+        /* RUC Box */
+        .ruc-box { 
+            width: 38%; 
+            border: 1px solid #073372; 
+            border-radius: 8px; 
+            text-align: center; 
+            padding: 10px 0; 
+            background-color: #fff;
+        }
+        .ruc-number { font-size: 12px; font-weight: bold; margin-bottom: 3px; }
+        .doc-type { 
+            font-size: 14px; 
+            font-weight: bold; 
+            background-color: #073372; 
+            color: #fff; 
+            padding: 3px 0; 
+            margin: 3px 0; 
+            display: block;
+        }
+        .doc-number { font-size: 12px; font-weight: bold; margin-top: 3px; }
+        
+        /* Client Info */
+        .client-info { 
+            width: 100%; 
+            border: 1px solid #ccc; 
+            border-radius: 5px; 
+            padding: 8px; 
+            margin-bottom: 15px; 
+        }
+        .info-table { width: 100%; }
+        .info-table td { padding: 2px 0; vertical-align: top; }
+        .label { font-weight: bold; width: 110px; color: #444; }
+        
+        /* Items Table */
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .items-table th { 
+            background-color: #073372; 
+            color: white; 
+            padding: 5px; 
+            text-align: center; 
+            font-size: 10px;
+            border: 1px solid #073372;
+        }
+        .items-table td { 
+            padding: 5px; 
+            border: 1px solid #ccc; 
+            font-size: 10px;
+        }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        
+        /* Totals */
+        .totals-table { width: 100%; margin-top: 5px; }
+        .totals-table td { padding: 3px; }
+        .total-label { font-weight: bold; text-align: right; padding-right: 10px; font-size: 10px; }
+        .total-amount { font-weight: bold; text-align: right; width: 80px; border: 1px solid #ccc; padding: 3px; background: #eee; }
+        
+        /* Footer */
+        .footer { margin-top: 30px; border-top: 1px solid #ccc; padding-top: 10px; font-size: 9px; color: #666; }
+        .hash-box { margin-top: 10px; font-family: monospace; font-size: 9px; text-align: center; color: #555; }
+        
+        .qr-placeholder {
+            width: 80px;
+            height: 80px;
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            color: #ccc;
+            font-size: 9px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <table class="header-table">
+            <tr>
+                <td class="logo-section">
+                    <img src="https://unced.online/logo.png" alt="UNCED Logo">
+                    <div class="company-name">UNCED ENGLISH ACADEMY S.A.C.</div>
+                    <div class="company-address">
+                        Av. La Marina 1234, San Miguel, Lima<br>
+                        Teléfono: (01) 555-1234 | Email: administracion@unced.edu.pe<br>
+                        Web: www.unced.edu.pe
+                    </div>
+                </td>
+                <td style="vertical-align: top; text-align: right;">
+                    <div class="ruc-box">
+                        <div class="ruc-number">R.U.C. 20601234567</div>
+                        <div class="doc-type">BOLETA DE VENTA ELECTRÓNICA</div>
+                        <div class="doc-number">{{numero_comprobante}}</div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        
+        <!-- Client Info -->
+        <div class="client-info">
+            <table class="info-table">
+                <tr>
+                    <td width="60%">
+                        <table>
+                            <tr><td class="label">Señor(es):</td><td>{{nombre_estudiante}}</td></tr>
+                            <tr><td class="label">{{tipo_documento}}:</td><td>{{numero_documento}}</td></tr>
+                            <tr><td class="label">Dirección:</td><td>{{direccion_cliente}}</td></tr>
+                        </table>
+                    </td>
+                    <td width="40%">
+                        <table>
+                            <tr><td class="label">Fecha Emisión:</td><td>{{fecha_emision}}</td></tr>
+                            <tr><td class="label">Moneda:</td><td>SOLES</td></tr>
+                            <tr><td class="label">Forma de Pago:</td><td>{{metodo_pago}}</td></tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- Items -->
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th width="10%">CANT.</th>
+                    <th width="10%">UNIDAD</th>
+                    <th width="50%">DESCRIPCIÓN</th>
+                    <th width="15%">V. UNITARIO</th>
+                    <th width="15%">V. VENTA</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="text-center">1</td>
+                    <td class="text-center">NIU</td>
+                    <td>{{descripcion_servicio}}</td>
+                    <td class="text-right">{{valor_venta}}</td>
+                    <td class="text-right">{{valor_venta}}</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <!-- Totals -->
+        <table class="totals-table">
+            <tr>
+                <td width="65%" style="vertical-align: top; font-size: 10px; color: #555;">
+                    <div style="border: 1px solid #eee; padding: 5px; background: #f9f9f9;">
+                        <strong>SON:</strong> {{importe_total}} SOLES
+                        <br><br>
+                        <strong>Observaciones:</strong><br>
+                        Operación: {{codigo_operacion}}<br>
+                        Fecha Pago: {{fecha_pago}}
+                    </div>
+                    <div class="hash-box">
+                        Resumen: {{hash_comprobante}}<br>
+                        Autorización: {{fecha_autorizacion}}
+                    </div>
+                </td>
+                <td width="35%">
+                    <table width="100%">
+                        <tr>
+                            <td class="total-label">OP. GRAVADA:</td>
+                            <td class="text-right">S/ {{op_gravada}}</td>
+                        </tr>
+                        <tr>
+                            <td class="total-label">OP. EXONERADA:</td>
+                            <td class="text-right">S/ 0.00</td>
+                        </tr>
+                        <tr>
+                            <td class="total-label">I.G.V. (18%):</td>
+                            <td class="text-right">S/ {{igv}}</td>
+                        </tr>
+                        <tr>
+                            <td class="total-label" style="font-size: 12px; color: #073372;">IMPORTE TOTAL:</td>
+                            <td class="total-amount" style="color: #073372;">S/ {{importe_total}}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <table width="100%">
+                <tr>
+                    <td width="80%" style="vertical-align: middle;">
+                        Representación impresa de la BOLETA DE VENTA ELECTRÓNICA, generado desde el sistema de facturación de UNCED.<br>
+                        Puede consultar este documento en www.unced.edu.pe/comprobantes<br>
+                        Autorizado mediante Resolución de Intendencia N° 034-005-0005315
+                    </td>
+                    <td width="20%" align="center">
+                        <!-- QR Placeholder -->
+                        <div style="border: 1px solid #ccc; width: 60px; height: 60px; text-align: center; line-height: 60px; font-size: 8px;">QR CODE</div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
+                ',
+                'description' => 'Plantilla HTML profesional para generar el PDF del comprobante de pago (Estilo SUNAT)',
+            ],
         ];
 
         foreach ($settings as $setting) {
-            Setting::firstOrCreate(
+            Setting::updateOrCreate(
                 ['key' => $setting['key']],
                 $setting
             );

@@ -626,6 +626,8 @@ class StudentController extends Controller
             // Cajero simplemente verifica el pago y el sistema matricula automáticamente
             $validated = $request->validate([
                 'payment_verified' => 'required',
+                'payment_method' => 'nullable|string',
+                'verified_amount' => 'nullable|numeric',
             ]);
 
             // Convertir a booleano si viene como string
@@ -659,9 +661,8 @@ class StudentController extends Controller
                 $existingEnrollment = $student->enrollments()->where('status', 'active')->first();
                 
                 if ($existingEnrollment) {
-                    // Buscar la primera cuota que esté en estado "paid" (con voucher pendiente de verificación)
+                    // Buscar la primera cuota que esté en estado "paid" (con voucher pendiente) o "pending"
                     $firstInstallment = $existingEnrollment->installments()
-                        ->where('status', 'paid')
                         ->orderBy('installment_number', 'asc')
                         ->first();
                     
@@ -673,12 +674,61 @@ class StudentController extends Controller
                             'verified_at' => now(),
                         ]);
                         
-                        // También marcar el voucher como aprobado
+                        // Buscar o crear voucher
                         $voucher = $firstInstallment->vouchers()->first();
-                        if ($voucher) {
+                        
+                        if (!$voucher) {
+                            // Crear voucher si no existe (pago presencial sin subida previa)
+                            $voucher = \App\Models\InstallmentVoucher::create([
+                                'installment_id' => $firstInstallment->id,
+                                'uploaded_by' => $user->id, // Cajero lo sube/genera
+                                'voucher_path' => 'generated', // Placeholder
+                                'declared_amount' => $validated['verified_amount'] ?? $firstInstallment->amount,
+                                'verified_amount' => $validated['verified_amount'] ?? $firstInstallment->amount,
+                                'payment_date' => $student->payment_date ?? now(), // Usar la fecha del estudiante o now()
+                                'payment_method' => $validated['payment_method'] ?? 'cash',
+                                'transaction_reference' => null, // Se generará después de crear
+                                'status' => 'approved',
+                                'reviewed_by' => $user->id,
+                                'reviewed_at' => now(),
+                            ]);
+                            
+                            // Generar código de operación único
+                            $voucher->update([
+                                'transaction_reference' => $this->generateTransactionReference($voucher->id)
+                            ]);
+                        } else {
+                            // Actualizar voucher existente
                             $voucher->update([
                                 'status' => 'approved',
+                                'verified_amount' => $validated['verified_amount'] ?? $voucher->declared_amount,
+                                'payment_method' => $validated['payment_method'] ?? $voucher->payment_method,
+                                'payment_date' => $student->payment_date ?? $voucher->payment_date, // Actualizar con la fecha del estudiante
+                                'reviewed_by' => $user->id,
+                                'reviewed_at' => now(),
                             ]);
+                            
+                            // Generar código de operación si no existe
+                            if (!$voucher->transaction_reference) {
+                                $voucher->update([
+                                    'transaction_reference' => $this->generateTransactionReference($voucher->id)
+                                ]);
+                            }
+                        }
+
+                        // Generar Recibo PDF
+                        try {
+                            $receiptService = new \App\Services\ReceiptGeneratorService();
+                            $receiptPath = $receiptService->generate($voucher);
+                            
+                            $voucher->update(['receipt_path' => $receiptPath]);
+                            
+                            // Enviar email con recibo
+                            Mail::to($student->user->email)->send(new \App\Mail\PaymentReceiptMail($voucher, $receiptPath));
+                            
+                            Log::info('Recibo generado y enviado', ['voucher_id' => $voucher->id]);
+                        } catch (\Exception $e) {
+                            Log::error('Error generando recibo:', ['error' => $e->getMessage()]);
                         }
                         
                         Log::info('Primera cuota verificada por cajero', [
@@ -687,7 +737,7 @@ class StudentController extends Controller
                             'verified_by' => $user->id,
                         ]);
                     } else {
-                        Log::warning('No se encontró cuota pendiente para verificar', [
+                        Log::warning('No se encontró cuota para verificar', [
                             'student_id' => $student->id,
                             'enrollment_id' => $existingEnrollment->id,
                         ]);
@@ -1926,6 +1976,20 @@ class StudentController extends Controller
             // Restaurar timeout original
             set_time_limit(60);
         }
+    }
+
+    /**
+     * Generar código de operación único para el voucher
+     * Formato: OP-{AÑO}{MES}-{ID_VOUCHER}
+     * Ejemplo: OP-202511-00000123
+     */
+    private function generateTransactionReference(int $voucherId): string
+    {
+        $year = date('Y');
+        $month = str_pad(date('m'), 2, '0', STR_PAD_LEFT);
+        $paddedId = str_pad($voucherId, 8, '0', STR_PAD_LEFT);
+        
+        return "OP-{$year}{$month}-{$paddedId}";
     }
 }
 
