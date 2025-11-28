@@ -58,6 +58,8 @@ class ContractMail extends Mailable
             '{{plan_pago}}' => $this->student->paymentPlan->name ?? 'N/A',
             '{{url_contrato}}' => $this->contractUrl,
             '{{fecha_actual}}' => date('d/m/Y'),
+            '{{email}}' => $this->student->user->email ?? 'N/A',
+            '{{contrasena}}' =>  $this->student->user->email ?? 'N/A',
         ];
 
         foreach ($variables as $key => $value) {
