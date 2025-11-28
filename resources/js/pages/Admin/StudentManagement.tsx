@@ -1041,12 +1041,17 @@ const StudentManagement: React.FC<Props> = ({
       }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       console.log('📝 Formulario enviado:', formData);
       console.log('📝 Función onSubmit:', onSubmit);
       setIsSubmitting(true);
-      onSubmit(formData);
+      try {
+        await onSubmit(formData);
+      } finally {
+        // Siempre resetear isSubmitting, incluso si hay error
+        setIsSubmitting(false);
+      }
     };
 
     // Bloquear scroll del body cuando el modal está abierto
