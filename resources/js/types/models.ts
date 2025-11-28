@@ -118,6 +118,15 @@ export interface Student extends User {
   // Matrícula activa
   enrollment?: Enrollment;
 
+  // ✅ Información del contrato
+  contract?: {
+    id: number;
+    pdf_url: string | null;
+    accepted: boolean;
+    accepted_at: string | null;
+    token: string;
+  };
+
   // Contrato firmado pendiente de aprobación
   latestContractAcceptance?: {
     id: number;

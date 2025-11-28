@@ -28,7 +28,19 @@ class StudentController extends Controller
         $user = auth()->user();
         
         // Query base: estudiantes matriculados
-        $query = Student::with(['user', 'groups', 'badges', 'registeredBy', 'verifiedPaymentBy', 'verifiedEnrollmentBy', 'academicLevel', 'paymentPlan'])
+        $query = Student::with([
+            'user', 
+            'groups', 
+            'badges', 
+            'registeredBy', 
+            'verifiedPaymentBy', 
+            'verifiedEnrollmentBy', 
+            'academicLevel', 
+            'paymentPlan',
+            'contractAcceptances' => function ($query) {
+                $query->orderBy('created_at', 'desc')->limit(1);
+            }
+        ])
             ->where('prospect_status', 'matriculado');
         
         // Lógica según rol
@@ -113,6 +125,16 @@ class StudentController extends Controller
                     'createdAt' => $student->created_at->toISOString(),
                     'enrolledGroups' => $student->groups->pluck('id')->toArray(),
                     'assignedGroupId' => $student->groups->first()?->id,
+                    // ✅ Información del contrato
+                    'contract' => $student->contractAcceptances->first() ? [
+                        'id' => $student->contractAcceptances->first()->id,
+                        'pdf_url' => $student->contractAcceptances->first()->pdf_path 
+                            ? asset('storage/' . $student->contractAcceptances->first()->pdf_path) 
+                            : null,
+                        'accepted' => $student->contractAcceptances->first()->isAccepted(),
+                        'accepted_at' => $student->contractAcceptances->first()->accepted_at?->format('Y-m-d H:i:s'),
+                        'token' => $student->contractAcceptances->first()->token,
+                    ] : null,
                 ];
             });
 
@@ -1804,8 +1826,42 @@ class StudentController extends Controller
                 })
                 ->toArray();
             
-            // Combinar ambos tipos de documentos
-            $allDocuments = array_merge($studentDocuments, $verifierDocuments);
+            // 🆕 Obtener comprobantes de pago generados (receipts)
+            $paymentReceipts = [];
+            $enrollment = $student->enrollments()->where('status', 'active')->first();
+            
+            if ($enrollment) {
+                $installments = $enrollment->installments()
+                    ->where('status', 'verified')
+                    ->with('vouchers')
+                    ->orderBy('installment_number', 'asc')
+                    ->get();
+                
+                foreach ($installments as $installment) {
+                    $voucher = $installment->vouchers()->first();
+                    if ($voucher && $voucher->receipt_path) {
+                        $paymentReceipts[] = [
+                            'id' => 'receipt_' . $voucher->id,
+                            'document_name' => 'Comprobante de Pago - Cuota #' . $installment->installment_number,
+                            'document_type' => 'payment_receipt',
+                            'file_path' => $voucher->receipt_path,
+                            'description' => 'Comprobante de pago de la cuota ' . $installment->installment_number . ' - S/ ' . number_format($voucher->verified_amount, 2),
+                            'requires_signature' => false,
+                            'student_confirmed' => true,
+                            'uploaded_at' => $voucher->created_at,
+                            'confirmed_at' => $voucher->created_at,
+                            'uploaded_by_name' => 'Sistema',
+                            'is_student_upload' => false,
+                            'is_payment_receipt' => true,
+                            'installment_number' => $installment->installment_number,
+                            'amount' => $voucher->verified_amount,
+                        ];
+                    }
+                }
+            }
+            
+            // Combinar todos los tipos de documentos
+            $allDocuments = array_merge($studentDocuments, $verifierDocuments, $paymentReceipts);
             
             // Verificar si hay documentos pendientes de confirmación
             // Solo los EnrollmentDocument pueden estar pendientes (los del estudiante ya están confirmados)
@@ -1820,6 +1876,7 @@ class StudentController extends Controller
                 'has_pending_documents' => $hasPendingDocuments,
                 'student_documents_count' => count($studentDocuments),
                 'verifier_documents_count' => count($verifierDocuments),
+                'payment_receipts_count' => count($paymentReceipts),
             ]);
         } catch (\Exception $e) {
             Log::error('Error al obtener documentos de matrícula', [

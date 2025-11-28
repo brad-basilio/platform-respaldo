@@ -42,8 +42,45 @@ class DashboardController extends Controller
             'activeEnrollment.paymentPlan',
             'activeEnrollment.installments.vouchers',
             'activeEnrollment.verifiedBy',
-            'verifiedEnrollmentBy'
+            'verifiedEnrollmentBy',
+            'academicLevel', // ✅ Cargar nivel académico del estudiante
+            'contractAcceptances' // ✅ Cargar contratos
         ]);
+
+        // ✅ VALIDACIÓN: Si el estudiante está matriculado pero NO ha firmado el contrato, redirigir
+        if ($student->prospect_status === 'matriculado') {
+            // Obtener el último contrato generado para este estudiante
+            $latestContract = $student->contractAcceptances()
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            // Si hay contrato pero no está firmado, redirigir a firma
+            if ($latestContract && !$latestContract->isAccepted()) {
+                return Inertia::render('Student/ContractView', [
+                    'contract' => [
+                        'id' => $latestContract->id,
+                        'pdf_url' => $latestContract->pdf_path ? asset('storage/' . $latestContract->pdf_path) : null,
+                        'accepted' => false,
+                        'accepted_at' => null,
+                        'token' => $latestContract->token,
+                    ],
+                    'student' => [
+                        'name' => $student->first_name . ' ' . $student->paternal_last_name,
+                        'email' => $user->email,
+                        'academic_level' => $student->academicLevel?->name ?? 'Sin nivel',
+                        'payment_plan' => $student->activeEnrollment?->paymentPlan?->name ?? 'Sin plan',
+                        // ✅ Incluir información del contrato para el layout
+                        'contract' => [
+                            'id' => $latestContract->id,
+                            'pdf_url' => $latestContract->pdf_path ? asset('storage/' . $latestContract->pdf_path) : null,
+                            'accepted' => false,
+                            'accepted_at' => null,
+                            'token' => $latestContract->token,
+                        ]
+                    ]
+                ]);
+            }
+        }
 
         // Rename activeEnrollment to enrollment for frontend consistency
         if ($student->activeEnrollment) {
@@ -148,6 +185,22 @@ class DashboardController extends Controller
             ->where('student_confirmed', false)
             ->exists();
 
+        // ✅ Obtener información del contrato para el frontend
+        $latestContract = $student->contractAcceptances()
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        $contractData = null;
+        if ($latestContract) {
+            $contractData = [
+                'id' => $latestContract->id,
+                'pdf_url' => $latestContract->pdf_path ? asset('storage/' . $latestContract->pdf_path) : null,
+                'accepted' => $latestContract->isAccepted(),
+                'accepted_at' => $latestContract->accepted_at?->format('Y-m-d H:i:s'),
+                'token' => $latestContract->token,
+            ];
+        }
+
         $studentData = array_merge($student->toArray(), [
             'name' => $user->name,
             'email' => $user->email,
@@ -155,6 +208,7 @@ class DashboardController extends Controller
             'enrolledGroups' => $student->groups->pluck('id')->toArray(),
             'paymentStats' => $paymentStats,
             'hasPendingDocuments' => $hasPendingDocuments,
+            'contract' => $contractData, // ✅ Información del contrato
             // Asegurar que los campos de verificación estén en camelCase
             'enrollmentVerified' => $student->enrollment_verified,
             'enrollmentVerifiedAt' => $student->enrollment_verified_at,

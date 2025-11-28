@@ -24,13 +24,15 @@ import { User } from '@/types/models';
 interface SidebarProps {
   activeView?: string;
   onViewChange: (view: string) => void;
+  hasUnsignedContract?: boolean; // ✅ Nueva prop
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = false }) => {
   const page = usePage();
   const user = page.props.auth?.user as User;
 
   console.log('📍 Full Inertia Page:', page); // Debug completo
+  console.log('📝 Has Unsigned Contract (prop):', hasUnsignedContract); // Debug contrato
 
   // Obtener URL y component del objeto page
   const currentUrl = page.url || '';
@@ -199,12 +201,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange }) => {
                    // { id: 'certificates', label: 'Certificados', icon: RiAwardLine },
                   ]
                 },*/
-          {
+          // ✅ Solo mostrar "Control de Pagos" si el estudiante ha firmado el contrato
+          ...(!hasUnsignedContract ? [{
             section: 'FINANZAS',
             items: [
               { id: 'payment-control', label: 'Control de Pagos', icon: RiSecurePaymentLine },
             ]
-          },
+          }] : []),
           /* {
              section: 'COMUNICACIÓN',
              items: [

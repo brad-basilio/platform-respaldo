@@ -16,6 +16,10 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
     const [hasPendingDocuments, setHasPendingDocuments] = useState(false);
     const { props } = usePage<any>();
     const isStudent = props.auth?.user?.role === 'student';
+    
+    // ✅ Obtener información del estudiante y su contrato
+    const studentData = isStudent ? props.student : null;
+    const hasUnsignedContract = studentData?.contract && !studentData.contract.accepted;
 
     const checkPendingDocuments = async () => {
         try {
@@ -68,7 +72,11 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
             />
 
             {/* Sidebar ocupa todo el alto */}
-            <Sidebar activeView={activeView} onViewChange={setActiveView} />
+            <Sidebar 
+                activeView={activeView} 
+                onViewChange={setActiveView}
+                hasUnsignedContract={hasUnsignedContract}
+            />
 
             {/* Contenedor de Header + Contenido */}
             <div className="flex-1 flex flex-col overflow-hidden">

@@ -418,6 +418,86 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
               </div>
             )}
 
+            {/* SECCIÓN 6.5: ESTADO DEL CONTRATO */}
+            <div className="border border-gray-200 p-6 rounded-xl bg-white shadow-sm">
+              <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center border-b border-gray-200 pb-3">
+                <FileText className="h-5 w-5 mr-2 text-purple-600" />
+                Estado del Contrato
+              </h3>
+              
+              {student.contract ? (
+                <div className="space-y-4">
+                  {/* Estado de Firma */}
+                  <div className={`p-4 rounded-xl border-2 ${
+                    student.contract.accepted 
+                      ? 'bg-green-50 border-green-300' 
+                      : 'bg-orange-50 border-orange-300'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {student.contract.accepted ? (
+                          <CheckCircle className="h-6 w-6 text-green-600" />
+                        ) : (
+                          <AlertCircle className="h-6 w-6 text-orange-600" />
+                        )}
+                        <div>
+                          <p className={`font-bold text-sm ${
+                            student.contract.accepted ? 'text-green-900' : 'text-orange-900'
+                          }`}>
+                            {student.contract.accepted ? '✅ Contrato Firmado' : '⚠️ Contrato Pendiente de Firma'}
+                          </p>
+                          {student.contract.accepted && student.contract.accepted_at && (
+                            <p className="text-xs text-green-700 mt-1">
+                              Firmado el {new Date(student.contract.accepted_at).toLocaleString('es-ES', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          )}
+                          {!student.contract.accepted && (
+                            <p className="text-xs text-orange-700 mt-1">
+                              El estudiante debe firmar el contrato para completar su matrícula
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Botón para ver PDF */}
+                      {student.contract.pdf_url && (
+                        <a
+                          href={student.contract.pdf_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-lg transition-colors"
+                        >
+                          <FileText className="h-4 w-4" />
+                          Ver PDF
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Información adicional */}
+                  {!student.contract.accepted && (
+                    <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
+                      <p className="text-sm text-blue-900">
+                        <strong>💡 Recordatorio:</strong> El estudiante recibió un correo con el enlace para firmar el contrato.
+                        También puede acceder desde su dashboard cuando inicie sesión.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                  <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">No se ha generado contrato para este estudiante</p>
+                </div>
+              )}
+            </div>
+
             {/* SECCIÓN 7: DOCUMENTOS DE MATRÍCULA */}
             <div className="border border-gray-200 p-6 rounded-xl bg-white shadow-sm">
               <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center border-b border-gray-200 pb-3">
@@ -517,15 +597,70 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
                     </div>
                   )}
 
+                  {/* Comprobantes de Pago Generados */}
+                  {enrollmentDocuments.some((doc: any) => doc.is_payment_receipt) && (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                        <CreditCard className="h-4 w-4 mr-2 text-green-600" />
+                        Comprobantes de Pago
+                      </h4>
+                      <div className="space-y-3">
+                        {enrollmentDocuments.filter((doc: any) => doc.is_payment_receipt).map((doc: any, index: number) => (
+                          <div key={`receipt-${index}`} className="border border-green-200 bg-green-50 rounded-lg p-4 hover:bg-green-100 transition-colors">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <div className="p-2 bg-green-100 rounded-lg">
+                                    <CreditCard className="h-5 w-5 text-green-600" />
+                                  </div>
+                                  <div className="flex-1">
+                                    <h4 className="font-medium text-gray-900">{doc.document_name}</h4>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                      Comprobante generado automáticamente • Cuota #{doc.installment_number}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {doc.description && (
+                                  <p className="text-sm text-gray-600 mb-2 ml-14">{doc.description}</p>
+                                )}
+
+                                <div className="flex items-center gap-4 ml-14 text-xs text-gray-500">
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    Generado: {new Date(doc.uploaded_at).toLocaleDateString('es-ES')}
+                                  </span>
+                                  <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
+                                    S/ {doc.amount?.toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <a
+                                href={`/storage/${doc.file_path}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors"
+                              >
+                                <Eye className="h-4 w-4" />
+                                Ver PDF
+                              </a>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Documentos enviados por verificadores */}
-                  {enrollmentDocuments.some((doc: any) => !doc.is_student_upload) && (
+                  {enrollmentDocuments.some((doc: any) => !doc.is_student_upload && !doc.is_payment_receipt) && (
                     <div>
                       <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
                         <FileText className="h-4 w-4 mr-2 text-purple-600" />
                         Documentos Enviados al Estudiante
                       </h4>
                       <div className="space-y-3">
-                        {enrollmentDocuments.filter((doc: any) => !doc.is_student_upload).map((doc: any, index: number) => (
+                        {enrollmentDocuments.filter((doc: any) => !doc.is_student_upload && !doc.is_payment_receipt).map((doc: any, index: number) => (
                           <div key={`verifier-${index}`} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex-1">

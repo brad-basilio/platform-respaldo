@@ -95,42 +95,18 @@ class ContractController extends Controller
         $contractAcceptance->pdf_path = $newPdfPath;
         $contractAcceptance->contract_content = $newContractHTML;
         
-        // ✅ NUEVO FLUJO: Cuando el estudiante firma, pasar DIRECTAMENTE a "pago_por_verificar"
-        // Ya no requiere revisión del advisor
+        // ✅ Marcar como aprobado automáticamente (ya no requiere revisión del advisor)
         $contractAcceptance->advisor_approved = true;
         $contractAcceptance->advisor_approved_at = now();
         $contractAcceptance->advisor_id = $contractAcceptance->student->registered_by; // Quien registró al estudiante
         $contractAcceptance->save();
 
-        // Cambiar estado del estudiante a "pago_por_verificar" automáticamente
-        $student = $contractAcceptance->student;
-        $student->prospect_status = 'pago_por_verificar';
-        $student->save();
-
-        // ⚠️ COMENTADO: Funcionalidad anterior de revisión del advisor
-        // Este flujo requería que el advisor revisara y aprobara manualmente el contrato
-        // Ahora el contrato pasa directamente a "pago_por_verificar" cuando el estudiante firma
-        
-        // // Disparar evento para notificar al asesor en tiempo real
-        // \Illuminate\Support\Facades\Log::info('Disparando evento ContractSignedByStudent', [
-        //     'student_id' => $contractAcceptance->student_id,
-        //     'advisor_id' => $contractAcceptance->student->registered_by
-        // ]);
-        // event(new \App\Events\ContractSignedByStudent($contractAcceptance, $contractAcceptance->student));
-
-        // // Notificar al asesor (Notificación persistente + Broadcast estándar)
-        // if ($contractAcceptance->student->registeredBy) {
-        //     $contractAcceptance->student->registeredBy->notify(
-        //         new \App\Notifications\ContractSignedNotification($contractAcceptance, $contractAcceptance->student)
-        //     );
-        //     \Illuminate\Support\Facades\Log::info('Notificación enviada al asesor', [
-        //         'advisor_id' => $contractAcceptance->student->registered_by
-        //     ]);
-        // }
+        // ✅ NO cambiar el estado del estudiante - solo registrar que firmó el contrato
+        // El estado del estudiante (matriculado, pago_por_verificar, etc.) se maneja por otros flujos
 
         return response()->json([
             'success' => true,
-            'message' => 'Contrato firmado exitosamente. Tu matrícula ha pasado a verificación de pago.',
+            'message' => 'Contrato firmado exitosamente.',
             'accepted_at' => $contractAcceptance->accepted_at,
         ]);
     }
