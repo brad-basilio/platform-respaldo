@@ -116,6 +116,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/admin/students/{student}/unverify-enrollment', [StudentController::class, 'unverifyEnrollment'])->name('admin.students.unverify-enrollment');
         Route::get('/admin/students/{student}/enrollment-documents', [StudentController::class, 'getEnrollmentDocuments'])->name('admin.students.enrollment-documents');
         Route::post('/admin/students/{student}/resend-contract-email', [StudentController::class, 'resendContractEmail'])->name('admin.students.resend-contract-email');
+        Route::get('/admin/students/{student}/payment-schedule', [StudentController::class, 'downloadPaymentSchedule'])->name('admin.students.payment-schedule');
         
         // Admin Payment Control
         Route::get('/admin/payment-control', [CashierController::class, 'adminPaymentControl'])->name('admin.payment-control');

@@ -13,6 +13,7 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class EnrollmentVerifiedMail extends Mailable
 {
@@ -101,13 +102,46 @@ class EnrollmentVerifiedMail extends Mailable
      */
     public function attachments(): array
     {
-        return $this->documents->map(function (EnrollmentDocument $document) {
+        $attachments = [];
+
+        // 📄 Adjuntar documentos de matrícula
+        foreach ($this->documents as $document) {
             $filePath = storage_path('app/public/' . $document->file_path);
             
-            return Attachment::fromPath($filePath)
-                ->as($document->file_name)
-                ->withMime('application/pdf'); // Asumimos PDFs, ajustar según necesidad
-        })->toArray();
+            if (file_exists($filePath)) {
+                $attachments[] = Attachment::fromPath($filePath)
+                    ->as($document->file_name)
+                    ->withMime('application/pdf');
+            }
+        }
+
+        // 📅 Generar y adjuntar cronograma de pagos
+        try {
+            $scheduleService = new \App\Services\PaymentScheduleGeneratorService();
+            $schedulePath = $scheduleService->generate($this->student);
+            
+            if ($schedulePath) {
+                $fullPath = storage_path('app/public/' . $schedulePath);
+                
+                if (file_exists($fullPath)) {
+                    $attachments[] = Attachment::fromPath($fullPath)
+                        ->as('Cronograma_de_Pagos.pdf')
+                        ->withMime('application/pdf');
+                    
+                    Log::info('Cronograma de pagos adjuntado al correo', [
+                        'student_id' => $this->student->id,
+                        'schedule_path' => $schedulePath
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Error al adjuntar cronograma de pagos al correo', [
+                'student_id' => $this->student->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        return $attachments;
     }
 
     /**
@@ -162,6 +196,24 @@ class EnrollmentVerifiedMail extends Mailable
                         <li>Firma los documentos donde se indique</li>
                         <li>Sube los documentos firmados a través de tu panel de estudiante</li>
                     </ol>
+                </div>
+                
+                <div style="background: #f0f9ff; border-left: 4px solid #0284c7; padding: 15px; margin: 20px 0; border-radius: 5px;">
+                    <p style="margin: 0 0 10px 0; font-size: 14px; color: #075985;">
+                        <strong>📅 Cronograma de Pagos Adjunto</strong>
+                    </p>
+                    <p style="margin: 0; font-size: 14px; color: #075985;">
+                        También hemos adjuntado tu <strong>cronograma de pagos detallado</strong> donde podrás ver:
+                    </p>
+                    <ul style="margin: 10px 0 0 0; padding-left: 20px; font-size: 14px; color: #075985;">
+                        <li>Todas tus cuotas mensuales</li>
+                        <li>Fechas de vencimiento</li>
+                        <li>Estado de pagos (pendientes, pagados, verificados)</li>
+                        <li>Montos y totales</li>
+                    </ul>
+                    <p style="margin: 10px 0 0 0; font-size: 13px; color: #075985; font-style: italic;">
+                        💡 Descarga el PDF "Cronograma_de_Pagos.pdf" para tu referencia.
+                    </p>
                 </div>
                 
                 <div style="background: #dbeafe; border-left: 4px solid #2563eb; padding: 15px; margin: 20px 0; border-radius: 5px;">

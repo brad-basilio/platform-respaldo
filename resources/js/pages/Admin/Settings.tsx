@@ -38,7 +38,7 @@ interface EmailTemplate {
 }
 
 const Settings: React.FC<Props> = ({ settings }) => {
-  const [activeTab, setActiveTab] = useState<'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract' | 'receipt'>('mail');
+  const [activeTab, setActiveTab] = useState<'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract' | 'schedule' | 'receipt'>('mail');
   const [selectedMailTemplate, setSelectedMailTemplate] = useState<string>('prospect_welcome');
 
   // Configuración de templates de email
@@ -104,6 +104,10 @@ const Settings: React.FC<Props> = ({ settings }) => {
     contract_template: settings.general?.find(s => s.key === 'contract_template')?.content || '',
   });
 
+  const scheduleForm = useForm({
+    payment_schedule_template: settings.general?.find(s => s.key === 'payment_schedule_template')?.content || '',
+  });
+
   const receiptForm = useForm({
     payment_receipt_template: settings.general?.find(s => s.key === 'payment_receipt_template')?.content || '',
   });
@@ -130,6 +134,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
   const tabs = [
     { id: 'mail', label: 'Templates de Email', icon: RiMailLine },
     { id: 'contract', label: 'Plantilla de Contrato', icon: RiFileTextLine },
+    { id: 'schedule', label: 'Cronograma de Pagos', icon: RiFileTextLine },
     { id: 'receipt', label: 'Comprobantes', icon: RiFileTextLine },
     { id: 'whatsapp', label: 'Configuración WhatsApp', icon: RiWhatsappLine },
     { id: 'payment', label: 'Configuración de Pagos', icon: RiSettings4Line },
@@ -309,6 +314,35 @@ const Settings: React.FC<Props> = ({ settings }) => {
     });
   };
 
+  const handleScheduleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const settingsArray = [
+      {
+        key: 'payment_schedule_template',
+        content: scheduleForm.data.payment_schedule_template,
+        type: 'general',
+        description: 'Plantilla de cronograma de pagos para estudiantes',
+      },
+    ];
+
+    scheduleForm.transform(() => ({ settings: settingsArray }));
+    scheduleForm.post('/admin/settings', {
+      onSuccess: () => {
+        toast.success('Configuración guardada', {
+          description: 'La plantilla de cronograma de pagos ha sido actualizada',
+          duration: 4000,
+        });
+      },
+      onError: () => {
+        toast.error('Error', {
+          description: 'No se pudo guardar la plantilla de cronograma',
+          duration: 4000,
+        });
+      }
+    });
+  };
+
   const handleReceiptSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -372,7 +406,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as 'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract')}
+                    onClick={() => setActiveTab(tab.id as 'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract' | 'schedule' | 'receipt')}
                     className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${activeTab === tab.id
                       ? 'bg-gradient-to-r from-[#073372] to-[#17BC91] text-white shadow-md'
                       : 'text-gray-600 hover:bg-gray-50'
@@ -709,6 +743,116 @@ const Settings: React.FC<Props> = ({ settings }) => {
               </form>
             )}
 
+
+
+            {/* Payment Schedule Template Tab */}
+            {activeTab === 'schedule' && (
+              <form onSubmit={handleScheduleSubmit} className="space-y-6">
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-6 mb-6">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <RiFileTextLine className="w-6 h-6 text-purple-600" />
+                    📅 Plantilla de Cronograma de Pagos
+                  </h3>
+                  <p className="text-sm text-slate-700">
+                    Esta plantilla se genera automáticamente cuando se envían los documentos de verificación al estudiante.
+                    El cronograma muestra todas las cuotas, fechas de vencimiento, estados de pago y montos.
+                  </p>
+                </div>
+
+                {/* Editor for Schedule Template */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-900">Contenido de la Plantilla de Cronograma</h3>
+                  </div>
+
+                  <Editor
+                    apiKey="0nai4nwo1mc0dumfyzl8re1odbzzr1fz4gfwzpgu5ghdnu4n"
+                    value={scheduleForm.data.payment_schedule_template}
+                    onEditorChange={(content) => {
+                      scheduleForm.setData('payment_schedule_template', content);
+                    }}
+                    init={{
+                      height: 600,
+                      menubar: 'file edit view insert format tools table help',
+                      plugins: [
+                        'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                        'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                        'insertdatetime', 'media', 'table', 'help', 'wordcount', 'visualchars', 'pagebreak'
+                      ],
+                      toolbar: 'undo redo | formatselect | bold italic underline forecolor backcolor | ' +
+                        'alignleft aligncenter alignright alignjustify | ' +
+                        'bullist numlist outdent indent | link image media | ' +
+                        'table tabledelete | code | removeformat | help',
+                      automatic_uploads: true,
+                      paste_data_images: true,
+                      file_picker_types: 'image',
+                      images_upload_url: '/admin/upload-image',
+                      relative_urls: false,
+                      remove_script_host: false,
+                      convert_urls: true,
+                      images_upload_handler: (blobInfo) => new Promise((resolve, reject) => {
+                        (async () => {
+                          try {
+                            await fetch('/sanctum/csrf-cookie', { credentials: 'same-origin' });
+                            const formData = new FormData();
+                            formData.append('file', blobInfo.blob(), blobInfo.filename());
+                            const getCookie = (name: string) => {
+                              const value = `; ${document.cookie}`;
+                              const parts = value.split(`; ${name}=`);
+                              if (parts.length === 2) return parts.pop()?.split(';').shift();
+                              return '';
+                            };
+                            const csrfToken = decodeURIComponent(getCookie('XSRF-TOKEN') || '');
+                            const response = await fetch('/admin/upload-image', {
+                              method: 'POST',
+                              body: formData,
+                              credentials: 'same-origin',
+                              headers: { 'X-XSRF-TOKEN': csrfToken }
+                            });
+                            const result = await response.json();
+                            if (result.location) resolve(result.location);
+                            else reject('Error al subir imagen');
+                          } catch { reject('Error al subir imagen'); }
+                        })();
+                      }),
+                      content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; padding: 20px; }',
+                    }}
+                  />
+
+                  {/* Variables disponibles */}
+                  <div className="p-4 bg-purple-50 border-2 border-purple-200 rounded-lg">
+                    <h4 className="font-semibold text-purple-900 mb-2">Variables Disponibles:</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                      <code className="bg-white px-2 py-1 rounded border border-purple-300">{'{{nombre_estudiante}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-purple-300">{'{{codigo_matricula}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-purple-300">{'{{nivel_academico}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-purple-300">{'{{plan_pago}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-purple-300">{'{{fecha_matricula}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-purple-300">{'{{monto_total}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-purple-300">{'{{total_pagado}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-purple-300">{'{{total_pendiente}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-purple-300">{'{{tabla_cuotas}}'}</code>
+                      <code className="bg-white px-2 py-1 rounded border border-purple-300">{'{{fecha_generacion}}'}</code>
+                    </div>
+                    <p className="text-sm text-purple-800 mt-3">
+                      <strong>Nota Especial:</strong> La variable <code className="bg-white px-1 rounded">{'{{tabla_cuotas}}'}</code> se reemplaza automáticamente 
+                      con las filas de la tabla generadas dinámicamente por el sistema. Cada fila incluye: Cuota #, Monto, Fecha Vencimiento, Fecha Pago, Monto Pagado y Estado.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={scheduleForm.processing}
+                    className="inline-flex items-center px-6 py-3 bg-[#073372] hover:bg-[#17BC91] text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50"
+                  >
+                    <RiSaveLine className="h-5 w-5 mr-2" />
+                    {scheduleForm.processing ? 'Guardando...' : 'Guardar Plantilla de Cronograma'}
+                  </button>
+                </div>
+              </form>
+            )}
 
 
             {/* Receipt Template Tab */}

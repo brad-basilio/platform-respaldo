@@ -354,6 +354,163 @@ class SettingSeeder extends Seeder
                 'content' => 'Plataforma de gestión de cursos de inglés profesional',
                 'description' => 'Descripción del sitio',
             ],
+            // ✅ Payment Schedule Template
+            [
+                'key' => 'payment_schedule_template',
+                'type' => 'general',
+                'content' => '<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; margin: 0; padding: 0;">
+<!-- Contenedor principal -->
+<div style="max-width: 800px; margin: 0 auto; padding: 25px; border: 1px solid #d1d5db;">
+
+<!-- Encabezado -->
+<table style="width: 100%; border-bottom: 3px solid #073372; padding-bottom: 20px; margin-bottom: 25px;" cellspacing="0" cellpadding="0">
+<tr>
+<td style="width: 70%; vertical-align: top;">
+<img style="height: 60px; margin-bottom: 15px;" src="https://unced.online/logo.png" alt="UNCED">
+<h1 style="font-size: 24px; font-weight: bold; color: #073372; margin: 8px 0 5px 0; text-transform: uppercase;">📅 CRONOGRAMA DE PAGOS</h1>
+<p style="font-size: 14px; color: #666; margin: 5px 0; font-weight: bold;">Detalle completo de cuotas y estado de pagos</p>
+</td>
+<td style="width: 30%; vertical-align: top; text-align: right;">
+<p style="font-size: 13px; color: #333; margin: 3px 0;"><strong>Fecha Generación:</strong> {{fecha_generacion}}</p>
+<p style="font-size: 13px; color: #333; margin: 3px 0;"><strong>Código:</strong> {{codigo_cronograma}}</p>
+<p style="font-size: 13px; color: #333; margin: 3px 0;"><strong>Versión:</strong> 1.0</p>
+</td>
+</tr>
+</table>
+
+<!-- Información del estudiante -->
+<table style="width: 100%; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 4px; padding: 18px; margin-bottom: 25px;" cellspacing="0" cellpadding="0">
+<tr>
+<td style="width: 100%;">
+<h3 style="color: #073372; font-size: 16px; font-weight: bold; margin: 0 0 15px 0; padding-bottom: 8px; border-bottom: 1px solid #cbd5e1;">INFORMACIÓN DEL ESTUDIANTE</h3>
+<table style="width: 100%;" cellspacing="0" cellpadding="0">
+<tr>
+<td style="width: 50%; vertical-align: top; padding-right: 10px;">
+<p style="padding: 6px 0; font-size: 13px; margin: 0;"><strong style="color: #073372;">Estudiante:</strong> {{nombre_estudiante}}</p>
+<p style="padding: 6px 0; font-size: 13px; margin: 0;"><strong style="color: #073372;">Código Matrícula:</strong> {{codigo_matricula}}</p>
+<p style="padding: 6px 0; font-size: 13px; margin: 0;"><strong style="color: #073372;">Nivel Académico:</strong> {{nivel_academico}}</p>
+</td>
+<td style="width: 50%; vertical-align: top; padding-left: 10px;">
+<p style="padding: 6px 0; font-size: 13px; margin: 0;"><strong style="color: #073372;">Plan de Pago:</strong> {{plan_pago}}</p>
+<p style="padding: 6px 0; font-size: 13px; margin: 0;"><strong style="color: #073372;">Fecha Matrícula:</strong> {{fecha_matricula}}</p>
+<p style="padding: 6px 0; font-size: 13px; margin: 0;"><strong style="color: #073372;">Asesor:</strong> {{nombre_asesor}}</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+
+<!-- Resumen financiero -->
+<table style="width: 100%; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 4px; padding: 18px; margin-bottom: 25px;" cellspacing="0" cellpadding="0">
+<tr>
+<td style="width: 100%;">
+<h3 style="color: #073372; font-size: 16px; font-weight: bold; margin: 0 0 15px 0; padding-bottom: 8px; border-bottom: 1px solid #cbd5e1;">RESUMEN FINANCIERO</h3>
+<table style="width: 100%;" cellspacing="0" cellpadding="0">
+<tr>
+<td style="width: 33.33%; text-align: center; padding: 10px;">
+<div style="background: #f0f9ff; padding: 15px; border-radius: 6px; border-top: 3px solid #073372;">
+<div style="font-size: 12px; color: #073372; font-weight: bold; margin-bottom: 8px;">MONTO TOTAL</div>
+<div style="font-size: 20px; color: #073372; font-weight: bold;">S/ {{monto_total}}</div>
+</div>
+</td>
+<td style="width: 33.33%; text-align: center; padding: 10px;">
+<div style="background: #f0fdf4; padding: 15px; border-radius: 6px; border-top: 3px solid #17BC91;">
+<div style="font-size: 12px; color: #17bc91; font-weight: bold; margin-bottom: 8px;">TOTAL PAGADO</div>
+<div style="font-size: 20px; color: #17bc91; font-weight: bold;">S/ {{total_pagado}}</div>
+</div>
+</td>
+<td style="width: 33.33%; text-align: center; padding: 10px;">
+<div style="background: #fff7ed; padding: 15px; border-radius: 6px; border-top: 3px solid #F98613;">
+<div style="font-size: 12px; color: #f98613; font-weight: bold; margin-bottom: 8px;">TOTAL PENDIENTE</div>
+<div style="font-size: 20px; color: #f98613; font-weight: bold;">S/ {{total_pendiente}}</div>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+
+<!-- Tabla de cuotas -->
+<div style="width: 100%; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 4px; margin-bottom: 25px; padding: 0;">
+<h3 style="color: #073372; font-size: 16px; font-weight: bold; margin: 0; padding: 15px 18px; border-bottom: 1px solid #cbd5e1;">DETALLE DE CUOTAS</h3>
+<table style="width: 100%; border-collapse: collapse;" cellspacing="0" cellpadding="0">
+<thead>
+<tr style="background: #f1f5f9;">
+<th style="padding: 12px 10px; font-size: 12px; font-weight: bold; color: #073372; text-align: center; border-bottom: 2px solid #cbd5e1; width: 8%;">Cuota #</th>
+<th style="padding: 12px 10px; font-size: 12px; font-weight: bold; color: #073372; text-align: left; border-bottom: 2px solid #cbd5e1; width: 20%;">Concepto</th>
+<th style="padding: 12px 10px; font-size: 12px; font-weight: bold; color: #073372; text-align: right; border-bottom: 2px solid #cbd5e1; width: 12%;">Monto</th>
+<th style="padding: 12px 10px; font-size: 12px; font-weight: bold; color: #073372; text-align: center; border-bottom: 2px solid #cbd5e1; width: 13%;">Fecha Venc.</th>
+<th style="padding: 12px 10px; font-size: 12px; font-weight: bold; color: #073372; text-align: center; border-bottom: 2px solid #cbd5e1; width: 13%;">Fecha Pago</th>
+<th style="padding: 12px 10px; font-size: 12px; font-weight: bold; color: #073372; text-align: right; border-bottom: 2px solid #cbd5e1; width: 12%;">Monto Pagado</th>
+<th style="padding: 12px 10px; font-size: 12px; font-weight: bold; color: #073372; text-align: center; border-bottom: 2px solid #cbd5e1; width: 12%;">Estado</th>
+</tr>
+</thead>
+<tbody>
+<tr><td colspan="7">{{filas_cuotas}}</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- Información de pagos -->
+<table style="width: 100%; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; padding: 18px; margin-bottom: 25px;" cellspacing="0" cellpadding="0">
+<tr>
+<td style="width: 100%;">
+<h3 style="color: #073372; font-size: 15px; font-weight: bold; margin: 0 0 12px 0; padding-bottom: 6px; border-bottom: 1px solid #7dd3fc;">INFORMACIÓN PARA PAGOS</h3>
+<table style="width: 100%;" cellspacing="0" cellpadding="0">
+<tr>
+<td style="width: 50%; vertical-align: top; padding-right: 15px;">
+<p style="font-size: 13px; color: #073372; margin: 0 0 8px 0; font-weight: bold;">Métodos de Pago Disponibles:</p>
+<ul style="font-size: 12px; color: #333; margin: 0; padding-left: 20px;">
+<li>Transferencia Bancaria</li>
+<li>Yape / Plin</li>
+<li>Tarjeta de Crédito/Débito</li>
+<li>Pago en efectivo (Oficina)</li>
+</ul>
+</td>
+<td style="width: 50%; vertical-align: top; padding-left: 15px; border-left: 1px solid #7dd3fc;">
+<p style="font-size: 13px; color: #073372; margin: 0 0 8px 0; font-weight: bold;">Datos Bancarios:</p>
+<p style="font-size: 12px; color: #333; margin: 4px 0;"><strong>Banco:</strong> BCP</p>
+<p style="font-size: 12px; color: #333; margin: 4px 0;"><strong>Cuenta:</strong> 123-456789-01-23</p>
+<p style="font-size: 12px; color: #333; margin: 4px 0;"><strong>CCI:</strong> 00212300456789012345</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+
+<!-- Términos y condiciones -->
+<table style="width: 100%; background: #fefce8; border: 1px solid #fde047; border-radius: 4px; padding: 15px; margin-bottom: 20px;" cellspacing="0" cellpadding="0">
+<tr>
+<td style="width: 100%;">
+<p style="font-size: 11px; color: #713f12; margin: 0; text-align: center; line-height: 1.4;"><strong>IMPORTANTE:</strong> Este cronograma es informativo y está sujeto a cambios según las políticas de la institución. Los pagos vencidos generarán intereses moratorios del 1% mensual. Para consultas contactar a su asesor.</p>
+</td>
+</tr>
+</table>
+
+<!-- Pie de página -->
+<table style="width: 100%; border-top: 2px solid #073372; padding-top: 15px;" cellspacing="0" cellpadding="0">
+<tr>
+<td style="text-align: center;">
+<p style="font-size: 12px; color: #666; margin: 5px 0; line-height: 1.4;"><strong>UNCED ENGLISH ACADEMY</strong><br>Av. Ejemplo 123, San Isidro, Lima - Perú<br>Central: (01) 234-5678 | WhatsApp: +51 987 654 321<br>Email: pagos@unced.edu.pe | Web: www.unced.edu.pe</p>
+<p style="font-size: 10px; color: #999; margin: 8px 0 0 0; font-style: italic; line-height: 1.4;">"Tu futuro habla inglés" - Documento generado automáticamente el {{fecha_generacion}}</p>
+</td>
+</tr>
+</table>
+
+</div>
+</body>
+</html>',
+                'description' => 'Plantilla HTML para el cronograma de pagos de estudiantes',
+            ],
+            
             // ✅ PDF Receipt Template
             [
                 'key' => 'payment_receipt_template',
@@ -580,7 +737,7 @@ class SettingSeeder extends Seeder
         ];
 
         foreach ($settings as $setting) {
-            Setting::updateOrCreate(
+            Setting::firstOrCreate(
                 ['key' => $setting['key']],
                 $setting
             );

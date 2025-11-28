@@ -2227,6 +2227,53 @@ class StudentController extends Controller
     }
 
     /**
+     * Generar y descargar cronograma de pagos
+     */
+    public function downloadPaymentSchedule(Student $student)
+    {
+        try {
+            $user = auth()->user();
+            
+            // Verificar permisos según el rol
+            if ($user->role === 'sales_advisor' && (int)$student->registered_by !== $user->id) {
+                abort(403, 'No tienes permiso para ver este cronograma.');
+            }
+            
+            // Generar cronograma
+            $scheduleService = new \App\Services\PaymentScheduleGeneratorService();
+            $schedulePath = $scheduleService->generate($student);
+            
+            if (!$schedulePath) {
+                abort(404, 'No se pudo generar el cronograma de pagos.');
+            }
+            
+            $filePath = storage_path('app/public/' . $schedulePath);
+            
+            if (!file_exists($filePath)) {
+                Log::error('Archivo de cronograma no encontrado:', [
+                    'student_id' => $student->id,
+                    'file_path' => $schedulePath,
+                    'absolute_path' => $filePath
+                ]);
+                abort(404, 'El archivo del cronograma no existe en el servidor.');
+            }
+            
+            // Retornar el archivo para visualización en el navegador
+            return response()->file($filePath, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="Cronograma_Pagos_' . $student->enrollment_code . '.pdf"'
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error al descargar cronograma de pagos', [
+                'student_id' => $student->id,
+                'error' => $e->getMessage()
+            ]);
+            abort(500, 'Error al generar el cronograma de pagos.');
+        }
+    }
+
+    /**
      * Generar y enviar contrato cuando el prospecto pasa a "pago_por_verificar"
      */
     /**
