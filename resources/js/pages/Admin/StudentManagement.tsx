@@ -1045,6 +1045,27 @@ const StudentManagement: React.FC<Props> = ({
       e.preventDefault();
       console.log('📝 Formulario enviado:', formData);
       console.log('📝 Función onSubmit:', onSubmit);
+
+      // Validación frontend para estado "propuesta_enviada"
+      if (student?.prospectStatus === 'propuesta_enviada' && (userRole === 'admin' || userRole === 'sales_advisor')) {
+        const missingFields: string[] = [];
+
+        if (!formData.paymentDate) missingFields.push('Fecha de Pago');
+        if (!formData.academicLevelId) missingFields.push('Nivel Académico');
+        if (!formData.paymentPlanId) missingFields.push('Plan de Pago');
+        if (!formData.paymentVoucherFile && !student?.paymentVoucherUrl) {
+          missingFields.push('Voucher de Pago');
+        }
+
+        if (missingFields.length > 0) {
+          toast.error('Campos obligatorios faltantes', {
+            description: `Por favor completa: ${missingFields.join(', ')}`,
+            duration: 5000,
+          });
+          return; // No enviar el formulario
+        }
+      }
+
       setIsSubmitting(true);
       try {
         await onSubmit(formData);
