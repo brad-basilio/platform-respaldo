@@ -859,6 +859,97 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
   };
 
   const handleVerifyEnrollment = async (student: Student) => {
+    // 🆕 VALIDAR SI EL CONTRATO ESTÁ FIRMADO
+    if (student.contract && !student.contract.accepted) {
+      // Modal especial cuando el contrato no está firmado
+      await Swal.fire({
+        title: '⚠️ Contrato No Firmado',
+        html: `
+          <div class="text-left space-y-4">
+            <div class="bg-orange-50 border-l-4 border-orange-500 p-4 rounded">
+              <p class="text-sm text-orange-900 font-semibold mb-2">
+                El estudiante aún no ha firmado su contrato de matrícula
+              </p>
+              <p class="text-xs text-orange-700">
+                No se puede verificar la matrícula hasta que el estudiante firme el contrato.
+              </p>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 class="text-sm font-semibold text-blue-900 mb-3">📋 Datos de Contacto</h4>
+              <div class="space-y-2 text-sm">
+                <div class="flex items-center gap-2">
+                
+                  <span class="text-gray-700"><strong>Email:</strong> ${student.email}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                 
+                  <span class="text-gray-700"><strong>Teléfono:</strong> ${student.phoneNumber || 'No registrado'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <p class="text-xs text-gray-600">
+                💡 <strong>Sugerencia:</strong> Puedes reenviar el correo con el enlace para firmar el contrato usando el botón de abajo.
+              </p>
+            </div>
+          </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Reenviar Correo de Matrícula',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true,
+        customClass: {
+          confirmButton: 'px-6 py-2.5 rounded-xl font-medium',
+          cancelButton: 'px-6 py-2.5 rounded-xl font-medium',
+          popup: 'max-w-2xl'
+        }
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          // Reenviar correo de matrícula
+          try {
+            const response = await axios.post(`/admin/students/${student.id}/resend-contract-email`);
+            
+            if (response.data.success) {
+              await Swal.fire({
+                title: '✅ Correo Reenviado',
+                html: `
+                  <p class="text-gray-700">El correo con el enlace para firmar el contrato ha sido reenviado a:</p>
+                  <p class="text-blue-600 font-semibold mt-2">${student.email}</p>
+                  <p class="text-sm text-gray-500 mt-3">El estudiante recibirá el enlace en su bandeja de entrada.</p>
+                `,
+                icon: 'success',
+                confirmButtonColor: '#10b981',
+                confirmButtonText: 'Entendido',
+                timer: 4000,
+                timerProgressBar: true,
+                customClass: {
+                  confirmButton: 'px-6 py-2.5 rounded-xl font-medium'
+                }
+              });
+            }
+          } catch (error) {
+            console.error('Error al reenviar correo:', error);
+            await Swal.fire({
+              title: 'Error',
+              text: 'No se pudo reenviar el correo. Por favor, intenta nuevamente.',
+              icon: 'error',
+              confirmButtonColor: '#ef4444',
+              confirmButtonText: 'Cerrar',
+              customClass: {
+                confirmButton: 'px-6 py-2.5 rounded-xl font-medium'
+              }
+            });
+          }
+        }
+      });
+      return;
+    }
+
     // Verificar si tiene documentos pendientes
     if (studentsPendingDocs.has(student.id)) {
       await Swal.fire({

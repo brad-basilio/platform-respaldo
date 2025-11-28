@@ -2158,6 +2158,75 @@ class StudentController extends Controller
     }
 
     /**
+     * Reenviar correo con enlace para firmar el contrato
+     */
+    public function resendContractEmail(Student $student)
+    {
+        try {
+            // Validar que solo admins y verifiers puedan reenviar
+            if (!auth()->user()->isAdminOrVerifier()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes permisos para reenviar el correo'
+                ], 403);
+            }
+
+            // Validar que el estudiante tenga un contrato generado
+            $latestContract = $student->contractAcceptances()
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if (!$latestContract) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este estudiante no tiene un contrato generado'
+                ], 400);
+            }
+
+            // Validar que el contrato no esté ya firmado
+            if ($latestContract->isAccepted()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El contrato ya ha sido firmado por el estudiante'
+                ], 400);
+            }
+
+            // Cargar relaciones necesarias
+            $student->load(['user', 'academicLevel', 'paymentPlan']);
+
+            // Reenviar email con el token existente
+            Mail::to($student->user->email)->send(
+                new ContractMail($student, $latestContract->token, $latestContract->pdf_path)
+            );
+
+            Log::info('Correo de contrato reenviado', [
+                'student_id' => $student->id,
+                'student_email' => $student->user->email,
+                'contract_id' => $latestContract->id,
+                'resent_by' => auth()->user()->name,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Correo reenviado exitosamente',
+                'student_email' => $student->user->email,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al reenviar correo de contrato', [
+                'student_id' => $student->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al reenviar el correo: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Generar y enviar contrato cuando el prospecto pasa a "pago_por_verificar"
      */
     /**
