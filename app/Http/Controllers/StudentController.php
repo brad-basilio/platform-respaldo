@@ -934,14 +934,14 @@ class StudentController extends Controller
 
         // Lógica de cambio de estado automático para Sales Advisor
         if ($user->role === 'sales_advisor') {
-            // Si completa fecha de pago, nivel académico y plan de pago, generar contrato pero NO cambiar estado
+            // Si completa fecha de pago, nivel académico y plan de pago, cambiar a pago_por_verificar y generar contrato
             if (!empty($validated['payment_date']) && 
                 !empty($validated['academic_level_id']) &&  // ✅ Cambiado de 'level'
                 !empty($validated['payment_plan_id']) &&    // ✅ Cambiado de 'contracted_plan'
                 $student->prospect_status === 'propuesta_enviada') {
                 
-                // ✅ NO CAMBIAR A pago_por_verificar automáticamente
-                // El estudiante debe firmar primero, luego el asesor aprueba, y solo entonces pasa a pago_por_verificar
+                // ✅ CAMBIAR AUTOMÁTICAMENTE A "pago_por_verificar" cuando el advisor completa los datos
+                $student->update(['prospect_status' => 'pago_por_verificar']);
                 
                 // 🆕 CREAR ENROLLMENT automáticamente (necesario para el contrato)
                 $this->createEnrollmentForStudent($student);
