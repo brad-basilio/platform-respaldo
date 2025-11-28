@@ -73,8 +73,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         // Contract Approval Routes
         Route::get('/admin/contracts/{contractAcceptance}', [ContractApprovalController::class, 'show'])->name('admin.contracts.show');
-        Route::post('/admin/contracts/{contractAcceptance}/approve', [ContractApprovalController::class, 'approve'])->name('admin.contracts.approve');
-        Route::post('/admin/contracts/{contractAcceptance}/resend', [ContractApprovalController::class, 'resend'])->name('admin.contracts.resend');
+        // ⚠️ COMENTADO: Rutas de aprobación y rechazo de contratos por el advisor
+        // Ahora el contrato pasa automáticamente a "pago_por_verificar" cuando el estudiante firma
+        // Estas rutas se mantienen comentadas para uso futuro
+        
+        // Route::post('/admin/contracts/{contractAcceptance}/approve', [ContractApprovalController::class, 'approve'])->name('admin.contracts.approve');
+        // Route::post('/admin/contracts/{contractAcceptance}/resend', [ContractApprovalController::class, 'resend'])->name('admin.contracts.resend');
         
         // Enrollments & Payment Schedules
         Route::get('/api/students/{student}/enrollment', [EnrollmentController::class, 'show'])->name('api.students.enrollment');

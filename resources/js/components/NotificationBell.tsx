@@ -109,12 +109,15 @@ export default function NotificationBell({ userId, userRole }: NotificationBellP
         duration: 6000,
       });
 
-      // Si es un contrato firmado, disparar evento global
-      if (notification.data.type === 'contract_signed') {
-        window.dispatchEvent(new CustomEvent('contract-signed-notification', {
-          detail: notification.data
-        }));
-      }
+      // ⚠️ COMENTADO: Evento global para disparar el modal de revisión de contrato
+      // Ya no se requiere porque el contrato pasa automáticamente a "pago_por_verificar"
+      
+      // // Si es un contrato firmado, disparar evento global
+      // if (notification.data.type === 'contract_signed') {
+      //   window.dispatchEvent(new CustomEvent('contract-signed-notification', {
+      //     detail: notification.data
+      //   }));
+      // }
 
       // Reproducir sonido (Comentado hasta que se agregue el archivo notification.mp3)
       /*
@@ -133,32 +136,36 @@ export default function NotificationBell({ userId, userRole }: NotificationBellP
       handleNewNotification(notification);
     });
 
-    // Escuchar eventos de asesor (si el usuario es asesor/admin)
-    if (userRole === 'sales_advisor' || userRole === 'admin') {
-      console.log(`🔔 [NotificationBell] Suscribiéndose al canal de asesor: advisor.${userId}`);
-      const advisorChannel = echoInstance.private(`advisor.${userId}`);
+    // ⚠️ COMENTADO: Escuchar eventos de contrato firmado por el asesor
+    // Ahora el contrato pasa automáticamente a "pago_por_verificar" cuando el estudiante firma
+    // Ya no se requiere la aprobación manual del advisor
+    
+    // // Escuchar eventos de asesor (si el usuario es asesor/admin)
+    // if (userRole === 'sales_advisor' || userRole === 'admin') {
+    //   console.log(`🔔 [NotificationBell] Suscribiéndose al canal de asesor: advisor.${userId}`);
+    //   const advisorChannel = echoInstance.private(`advisor.${userId}`);
 
-      // Escuchar el evento con el nombre personalizado '.contract.signed'
-      advisorChannel.listen('.contract.signed', (data: any) => {
-        console.log('🔔 [Canal Asesor] Evento ContractSignedByStudent recibido:', data);
+    //   // Escuchar el evento con el nombre personalizado '.contract.signed'
+    //   advisorChannel.listen('.contract.signed', (data: any) => {
+    //     console.log('🔔 [Canal Asesor] Evento ContractSignedByStudent recibido:', data);
 
-        const mockNotification: Notification = {
-          id: `evt_${Date.now()}`,
-          type: 'App\\Notifications\\ContractSignedNotification',
-          data: {
-            type: 'contract_signed',
-            message: `${data.student_name} ha firmado su contrato.`,
-            student_name: data.student_name,
-            contract_acceptance_id: data.contract_acceptance_id,
-            pdf_path: data.pdf_path
-          },
-          read_at: null,
-          created_at: new Date().toISOString()
-        };
+    //     const mockNotification: Notification = {
+    //       id: `evt_${Date.now()}`,
+    //       type: 'App\\Notifications\\ContractSignedNotification',
+    //       data: {
+    //         type: 'contract_signed',
+    //         message: `${data.student_name} ha firmado su contrato.`,
+    //         student_name: data.student_name,
+    //         contract_acceptance_id: data.contract_acceptance_id,
+    //         pdf_path: data.pdf_path
+    //       },
+    //       read_at: null,
+    //       created_at: new Date().toISOString()
+    //     };
 
-        handleNewNotification(mockNotification);
-      });
-    }
+    //     handleNewNotification(mockNotification);
+    //   });
+    // }
 
     // Si es cashier, también escuchar el canal de cashiers
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

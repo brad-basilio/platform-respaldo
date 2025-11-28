@@ -1,10 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Users, Plus, CreditCard as Edit, Trash2, UserCheck, UserX, Eye, List, Columns2 as Columns, Search, XCircle, Calendar } from 'lucide-react';
 import { Student, Group, AcademicLevel, PaymentPlan } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import axios from 'axios';
 import { router, usePage } from '@inertiajs/react';
-import ContractReviewModal from '@/components/ContractReviewModal';
+// ⚠️ COMENTADO: Import de ContractReviewModal - ya no se usa
+// import ContractReviewModal from '@/components/ContractReviewModal';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { Select2 } from '@/components/ui/Select2';
@@ -46,13 +47,13 @@ const StudentManagement: React.FC<Props> = ({
   const [paymentScheduleModalOpen, setPaymentScheduleModalOpen] = useState(false);
   const [selectedStudentForSchedule, setSelectedStudentForSchedule] = useState<Student | null>(null);
 
-  // ✅ Estado para Contract Review Modal
-  const [contractReviewOpen, setContractReviewOpen] = useState(false);
-  const [pendingContract, setPendingContract] = useState<{
-    id: number;
-    studentName: string;
-    pdfPath: string;
-  } | null>(null);
+  // ⚠️ COMENTADO: Estados para Contract Review Modal - ya no se usan
+  // const [contractReviewOpen, setContractReviewOpen] = useState(false);
+  // const [pendingContract, setPendingContract] = useState<{
+  //   id: number;
+  //   studentName: string;
+  //   pdfPath: string;
+  // } | null>(null);
 
   // Obtener usuario actual
   const { props } = usePage<any>();
@@ -85,43 +86,46 @@ const StudentManagement: React.FC<Props> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ Listener para notificaciones de contratos firmados (Centralizado en NotificationBell)
-  useEffect(() => {
-    const handleContractSigned = (event: CustomEvent) => {
-      const data = event.detail;
-      console.log('🔔 [Global Event] Contrato firmado recibido:', data);
+  // ⚠️ COMENTADO: Listener para notificaciones de contratos firmados
+  // Esta funcionalidad mostraba un modal al advisor para revisar y aprobar el contrato
+  // Ahora el contrato pasa directamente a "pago_por_verificar" cuando el estudiante firma
+  
+  // useEffect(() => {
+  //   const handleContractSigned = (event: CustomEvent) => {
+  //     const data = event.detail;
+  //     console.log('🔔 [Global Event] Contrato firmado recibido:', data);
 
-      handleContractNotification({
-        student_name: data.student_name,
-        contract_acceptance_id: data.contract_acceptance_id,
-        pdf_path: data.pdf_path
-      });
-    };
+  //     handleContractNotification({
+  //       student_name: data.student_name,
+  //       contract_acceptance_id: data.contract_acceptance_id,
+  //       pdf_path: data.pdf_path
+  //     });
+  //   };
 
-    window.addEventListener('contract-signed-notification', handleContractSigned as EventListener);
+  //   window.addEventListener('contract-signed-notification', handleContractSigned as EventListener);
 
-    return () => {
-      window.removeEventListener('contract-signed-notification', handleContractSigned as EventListener);
-    };
-  }, []);
+  //   return () => {
+  //     window.removeEventListener('contract-signed-notification', handleContractSigned as EventListener);
+  //   };
+  // }, []);
 
-  // Manejador unificado de notificaciones
-  const handleContractNotification = (data: any) => {
-    toast.info('🔔 Nuevo contrato firmado', {
-      description: `${data.student_name} ha firmado su contrato. ¡Revísalo ahora!`,
-      duration: 8000,
-    });
+  // ⚠️ COMENTADO: Manejador unificado de notificaciones del contrato
+  // const handleContractNotification = (data: any) => {
+  //   toast.info('🔔 Nuevo contrato firmado', {
+  //     description: `${data.student_name} ha firmado su contrato. ¡Revísalo ahora!`,
+  //     duration: 8000,
+  //   });
 
-    setPendingContract({
-      id: data.contract_acceptance_id,
-      studentName: data.student_name,
-      pdfPath: data.pdf_path,
-    });
-    setContractReviewOpen(true);
+  //   setPendingContract({
+  //     id: data.contract_acceptance_id,
+  //     studentName: data.student_name,
+  //     pdfPath: data.pdf_path,
+  //   });
+  //   setContractReviewOpen(true);
 
-    // Refrescar lista de estudiantes
-    fetchStudents();
-  };
+  //   // Refrescar lista de estudiantes
+  //   fetchStudents();
+  // };
 
   // Función para forzar recarga sin caché usando Inertia
   const forceReload = () => {
@@ -1630,7 +1634,11 @@ const StudentManagement: React.FC<Props> = ({
                             </div>
                           </div>
 
-                          {!student.latestContractAcceptance.advisor_approved ? (
+                          {/* ⚠️ COMENTADO: Botón de revisión y aprobación de contrato */}
+                          {/* Ahora el contrato pasa automáticamente a "pago_por_verificar" cuando el estudiante firma */}
+                          {/* Solo mostramos el enlace para ver el contrato firmado */}
+                          
+                          {/* {!student.latestContractAcceptance.advisor_approved ? (
                             <button
                               type="button"
                               onClick={() => {
@@ -1648,7 +1656,7 @@ const StudentManagement: React.FC<Props> = ({
                               </svg>
                               Revisar y Aprobar Contrato
                             </button>
-                          ) : (
+                          ) : ( */}
                             <a
                               href={`/storage/${student.latestContractAcceptance.pdf_path}`}
                               target="_blank"
@@ -1658,7 +1666,7 @@ const StudentManagement: React.FC<Props> = ({
                               <Eye className="w-4 h-4" />
                               Ver Contrato Firmado
                             </a>
-                          )}
+                          {/* )} */}
                         </div>
                       ) : student?.contractFileName ? (
                         <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-300">
@@ -2277,8 +2285,11 @@ const StudentManagement: React.FC<Props> = ({
                                       )}
                                     </div>
 
-                                    {/* Botón de contrato firmado */}
-                                    {column.id === 'propuesta_enviada' &&
+                                    {/* ⚠️ COMENTADO: Botón de contrato firmado para revisión del advisor */}
+                                    {/* Este botón permitía al advisor revisar y aprobar el contrato firmado por el estudiante */}
+                                    {/* Ahora el contrato pasa directamente a "pago_por_verificar" cuando el estudiante firma */}
+                                    
+                                    {/* {column.id === 'propuesta_enviada' &&
                                       student.latestContractAcceptance?.accepted_at &&
                                       !student.latestContractAcceptance?.advisor_approved && (
                                         <button
@@ -2298,7 +2309,7 @@ const StudentManagement: React.FC<Props> = ({
                                           </svg>
                                           Revisar Contrato Firmado
                                         </button>
-                                      )}
+                                      )} */}
                                   </div>
                                 </div>
 
@@ -2427,8 +2438,11 @@ const StudentManagement: React.FC<Props> = ({
         />
       )}
 
-      {/* Contract Review Modal */}
-      <ContractReviewModal
+      {/* ⚠️ COMENTADO: Contract Review Modal */}
+      {/* Este modal permitía al advisor revisar y aprobar/rechazar el contrato firmado por el estudiante */}
+      {/* Ahora el contrato pasa automáticamente a "pago_por_verificar" cuando el estudiante firma */}
+      
+      {/* <ContractReviewModal
         isOpen={contractReviewOpen}
         onClose={() => setContractReviewOpen(false)}
         contractAcceptanceId={pendingContract?.id ?? null}
@@ -2442,7 +2456,7 @@ const StudentManagement: React.FC<Props> = ({
           fetchStudents();
           setPendingContract(null);
         }}
-      />
+      /> */}
     </AuthenticatedLayout>
   );
 };
