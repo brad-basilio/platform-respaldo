@@ -681,9 +681,30 @@ const PaymentControl: React.FC = () => {
                             </>
                           )}
                           {voucher.status === 'rejected' && (
-                            <span className="text-xs px-3 py-1 bg-red-100 text-red-800 rounded-full font-medium">
-                              ✗ Rechazado
-                            </span>
+                            <>
+                              <span className="text-xs px-3 py-1 bg-red-100 text-red-800 rounded-full font-medium">
+                                ✗ Rechazado
+                              </span>
+                              {/* Botón para subir nuevo voucher cuando está rechazado */}
+                              <label className="cursor-pointer">
+                                <input
+                                  type="file"
+                                  accept="image/*,.pdf"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      handleReplaceVoucher(voucher.id, installment.id, file);
+                                    }
+                                  }}
+                                  disabled={uploadingVoucher === installment.id}
+                                  className="hidden"
+                                />
+                                <div className="px-3 py-1.5 bg-[#17BC91] hover:bg-[#17BC91]/90 text-white text-xs font-medium rounded-lg transition-colors flex items-center space-x-1">
+                                  <Upload className="w-3 h-3" />
+                                  <span>Subir Nuevo</span>
+                                </div>
+                              </label>
+                            </>
                           )}
                           <a
                             href={voucher.voucherUrl}
