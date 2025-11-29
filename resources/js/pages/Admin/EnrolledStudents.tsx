@@ -1571,21 +1571,21 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                     <ul className="text-sm text-blue-800 space-y-1.5">
                       <li className="flex items-start gap-2">
                         <span className="text-blue-500 mt-0.5">•</span>
-                        <span>Los documentos se enviarán por email al estudiante</span>
+                        <span>Al verificar se enviará automáticamente: <strong>Comprobante de Pago</strong> y <strong>Cronograma de Pagos</strong></span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-blue-500 mt-0.5">•</span>
-                        <span>El estudiante debe confirmar/firmar cada documento</span>
+                        <span>Puedes agregar documentos adicionales (contratos, reglamentos, etc.) de forma opcional</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-blue-500 mt-0.5">•</span>
-                        <span>La matrícula se verificará automáticamente cuando confirme todos</span>
+                        <span>Los documentos adicionales requieren confirmación/firma del estudiante dependiendo de lo que se haya configurado</span>
                       </li>
                       {documents.length > 0 && (
                         <li className="flex items-start gap-2">
                           <span className="text-green-500 mt-0.5">✓</span>
                           <span className="font-medium text-green-700">
-                            Se enviarán {documents.length} documento(s) que requieren confirmación
+                            Se enviarán {documents.length} documento(s) adicional(es) que requieren confirmación
                           </span>
                         </li>
                       )}
@@ -1624,13 +1624,13 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                       </div>
                     </div>
                     <p className="text-base font-medium text-gray-700 mb-2">
-                      No hay documentos agregados
+                      No hay documentos adicionales
                     </p>
                     <p className="text-sm text-gray-500 max-w-md mx-auto">
-                      Haz clic en "Agregar Documentos" para subir contratos, reglamentos, etc.
+                      Los documentos adicionales son opcionales. Puedes agregar contratos, reglamentos, etc.
                     </p>
                     <p className="text-xs text-gray-400 mt-3">
-                      📧 Los documentos se enviarán al estudiante por email
+                      ℹ️ Se enviarán automáticamente: Comprobante de Pago y Cronograma de Pagos
                     </p>
                   </div>
                 ) : (
@@ -1781,8 +1781,8 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                 </button>
                 <button
                   onClick={handleConfirmVerification}
-                  disabled={documents.length === 0 || isSendingDocuments}
-                  className={`group relative inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium transition-all duration-200 ${documents.length === 0 || isSendingDocuments
+                  disabled={isSendingDocuments}
+                  className={`group relative inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium transition-all duration-200 ${isSendingDocuments
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-gradient-to-r from-[#073372] via-[#0d4a8f] to-[#17BC91] hover:from-[#0d4a8f] hover:via-[#073372] hover:to-[#14a87d] text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
                     }`}
@@ -1790,12 +1790,12 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                   {isSendingDocuments ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      Enviando documentos...
+                      Verificando matrícula...
                     </>
                   ) : (
                     <>
                       <Mail className="h-5 w-5" />
-                      Enviar Documentos al Estudiante
+                      {documents.length > 0 ? 'Verificar y Enviar Documentos' : 'Verificar Matrícula'}
                       {documents.length > 0 && (
                         <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs font-bold">
                           {documents.length}

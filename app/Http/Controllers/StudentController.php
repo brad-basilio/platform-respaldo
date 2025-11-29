@@ -1544,47 +1544,48 @@ class StudentController extends Controller
                 return !$doc->requires_signature;
             });
 
-            // Si NINGÚN documento requiere firma, marcar como verificado automáticamente
-            if ($uploadedDocuments->isNotEmpty() && $allDocumentsNoSignature) {
+            // Si NINGÚN documento requiere firma O no hay documentos, marcar como verificado automáticamente
+            if ($uploadedDocuments->isEmpty() || $allDocumentsNoSignature) {
                 $student->update([
                     'enrollment_verified' => true,
                     'verified_enrollment_by' => auth()->id(),
                     'enrollment_verified_at' => now(),
                 ]);
 
-                Log::info('Matrícula verificada automáticamente (sin documentos que requieran firma)', [
+                Log::info('Matrícula verificada automáticamente', [
                     'student_id' => $student->id,
                     'verified_by' => auth()->user()->name,
+                    'reason' => $uploadedDocuments->isEmpty() ? 'sin_documentos_adicionales' : 'sin_documentos_que_requieran_firma'
                 ]);
             }
 
-            // Enviar email con documentos adjuntos SI hay documentos
-            if ($uploadedDocuments->isNotEmpty()) {
-                try {
-                    // Cargar relaciones necesarias
-                    $student->load(['user', 'academicLevel', 'paymentPlan']);
-                    
-                    \Mail::to($student->user->email)->send(
-                        new \App\Mail\EnrollmentVerifiedMail(
-                            $student,
-                            $student->user,
-                            auth()->user(),
-                            $uploadedDocuments
-                        )
-                    );
+            // 📧 SIEMPRE enviar email con cronograma y comprobante (con o sin documentos adicionales)
+            try {
+                // Cargar relaciones necesarias
+                $student->load(['user', 'academicLevel', 'paymentPlan']);
+                
+                \Mail::to($student->user->email)->send(
+                    new \App\Mail\EnrollmentVerifiedMail(
+                        $student,
+                        $student->user,
+                        auth()->user(),
+                        $uploadedDocuments
+                    )
+                );
 
-                    Log::info('Email de verificación enviado exitosamente', [
-                        'student_id' => $student->id,
-                        'email' => $student->user->email,
-                        'documents_attached' => $uploadedDocuments->count()
-                    ]);
-                } catch (\Exception $e) {
-                    // No fallar si el email falla, pero registrar el error
-                    Log::error('Error al enviar email de verificación', [
-                        'student_id' => $student->id,
-                        'error' => $e->getMessage()
-                    ]);
-                }
+                Log::info('Email de verificación enviado exitosamente', [
+                    'student_id' => $student->id,
+                    'email' => $student->user->email,
+                    'documents_attached' => $uploadedDocuments->count(),
+                    'includes_payment_schedule' => true,
+                    'includes_payment_receipt' => true
+                ]);
+            } catch (\Exception $e) {
+                // No fallar si el email falla, pero registrar el error
+                Log::error('Error al enviar email de verificación', [
+                    'student_id' => $student->id,
+                    'error' => $e->getMessage()
+                ]);
             }
 
             // 🆕 ENVIAR COMPROBANTE DE PAGO AUTOMÁTICAMENTE
@@ -1657,9 +1658,14 @@ class StudentController extends Controller
             // Recargar el estudiante para obtener el estado actualizado
             $student->refresh();
 
-            $message = $allDocumentsNoSignature 
-                ? 'Documentos enviados y matrícula verificada exitosamente (sin documentos que requieran firma).'
-                : 'Documentos enviados al estudiante exitosamente. La matrícula se verificará cuando el estudiante confirme todos los documentos.';
+            // Generar mensaje apropiado según el caso
+            if ($uploadedDocuments->isEmpty()) {
+                $message = 'Matrícula verificada exitosamente. Se ha enviado el Comprobante de Pago y Cronograma de Pagos al estudiante.';
+            } elseif ($allDocumentsNoSignature) {
+                $message = 'Documentos enviados y matrícula verificada exitosamente. Se ha enviado el Comprobante de Pago, Cronograma de Pagos y documentos adicionales al estudiante.';
+            } else {
+                $message = 'Documentos enviados exitosamente. Se ha enviado el Comprobante de Pago, Cronograma de Pagos y documentos adicionales al estudiante. La matrícula se verificará cuando el estudiante confirme todos los documentos.';
+            }
 
             return response()->json([
                 'success' => true,
@@ -1669,10 +1675,12 @@ class StudentController extends Controller
                     'enrollmentVerified' => $student->enrollment_verified,
                     'enrollmentVerifiedAt' => $student->enrollment_verified_at,
                     'verifiedEnrollmentBy' => $student->verifiedEnrollmentBy,
-                    'hasPendingDocuments' => !$allDocumentsNoSignature,
+                    'hasPendingDocuments' => $uploadedDocuments->isNotEmpty() && !$allDocumentsNoSignature,
                 ],
                 'documents_uploaded' => $uploadedDocuments->count(),
-                'auto_verified' => $allDocumentsNoSignature,
+                'auto_verified' => $uploadedDocuments->isEmpty() || $allDocumentsNoSignature,
+                'payment_schedule_sent' => true,
+                'payment_receipt_sent' => true,
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             \DB::rollBack();
