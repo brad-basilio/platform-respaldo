@@ -471,11 +471,10 @@ class StudentPaymentController extends Controller
             ], 403);
         }
         
-        // Solo se pueden reemplazar vouchers pendientes
-        if ($voucher->status !== 'pending') {
+        // Solo se pueden reemplazar vouchers pendientes o rechazados (no aprobados)
+        if ($voucher->status === 'approved') {
             return response()->json([
-                'message' => 'Solo se pueden reemplazar vouchers pendientes. Este voucher ya fue ' . 
-                            ($voucher->status === 'approved' ? 'aprobado' : 'rechazado')
+                'message' => 'No se puede reemplazar un voucher que ya fue aprobado'
             ], 400);
         }
         
