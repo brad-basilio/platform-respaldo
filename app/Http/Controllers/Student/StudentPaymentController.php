@@ -328,7 +328,7 @@ class StudentPaymentController extends Controller
             'voucher_file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'declared_amount' => 'required|numeric|min:0.01',
             'payment_date' => 'required|date',
-            'payment_method' => 'nullable|string|in:cash,transfer,deposit,card',
+            'payment_method' => 'nullable|string|in:cash,transfer,deposit,card,yape',
             'notes' => 'nullable|string',
             'is_partial_payment' => 'nullable|boolean', // Nueva bandera para pagos parciales
         ]);

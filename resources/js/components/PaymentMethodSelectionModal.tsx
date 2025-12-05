@@ -29,32 +29,35 @@ const PaymentMethodSelectionModal: React.FC<PaymentMethodSelectionModalProps> = 
     {
       id: 'yape' as const,
       name: 'Yape',
-      description: 'Pago mediante Yape - Requiere subir comprobante',
+      description: 'Pago rápido mediante aplicación Yape',
       icon: Smartphone,
-      color: 'from-purple-500 to-pink-500',
-      bgColor: 'bg-purple-50',
-      borderColor: 'border-purple-200',
-      hoverColor: 'hover:border-purple-400',
+      color: 'from-[#073372] to-[#17BC91]',
+      bgColor: 'bg-gradient-to-br from-[#073372]/5 to-[#17BC91]/5',
+      borderColor: 'border-[#17BC91]',
+      hoverColor: 'hover:border-[#073372]',
+      enabled: true,
     },
     {
       id: 'transfer' as const,
       name: 'Transferencia Bancaria',
-      description: 'Transferencia o depósito bancario - Requiere subir comprobante',
+      description: 'Transferencia o depósito bancario interbancario',
       icon: Building2,
-      color: 'from-blue-500 to-cyan-500',
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200',
-      hoverColor: 'hover:border-blue-400',
+      color: 'from-[#073372] to-[#17BC91]',
+      bgColor: 'bg-gradient-to-br from-[#073372]/5 to-[#17BC91]/5',
+      borderColor: 'border-[#17BC91]',
+      hoverColor: 'hover:border-[#073372]',
+      enabled: true,
     },
     {
       id: 'card' as const,
-      name: 'Tarjeta de Crédito',
-      description: 'Pago inmediato con tarjeta - Aprobación automática',
+      name: 'Tarjeta de Crédito/Débito',
+      description: 'Pago con tarjeta - Próximamente disponible',
       icon: CreditCard,
-      color: 'from-green-500 to-emerald-500',
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
-      hoverColor: 'hover:border-green-400',
+      color: 'from-gray-400 to-gray-500',
+      bgColor: 'bg-gray-50',
+      borderColor: 'border-gray-300',
+      hoverColor: 'hover:border-gray-300',
+      enabled: false,
     },
   ];
 
@@ -65,10 +68,10 @@ const PaymentMethodSelectionModal: React.FC<PaymentMethodSelectionModalProps> = 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-[#073372] to-[#17BC91] text-white px-8 py-6 rounded-t-3xl flex items-center justify-between">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col">
+        {/* Header - Fixed */}
+        <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] text-white px-8 py-6 rounded-t-2xl flex items-center justify-between flex-shrink-0">
           <div>
             <h2 className="text-2xl font-bold">Selecciona tu método de pago</h2>
             <p className="text-white/90 text-sm mt-1">
@@ -83,20 +86,24 @@ const PaymentMethodSelectionModal: React.FC<PaymentMethodSelectionModalProps> = 
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-8 space-y-4">
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-8 space-y-4">
           {paymentMethods.map((method) => {
             const Icon = method.icon;
             const isSelected = selectedMethod === method.id;
+            const isDisabled = !method.enabled;
 
             return (
               <button
                 key={method.id}
-                onClick={() => setSelectedMethod(method.id)}
+                onClick={() => method.enabled && setSelectedMethod(method.id)}
+                disabled={isDisabled}
                 className={`w-full text-left p-6 rounded-2xl border-2 transition-all ${
-                  isSelected
+                  isDisabled
+                    ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                    : isSelected
                     ? `${method.borderColor} ${method.bgColor} shadow-lg scale-[1.02]`
-                    : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
+                    : `border-slate-200 ${method.hoverColor} hover:shadow-md`
                 }`}
               >
                 <div className="flex items-start space-x-4">
@@ -109,34 +116,46 @@ const PaymentMethodSelectionModal: React.FC<PaymentMethodSelectionModalProps> = 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-lg font-bold text-slate-900">{method.name}</h3>
-                      {isSelected && (
+                      {isSelected && !isDisabled && (
                         <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-[#17BC91] to-[#073372] flex items-center justify-center">
                           <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                           </svg>
                         </div>
                       )}
+                      {isDisabled && (
+                        <span className="text-xs px-3 py-1 bg-gray-200 text-gray-600 rounded-full font-medium">
+                          Próximamente
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-slate-600">{method.description}</p>
 
                     {/* Additional info */}
-                    <div className="mt-3 flex items-center space-x-4 text-xs">
-                      {method.id === 'card' && (
-                        <>
-                          <span className="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
-                            ✓ Aprobación Instantánea
-                          </span>
-                          <span className="inline-flex items-center px-2 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">
-                            💳 Guardar Tarjeta
-                          </span>
-                        </>
-                      )}
-                      {(method.id === 'yape' || method.id === 'transfer') && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-medium">
-                          ⏳ Requiere Verificación
-                        </span>
-                      )}
-                    </div>
+                    {method.enabled && (
+                      <div className="mt-3 flex items-center space-x-4 text-xs">
+                        {method.id === 'card' && (
+                          <>
+                            <span className="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
+                              ✓ Aprobación Instantánea
+                            </span>
+                            <span className="inline-flex items-center px-2 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">
+                              💳 Guardar Tarjeta
+                            </span>
+                          </>
+                        )}
+                        {(method.id === 'yape' || method.id === 'transfer') && (
+                          <>
+                            <span className="inline-flex items-center px-2 py-1 rounded-full bg-[#F98613]/20 text-[#F98613] font-medium">
+                              ⏳ Requiere Verificación
+                            </span>
+                            <span className="inline-flex items-center px-2 py-1 rounded-full bg-[#17BC91]/20 text-[#17BC91] font-medium">
+                              📱 Subir Comprobante
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </button>
@@ -144,15 +163,26 @@ const PaymentMethodSelectionModal: React.FC<PaymentMethodSelectionModalProps> = 
           })}
 
           {/* Info box */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-            <p className="text-sm text-blue-900">
-              <strong className="font-semibold">💡 Nota:</strong> Para pagos con Yape o Transferencia, deberás subir el comprobante después de realizar la operación. El cajero verificará tu pago en un plazo de 24-48 horas.
-            </p>
+          <div className="mt-6 p-5 bg-gradient-to-br from-[#073372]/10 to-[#17BC91]/10 border-2 border-[#17BC91]/30 rounded-xl">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#073372] to-[#17BC91] flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-[#073372] mb-1">📌 Información Importante</p>
+                <p className="text-sm text-slate-700 leading-relaxed">
+                  Para pagos con <strong className="text-[#073372]">Yape</strong> o <strong className="text-[#073372]">Transferencia Bancaria</strong>, 
+                  deberás subir el comprobante después de realizar la operación. Nuestro equipo verificará tu pago en un plazo de <strong className="text-[#17BC91]">24-48 horas</strong>.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="sticky bottom-0 bg-slate-50 px-8 py-6 rounded-b-3xl border-t border-slate-200 flex justify-end space-x-4">
+        {/* Footer - Fixed */}
+        <div className="bg-slate-50 px-8 py-6 rounded-b-2xl border-t border-slate-200 flex justify-end space-x-4 flex-shrink-0">
           <button
             onClick={onClose}
             className="px-6 py-3 border-2 border-slate-300 text-slate-700 font-semibold rounded-xl hover:bg-slate-100 transition-colors"
