@@ -4,6 +4,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
+import { Input } from '@/components/ui/input';
 
 interface PaymentMethod {
   id: string;
@@ -111,9 +112,9 @@ const PaymentMethods: React.FC = () => {
       // Por simplicidad, simularemos el token
       const mockToken = `tok_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      const response = await axios.post('/api/student/payment-methods', {
-        culqi_card_id: mockToken,
-        culqi_customer_id: `cus_${Date.now()}`,
+      await axios.post('/api/student/payment-methods', {
+        kulki_card_token: mockToken,
+        kulki_customer_id: `cus_${Date.now()}`,
         card_brand: detectCardBrand(cardNumber),
         card_last4: cardNumber.slice(-4),
         card_exp_month: expirationMonth.padStart(2, '0'),
@@ -127,8 +128,9 @@ const PaymentMethods: React.FC = () => {
       setShowAddCardModal(false);
       resetForm();
       fetchPaymentMethods();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Error al guardar la tarjeta');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'Error al guardar la tarjeta');
     } finally {
       setProcessing(false);
     }
@@ -341,10 +343,10 @@ const PaymentMethods: React.FC = () => {
 
         {/* Add Card Modal */}
         {showAddCardModal && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
               {/* Header */}
-              <div className="sticky top-0 bg-gradient-to-r from-[#073372] to-[#17BC91] text-white px-8 py-6 rounded-t-3xl flex items-center justify-between">
+              <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] text-white px-6 py-5 flex items-center justify-between flex-shrink-0">
                 <div>
                   <h2 className="text-2xl font-bold">Agregar Nueva Tarjeta</h2>
                   <p className="text-white/90 text-sm mt-1">Guarda tu tarjeta para pagos futuros</p>
@@ -360,152 +362,138 @@ const PaymentMethods: React.FC = () => {
                 </button>
               </div>
 
-              {/* Content */}
-              <div className="p-8 space-y-6">
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto p-6">
                 {/* Security Info */}
-                <div className="flex items-center space-x-2 text-sm text-slate-600 bg-slate-50 py-3 px-4 rounded-lg">
+                <div className="flex items-center space-x-2 text-sm text-slate-600 bg-slate-50 py-3 px-4 rounded-lg mb-6">
                   <Lock className="w-4 h-4 text-green-600" />
                   <span>Conexión segura - Tus datos están protegidos</span>
                 </div>
 
                 {/* Form */}
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Número de Tarjeta
-                    </label>
-                    <input
-                      type="text"
-                      value={cardNumber}
-                      onChange={(e) => setCardNumber(e.target.value.replace(/\s/g, ''))}
-                      placeholder="4111 1111 1111 1111"
-                      maxLength={16}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#17BC91] focus:border-transparent"
-                    />
-                  </div>
+                  <Input
+                    label="Número de Tarjeta"
+                    type="text"
+                    value={cardNumber}
+                    onChange={(e) => setCardNumber(e.target.value.replace(/\s/g, ''))}
+                    placeholder="4111 1111 1111 1111"
+                    maxLength={16}
+                    required
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Nombre del Titular (como aparece en la tarjeta)
-                    </label>
-                    <input
-                      type="text"
-                      value={cardholderName}
-                      onChange={(e) => setCardholderName(e.target.value.toUpperCase())}
-                      placeholder="JUAN PEREZ GARCIA"
-                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#17BC91] focus:border-transparent"
-                    />
-                  </div>
+                  <Input
+                    label="Nombre del Titular"
+                    type="text"
+                    value={cardholderName}
+                    onChange={(e) => setCardholderName(e.target.value.toUpperCase())}
+                    placeholder="Como aparece en la tarjeta"
+                    required
+                  />
 
                   <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Mes
-                      </label>
-                      <input
-                        type="text"
-                        value={expirationMonth}
-                        onChange={(e) => setExpirationMonth(e.target.value)}
-                        placeholder="MM"
-                        maxLength={2}
-                        className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#17BC91] focus:border-transparent"
-                      />
-                    </div>
+                    <Input
+                      label="Mes"
+                      type="text"
+                      value={expirationMonth}
+                      onChange={(e) => setExpirationMonth(e.target.value)}
+                      placeholder="MM"
+                      maxLength={2}
+                      required
+                    />
 
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Año
-                      </label>
-                      <input
-                        type="text"
-                        value={expirationYear}
-                        onChange={(e) => setExpirationYear(e.target.value)}
-                        placeholder="YYYY"
-                        maxLength={4}
-                        className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#17BC91] focus:border-transparent"
-                      />
-                    </div>
+                    <Input
+                      label="Año"
+                      type="text"
+                      value={expirationYear}
+                      onChange={(e) => setExpirationYear(e.target.value)}
+                      placeholder="YYYY"
+                      maxLength={4}
+                      required
+                    />
 
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        CVV
-                      </label>
-                      <input
-                        type="text"
-                        value={cvv}
-                        onChange={(e) => setCvv(e.target.value)}
-                        placeholder="123"
-                        maxLength={4}
-                        className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#17BC91] focus:border-transparent"
-                      />
-                    </div>
+                    <Input
+                      label="CVV"
+                      type="text"
+                      value={cvv}
+                      onChange={(e) => setCvv(e.target.value)}
+                      placeholder="123"
+                      maxLength={4}
+                      required
+                    />
                   </div>
 
                   {/* Options */}
-                  <div className="space-y-3 pt-2">
+                  <div className="space-y-3 pt-4 border-t border-slate-200">
                     {paymentMethods.length > 0 && (
-                      <label className="flex items-start space-x-3 cursor-pointer">
+                      <label className="flex items-start space-x-3 cursor-pointer group">
                         <input
                           type="checkbox"
                           checked={saveAsDefault}
                           onChange={(e) => setSaveAsDefault(e.target.checked)}
-                          className="mt-1 w-5 h-5 text-[#17BC91] border-slate-300 rounded focus:ring-[#17BC91]"
+                          className="mt-1 w-5 h-5 text-[#17BC91] border-slate-300 rounded focus:ring-[#17BC91] transition-all"
                         />
                         <div className="flex-1">
-                          <p className="font-medium text-slate-900">Marcar como predeterminada</p>
-                          <p className="text-xs text-slate-600">Esta será tu tarjeta principal para pagos</p>
+                          <p className="font-medium text-slate-900 group-hover:text-[#073372] transition-colors">
+                            Marcar como predeterminada
+                          </p>
+                          <p className="text-xs text-slate-600">
+                            Esta será tu tarjeta principal para pagos
+                          </p>
                         </div>
                       </label>
                     )}
 
-                    <label className="flex items-start space-x-3 cursor-pointer">
+                    <label className="flex items-start space-x-3 cursor-pointer group">
                       <input
                         type="checkbox"
                         checked={enableAutoPayment}
                         onChange={(e) => setEnableAutoPayment(e.target.checked)}
-                        className="mt-1 w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                        className="mt-1 w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500 transition-all"
                       />
                       <div className="flex-1">
-                        <p className="font-medium text-slate-900">Habilitar Pagos Automáticos</p>
+                        <p className="font-medium text-slate-900 group-hover:text-[#073372] transition-colors">
+                          Habilitar Pagos Automáticos
+                        </p>
                         <p className="text-xs text-slate-600">
                           Tus cuotas se cobrarán automáticamente en la fecha de vencimiento
                         </p>
                       </div>
                     </label>
                   </div>
-                </div>
 
-                {/* Warning */}
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                  <p className="text-sm text-amber-900 flex items-start space-x-2">
-                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                    <span>
-                      Al guardar tu tarjeta, aceptas que ANCED procese tus datos de forma segura 
-                      para facilitar futuros pagos. Puedes eliminar esta tarjeta en cualquier momento.
-                    </span>
-                  </p>
+                  {/* Warning */}
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                    <div className="flex items-start space-x-2">
+                      <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-amber-900">
+                        Al guardar tu tarjeta, aceptas que UNCED procese tus datos de forma segura 
+                        para facilitar futuros pagos. Puedes eliminar esta tarjeta en cualquier momento.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Footer */}
-              <div className="sticky bottom-0 bg-slate-50 px-8 py-6 rounded-b-3xl border-t border-slate-200 flex justify-end space-x-4">
+              <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end space-x-3 flex-shrink-0">
                 <button
                   onClick={() => {
                     setShowAddCardModal(false);
                     resetForm();
                   }}
                   disabled={processing}
-                  className="px-6 py-3 border-2 border-slate-300 text-slate-700 font-semibold rounded-xl hover:bg-slate-100 transition-colors disabled:opacity-50"
+                  className="px-6 py-2.5 border-2 border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleAddCard}
                   disabled={processing}
-                  className={`px-8 py-3 rounded-xl font-semibold transition-all flex items-center space-x-2 ${
+                  className={`px-8 py-2.5 rounded-lg font-semibold transition-all flex items-center space-x-2 ${
                     processing
                       ? 'bg-slate-400 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-[#073372] to-[#17BC91] hover:shadow-lg hover:scale-105'
+                      : 'bg-gradient-to-r from-[#073372] to-[#17BC91] hover:shadow-lg'
                   } text-white`}
                 >
                   {processing ? (
