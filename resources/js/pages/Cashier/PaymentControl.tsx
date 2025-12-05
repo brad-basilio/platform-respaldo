@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Users, Eye, CheckCircle, AlertCircle, XCircle, 
-  Calendar, DollarSign, FileText, Search, Download, Clock
+  Calendar, DollarSign, FileText, Search, Download, Clock, CreditCard, Building2, Smartphone
 } from 'lucide-react';
 import { Student, Enrollment, Installment } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
@@ -19,25 +19,65 @@ interface Props {
   students: Student[];
 }
 
-// Modal de Cronograma de Pagos
-const PaymentScheduleModal: React.FC<{ 
-  student: Student; 
-  enrollment: Enrollment;
+// Modal de Detalle de Voucher
+const VoucherDetailModal: React.FC<{
+  installment: Installment;
+  student: Student;
   onClose: () => void;
   onVerifyVoucher: (voucherId: number, action: 'approve' | 'reject', rejectionReason?: string) => Promise<void>;
-}> = ({ student, enrollment, onClose, onVerifyVoucher }) => {
-  const [verifying, setVerifying] = useState<number | null>(null);
+}> = ({ installment, student, onClose, onVerifyVoucher }) => {
+  const [verifying, setVerifying] = useState(false);
+  const [expandedVoucherId, setExpandedVoucherId] = useState<number | null>(null);
 
-  const handleApprove = async (voucherId: number) => {
-    setVerifying(voucherId);
+  const vouchers = installment.vouchers || [];
+  const pendingVoucher = vouchers.find(v => v.status === 'pending');
+  const lateFee = (installment as any).late_fee || (installment as any).lateFee || 0;
+  const totalDue = (installment as any).total_due || (installment as any).totalDue || installment.amount + lateFee;
+  const paidAmount = (installment as any).paid_amount || (installment as any).paidAmount || 0;
+
+  const handleApprove = async () => {
+    if (!pendingVoucher) return;
+
+    const result = await Swal.fire({
+      title: '¿Aprobar este voucher?',
+      html: `
+        <div class="text-left">
+          <p class="text-gray-700 mb-3">¿Confirmas que el voucher de pago es válido?</p>
+          <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+            <p class="text-sm text-blue-800">
+              <strong>Importante:</strong> Al aprobar este voucher:
+            </p>
+            <ul class="text-sm text-blue-700 mt-2 space-y-1 list-disc list-inside">
+              <li>Se marcará el voucher como aprobado</li>
+              <li>Se actualizará la cuota correspondiente</li>
+              <li>Se registrará tu nombre como revisor</li>
+            </ul>
+          </div>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Sí, Aprobar',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true
+    });
+
+    if (!result.isConfirmed) return;
+
+    setVerifying(true);
     try {
-      await onVerifyVoucher(voucherId, 'approve');
+      await onVerifyVoucher(pendingVoucher.id, 'approve');
+      onClose();
     } finally {
-      setVerifying(null);
+      setVerifying(false);
     }
   };
 
-  const handleReject = async (voucherId: number) => {
+  const handleReject = async () => {
+    if (!pendingVoucher) return;
+
     const result = await Swal.fire({
       title: 'Rechazar Voucher',
       input: 'textarea',
@@ -59,14 +99,438 @@ const PaymentScheduleModal: React.FC<{
     });
 
     if (result.isConfirmed && result.value) {
-      setVerifying(voucherId);
+      setVerifying(true);
       try {
-        await onVerifyVoucher(voucherId, 'reject', result.value);
+        await onVerifyVoucher(pendingVoucher.id, 'reject', result.value);
+        onClose();
       } finally {
-        setVerifying(null);
+        setVerifying(false);
       }
     }
   };
+
+  const getPaymentMethodIcon = (method: string) => {
+    switch (method?.toLowerCase()) {
+      case 'yape':
+        return <Smartphone className="w-5 h-5" />;
+      case 'transfer':
+      case 'transferencia':
+        return <Building2 className="w-5 h-5" />;
+      case 'card':
+      case 'tarjeta':
+        return <CreditCard className="w-5 h-5" />;
+      default:
+        return <DollarSign className="w-5 h-5" />;
+    }
+  };
+
+  const getPaymentMethodLabel = (method: string) => {
+    switch (method?.toLowerCase()) {
+      case 'yape':
+        return 'Yape';
+      case 'transfer':
+      case 'transferencia':
+        return 'Transferencia Bancaria';
+      case 'card':
+      case 'tarjeta':
+        return 'Tarjeta de Crédito/Débito';
+      case 'cash':
+      case 'efectivo':
+        return 'Efectivo';
+      default:
+        return method || 'No especificado';
+    }
+  };
+
+  const installmentNumber = (installment as any).installment_number || (installment as any).installmentNumber || 0;
+  const dueDateStr = (installment as any).due_date || (installment as any).dueDate || '';
+  let dueDateParsed: Date;
+  try {
+    if (typeof dueDateStr === 'string' && dueDateStr.includes('-')) {
+      const [y, m, d] = dueDateStr.split('-').map(Number);
+      dueDateParsed = new Date(y, (m || 1) - 1, d || 1);
+    } else {
+      dueDateParsed = new Date(dueDateStr);
+    }
+    // Validar si la fecha es válida
+    if (isNaN(dueDateParsed.getTime())) {
+      dueDateParsed = new Date();
+    }
+  } catch (e) {
+    dueDateParsed = new Date();
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] text-white px-6 py-5 flex items-center justify-between flex-shrink-0">
+          <div>
+            <h2 className="text-2xl font-bold">Detalle de Pago - Cuota {installmentNumber}</h2>
+            <p className="text-white/90 text-sm mt-1">{student.name} • {student.enrollmentCode}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-white/80 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg"
+          >
+            <XCircle className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Información de la Cuota */}
+          <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-6 border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center">
+              <FileText className="w-5 h-5 mr-2 text-[#073372]" />
+              Información de la Cuota
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <p className="text-xs text-slate-600 font-medium mb-1">Número de Cuota</p>
+                <p className="text-lg font-bold text-slate-900">Cuota {installmentNumber}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-600 font-medium mb-1">Fecha de Vencimiento</p>
+                <p className="text-lg font-bold text-slate-900">
+                  {dueDateParsed.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-600 font-medium mb-1">Monto Base</p>
+                <p className="text-lg font-bold text-slate-900">S/ {installment.amount.toFixed(2)}</p>
+              </div>
+              {lateFee > 0 && (
+                <div>
+                  <p className="text-xs text-red-600 font-medium mb-1">Mora</p>
+                  <p className="text-lg font-bold text-red-600">+ S/ {lateFee.toFixed(2)}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-slate-600 font-medium mb-1">Total a Pagar</p>
+                <p className={`text-lg font-bold ${lateFee > 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                  S/ {totalDue.toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-green-600 font-medium mb-1">Pagado</p>
+                <p className="text-lg font-bold text-green-600">S/ {paidAmount.toFixed(2)}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Todos los Vouchers de esta cuota */}
+          <div className="bg-white rounded-xl p-6 border-2 border-[#073372]/20">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center">
+                <Download className="w-5 h-5 mr-2 text-[#073372]" />
+                Vouchers de Pago ({vouchers.length})
+              </h3>
+              {pendingVoucher && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#073372]/10 text-[#073372] border-2 border-[#073372]/30 animate-pulse">
+                  <Clock className="w-3 h-3 mr-1" />
+                  Pendiente de Verificación
+                </span>
+              )}
+            </div>
+
+            {vouchers.length === 0 ? (
+              <div className="text-center py-8">
+                <AlertCircle className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                <p className="text-slate-600">No hay vouchers subidos para esta cuota</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Ordenar: pendientes primero, luego por fecha (más recientes primero) */}
+                {vouchers
+                  .sort((a, b) => {
+                    if (a.status === 'pending' && b.status !== 'pending') return -1;
+                    if (a.status !== 'pending' && b.status === 'pending') return 1;
+                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                  })
+                  .map((voucher, index) => {
+                    const isPending = voucher.status === 'pending';
+                    const isApproved = voucher.status === 'approved';
+                    const isRejected = voucher.status === 'rejected';
+
+                    return (
+                      <div
+                        key={voucher.id}
+                        className={`rounded-xl border-2 p-5 transition-all ${
+                          isPending
+                            ? 'bg-gradient-to-br from-blue-50 to-blue-100 border-[#073372] shadow-lg'
+                            : isApproved
+                            ? 'bg-green-50 border-green-300'
+                            : 'bg-red-50 border-red-300'
+                        }`}
+                      >
+                        {/* Header del voucher */}
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center space-x-3">
+                            <div className={`p-2.5 rounded-lg ${
+                              isPending
+                                ? 'bg-[#073372] animate-pulse'
+                                : isApproved
+                                ? 'bg-green-500'
+                                : 'bg-red-500'
+                            }`}>
+                              {isPending ? (
+                                <Clock className="w-5 h-5 text-white" />
+                              ) : isApproved ? (
+                                <CheckCircle className="w-5 h-5 text-white" />
+                              ) : (
+                                <XCircle className="w-5 h-5 text-white" />
+                              )}
+                            </div>
+                            <div>
+                              <p className={`text-sm font-bold ${
+                                isPending ? 'text-[#073372]' : isApproved ? 'text-green-700' : 'text-red-700'
+                              }`}>
+                                {isPending ? '🔍 Pendiente de Verificación' : isApproved ? '✅ Aprobado' : '❌ Rechazado'}
+                              </p>
+                              <p className="text-xs text-slate-600 mt-0.5">
+                                Fecha de pago: {(() => {
+                                  try {
+                                    const date = new Date(voucher.payment_date);
+                                    if (isNaN(date.getTime())) {
+                                      return 'Fecha no especificada';
+                                    }
+                                    return date.toLocaleDateString('es-PE', {
+                                      day: '2-digit',
+                                      month: 'long',
+                                      year: 'numeric'
+                                    });
+                                  } catch {
+                                    return 'Fecha no especificada';
+                                  }
+                                })()}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {/* Badge de número */}
+                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold ${
+                            isPending
+                              ? 'bg-[#073372] text-white'
+                              : isApproved
+                              ? 'bg-green-600 text-white'
+                              : 'bg-red-600 text-white'
+                          }`}>
+                            #{vouchers.length - index}
+                          </span>
+                        </div>
+
+                        {/* Información del pago */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                          <div className="space-y-1">
+                            <p className="text-xs text-slate-600 font-medium">Método de Pago</p>
+                            <div className="flex items-center space-x-2">
+                              <div className={`p-1.5 rounded-lg ${
+                                isPending ? 'bg-[#073372]/20 text-[#073372]' : 'bg-white/50'
+                              }`}>
+                                {getPaymentMethodIcon(voucher.payment_method)}
+                              </div>
+                              <span className="text-sm font-semibold text-slate-900">
+                                {getPaymentMethodLabel(voucher.payment_method)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs text-slate-600 font-medium">Monto Declarado</p>
+                            <p className={`text-lg font-bold ${
+                              isPending ? 'text-[#073372]' : 'text-slate-900'
+                            }`}>
+                              S/ {parseFloat(String(voucher.declared_amount || '0')).toFixed(2)}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs text-slate-600 font-medium">Fecha de Pago</p>
+                            <p className="text-sm font-semibold text-slate-900">
+                              {(() => {
+                                try {
+                                  const date = new Date(voucher.payment_date);
+                                  if (isNaN(date.getTime())) {
+                                    return 'Fecha no disponible';
+                                  }
+                                  return date.toLocaleDateString('es-PE', {
+                                    day: '2-digit',
+                                    month: 'long',
+                                    year: 'numeric'
+                                  });
+                                } catch {
+                                  return 'Fecha no disponible';
+                                }
+                              })()}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Comprobante */}
+                        <div className="bg-white/60 rounded-lg border border-slate-200 overflow-hidden">
+                          <button
+                            onClick={() => setExpandedVoucherId(expandedVoucherId === voucher.id ? null : voucher.id)}
+                            className="w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <FileText className={`w-5 h-5 ${
+                                isPending ? 'text-[#073372]' : 'text-slate-600'
+                              }`} />
+                              <div className="text-left">
+                                <p className="text-xs text-slate-600 font-medium">Comprobante</p>
+                                <p className="text-sm text-slate-900 font-semibold">
+                                  {voucher.voucher_url ? 'Archivo disponible' : 'Sin archivo'}
+                                </p>
+                              </div>
+                            </div>
+                            {voucher.voucher_url && (
+                              <div className="flex items-center space-x-2">
+                                <span className={`text-xs font-medium ${
+                                  isPending ? 'text-[#073372]' : 'text-slate-600'
+                                }`}>
+                                  {expandedVoucherId === voucher.id ? 'Ocultar' : 'Ver'}
+                                </span>
+                                <Eye className={`w-4 h-4 transition-transform ${
+                                  expandedVoucherId === voucher.id ? 'rotate-180' : ''
+                                } ${
+                                  isPending ? 'text-[#073372]' : 'text-slate-600'
+                                }`} />
+                              </div>
+                            )}
+                          </button>
+                          
+                          {/* Vista expandida del comprobante */}
+                          {expandedVoucherId === voucher.id && voucher.voucher_url && (
+                            <div className="border-t border-slate-200 p-4 bg-slate-50">
+                              <div className="bg-white rounded-lg p-3 border border-slate-200">
+                                {voucher.voucher_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                                  <img
+                                    src={voucher.voucher_url}
+                                    alt="Comprobante de pago"
+                                    className="w-full h-auto max-h-96 object-contain rounded"
+                                  />
+                                ) : voucher.voucher_url.match(/\.pdf$/i) ? (
+                                  <div className="text-center py-8">
+                                    <FileText className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                                    <p className="text-sm text-slate-600 mb-3">Archivo PDF</p>
+                                    <a
+                                      href={voucher.voucher_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center px-4 py-2 bg-[#073372] hover:bg-[#17BC91] text-white font-medium rounded-lg transition-colors"
+                                    >
+                                      <Download className="w-4 h-4 mr-2" />
+                                      Abrir PDF
+                                    </a>
+                                  </div>
+                                ) : (
+                                  <div className="text-center py-8">
+                                    <FileText className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                                    <p className="text-sm text-slate-600 mb-3">Archivo adjunto</p>
+                                    <a
+                                      href={voucher.voucher_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center px-4 py-2 bg-[#073372] hover:bg-[#17BC91] text-white font-medium rounded-lg transition-colors"
+                                    >
+                                      <Download className="w-4 h-4 mr-2" />
+                                      Descargar Archivo
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Motivo de rechazo si existe */}
+                        {isRejected && voucher.rejection_reason && (
+                          <div className="mt-4 p-4 bg-red-100 rounded-lg border-2 border-red-300">
+                            <p className="text-xs font-bold text-red-800 mb-2 flex items-center">
+                              <XCircle className="w-4 h-4 mr-1" />
+                              Motivo del Rechazo:
+                            </p>
+                            <p className="text-sm text-red-700 font-medium">{voucher.rejection_reason}</p>
+                          </div>
+                        )}
+
+                        {/* Información del verificador si existe */}
+                        {(isApproved || isRejected) && voucher.verified_by && (
+                          <div className="mt-3 flex items-center text-xs text-slate-600">
+                            <span className="font-medium">
+                              Verificado por: {voucher.verified_by}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer con acciones */}
+        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-between items-center flex-shrink-0">
+          <button
+            onClick={onClose}
+            disabled={verifying}
+            className="px-6 py-2.5 border-2 border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50"
+          >
+            Cerrar
+          </button>
+          
+          {pendingVoucher && (
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleReject}
+                disabled={verifying}
+                className="inline-flex items-center px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {verifying ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-5 h-5 mr-2" />
+                    Rechazar
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleApprove}
+                disabled={verifying}
+                className="inline-flex items-center px-6 py-2.5 bg-gradient-to-r from-[#17BC91] to-emerald-600 hover:shadow-lg text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {verifying ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Aprobar Pago
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Modal de Cronograma de Pagos
+const PaymentScheduleModal: React.FC<{ 
+  student: Student; 
+  enrollment: Enrollment;
+  onClose: () => void;
+  onVerifyVoucher: (voucherId: number, action: 'approve' | 'reject', rejectionReason?: string) => Promise<void>;
+  onViewInstallmentDetail: (installment: Installment) => void;
+}> = ({ student, enrollment, onClose, onViewInstallmentDetail }) => {
 
   const getStatusBadge = (installment: Installment) => {
     // Si ya está verificado
@@ -253,24 +717,12 @@ const PaymentScheduleModal: React.FC<{
                       Fecha Vencimiento
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Monto Base
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Mora
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Total a Pagar
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Pagado
+                      Monto
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Estado
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Voucher
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Acciones
                     </th>
                   </tr>
@@ -287,11 +739,10 @@ const PaymentScheduleModal: React.FC<{
                         const [y, m, d] = dueDateStr.split('-').map(Number);
                         dueDateParsed = new Date(y, (m || 1) - 1, d || 1);
                       }
-                      const paidAmount = (installment as any).paid_amount || (installment as any).paidAmount || 0;
                       const lateFee = (installment as any).late_fee || (installment as any).lateFee || 0;
                       const totalDue = (installment as any).total_due || (installment as any).totalDue || installment.amount + lateFee;
-                      const verifiedBy = (installment as any).verifiedBy || (installment as any).verified_by;
                       const vouchers = installment.vouchers || [];
+                      const hasPendingVoucher = vouchers.some(v => v.status === 'pending');
                       
                       return (
                       <tr key={installment.id} className="hover:bg-gray-50 transition-colors">
@@ -318,125 +769,38 @@ const PaymentScheduleModal: React.FC<{
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm font-semibold text-gray-900">
-                            S/ {installment.amount.toFixed(2)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {lateFee > 0 ? (
-                            <span className="text-sm font-bold text-red-600">
-                              + S/ {lateFee.toFixed(2)}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex flex-col">
                             <span className={`text-sm font-bold ${lateFee > 0 ? 'text-red-600' : 'text-gray-900'}`}>
                               S/ {totalDue.toFixed(2)}
                             </span>
                             {lateFee > 0 && (
                               <span className="text-xs text-red-500 italic">
-                                (incluye mora)
+                                (incluye mora S/ {lateFee.toFixed(2)})
                               </span>
                             )}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm font-semibold text-green-600">
-                            S/ {paidAmount.toFixed(2)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
                           {getStatusBadge(installment)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {vouchers && vouchers.length > 0 ? (
-                            <div className="space-y-1">
-                              {vouchers.map((voucher) => {
-                                const voucherStatus = voucher.status || 'pending';
-                                return (
-                                  <div key={voucher.id} className="flex items-center space-x-2">
-                                    <a
-                                      href={voucher.voucher_url || '#'}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
-                                    >
-                                      <Download className="w-4 h-4 mr-1" />
-                                      Ver
-                                    </a>
-                                    {voucherStatus === 'approved' && (
-                                      <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
-                                        Aprobado
-                                      </span>
-                                    )}
-                                    {voucherStatus === 'pending' && (
-                                      <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full animate-pulse">
-                                        Pendiente
-                                      </span>
-                                    )}
-                                    {voucherStatus === 'rejected' && (
-                                      <span className="text-xs px-2 py-1 bg-red-100 text-red-800 rounded-full">
-                                        Rechazado
-                                      </span>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <span className="text-sm text-gray-400">Sin voucher</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {vouchers && vouchers.length > 0 && vouchers.some(v => v.status === 'pending') ? (
-                            <div className="flex items-center space-x-2">
-                              {vouchers.filter(v => v.status === 'pending').map((voucher) => (
-                                <div key={voucher.id} className="flex items-center space-x-2">
-                                  <button
-                                    onClick={() => handleApprove(voucher.id)}
-                                    disabled={verifying === voucher.id}
-                                    className="inline-flex items-center px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    {verifying === voucher.id ? (
-                                      <>
-                                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
-                                        Procesando...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <CheckCircle className="w-3 h-3 mr-1" />
-                                        Aprobar
-                                      </>
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={() => handleReject(voucher.id)}
-                                    disabled={verifying === voucher.id}
-                                    className="inline-flex items-center px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    <XCircle className="w-3 h-3 mr-1" />
-                                    Rechazar
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          ) : installment.status === 'verified' && verifiedBy ? (
-                            <div className="text-xs text-gray-500">
-                              <div>Verificado por:</div>
-                              <div className="font-medium text-gray-700">{verifiedBy.name}</div>
-                            </div>
-                          ) : (
-                            <span className="text-sm text-gray-400">—</span>
-                          )}
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <button
+                            onClick={() => onViewInstallmentDetail(installment)}
+                            className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                              hasPendingVoucher
+                                ? 'bg-[#073372] hover:bg-[#17BC91] text-white shadow-md animate-pulse'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                            }`}
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            Ver Detalle
+                          </button>
                         </td>
                       </tr>
                     )})
                   ) : (
                     <tr>
-                      <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                         No hay cuotas registradas
                       </td>
                     </tr>
@@ -464,8 +828,15 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
   const [students] = useState<Student[]>(initialStudents ?? []);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showVoucherDetailModal, setShowVoucherDetailModal] = useState(false);
+  const [selectedInstallment, setSelectedInstallment] = useState<Installment | null>(null);
   const [quickFilterText, setQuickFilterText] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'completed'>('all');
+
+  const handleViewInstallmentDetail = (installment: Installment) => {
+    setSelectedInstallment(installment);
+    setShowVoucherDetailModal(true);
+  };
 
   const handleViewSchedule = async (student: Student) => {
     try {
@@ -852,6 +1223,36 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
           enrollment={selectedStudent.enrollment}
           onClose={() => setShowScheduleModal(false)}
           onVerifyVoucher={handleVerifyVoucher}
+          onViewInstallmentDetail={handleViewInstallmentDetail}
+        />
+      )}
+
+      {showVoucherDetailModal && selectedInstallment && selectedStudent && (
+        <VoucherDetailModal
+          installment={selectedInstallment}
+          student={selectedStudent}
+          onClose={() => {
+            setShowVoucherDetailModal(false);
+            setSelectedInstallment(null);
+          }}
+          onVerifyVoucher={async (voucherId, action, rejectionReason) => {
+            await handleVerifyVoucher(voucherId, action, rejectionReason);
+            // Recargar el enrollment después de verificar
+            const response = await axios.get(`/cashier/students/${selectedStudent.id}/enrollment`);
+            if (response.data.success) {
+              setSelectedStudent({
+                ...selectedStudent,
+                enrollment: response.data.enrollment
+              });
+              // Actualizar también el installment seleccionado
+              const updatedInstallment = response.data.enrollment.installments?.find(
+                (i: Installment) => i.id === selectedInstallment.id
+              );
+              if (updatedInstallment) {
+                setSelectedInstallment(updatedInstallment);
+              }
+            }
+          }}
         />
       )}
     </AuthenticatedLayout>
