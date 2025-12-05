@@ -144,6 +144,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/api/admin/settings/general', [\App\Http\Controllers\Admin\SettingsController::class, 'saveGeneralSetting'])->name('api.admin.settings.general');
         Route::get('/api/admin/settings/general', [\App\Http\Controllers\Admin\SettingsController::class, 'getGeneralSetting'])->name('api.admin.settings.general.get');
         
+        // Payment Method Configuration (Yape y Transferencias)
+        Route::get('/api/admin/payment-methods', [\App\Http\Controllers\Admin\PaymentMethodConfigController::class, 'index'])->name('api.admin.payment-methods');
+        Route::post('/api/admin/payment-methods/yape', [\App\Http\Controllers\Admin\PaymentMethodConfigController::class, 'storeYape'])->name('api.admin.payment-methods.yape.store');
+        Route::post('/api/admin/payment-methods/yape/{id}', [\App\Http\Controllers\Admin\PaymentMethodConfigController::class, 'updateYape'])->name('api.admin.payment-methods.yape.update');
+        Route::post('/api/admin/payment-methods/transfer', [\App\Http\Controllers\Admin\PaymentMethodConfigController::class, 'storeTransfer'])->name('api.admin.payment-methods.transfer.store');
+        Route::post('/api/admin/payment-methods/transfer/{id}', [\App\Http\Controllers\Admin\PaymentMethodConfigController::class, 'updateTransfer'])->name('api.admin.payment-methods.transfer.update');
+        Route::delete('/api/admin/payment-methods/{id}', [\App\Http\Controllers\Admin\PaymentMethodConfigController::class, 'destroy'])->name('api.admin.payment-methods.destroy');
+        
         // Academic Levels Management
         Route::resource('admin/academic-levels', AcademicLevelController::class)
             ->except(['show', 'create', 'edit'])
@@ -223,6 +231,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
             return inertia('Student/PaymentControl');
         })->name('student.payment-control');
         
+        // Nuevas rutas para las secciones del panel del alumno
+        Route::get('/student/billing', function () {
+            return inertia('Student/Billing');
+        })->name('student.billing');
+        
+        Route::get('/student/my-plan', function () {
+            return inertia('Student/MyPlan');
+        })->name('student.my-plan');
+        
+        Route::get('/student/payment-methods', function () {
+            return inertia('Student/PaymentMethods');
+        })->name('student.payment-methods');
+        
         // Contract routes
         Route::get('/contract/accept/{token}', [ContractController::class, 'view'])->name('contract.view');
         Route::post('/contract/accept/{token}', [ContractController::class, 'accept'])->name('contract.accept');
@@ -235,6 +256,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/api/student/can-change-plan', [StudentPaymentController::class, 'canChangePlan'])->name('api.student.can-change-plan');
         Route::post('/api/student/change-plan', [StudentPaymentController::class, 'changePlan'])->name('api.student.change-plan');
         Route::get('/api/student/available-plans', [StudentPaymentController::class, 'getAvailablePlans'])->name('api.student.available-plans');
+        
+        // Payment Methods (Tarjetas)
+        Route::get('/api/student/payment-methods', [\App\Http\Controllers\Student\PaymentMethodController::class, 'index'])->name('api.student.payment-methods.index');
+        Route::post('/api/student/payment-methods', [\App\Http\Controllers\Student\PaymentMethodController::class, 'store'])->name('api.student.payment-methods.store');
+        Route::put('/api/student/payment-methods/{paymentMethod}', [\App\Http\Controllers\Student\PaymentMethodController::class, 'update'])->name('api.student.payment-methods.update');
+        Route::delete('/api/student/payment-methods/{paymentMethod}', [\App\Http\Controllers\Student\PaymentMethodController::class, 'destroy'])->name('api.student.payment-methods.destroy');
+        
+        // Culqi Payments
+        Route::post('/api/student/culqi/process-payment', [\App\Http\Controllers\Student\CulqiPaymentController::class, 'processPayment'])->name('api.student.culqi.process-payment');
+        Route::post('/api/student/culqi/process-payment-saved-card', [\App\Http\Controllers\Student\CulqiPaymentController::class, 'processPaymentWithSavedCard'])->name('api.student.culqi.process-payment-saved-card');
+        Route::get('/api/student/culqi/public-key', [\App\Http\Controllers\Student\CulqiPaymentController::class, 'getPublicKey'])->name('api.student.culqi.public-key');
+        
+        // Payment Method Configurations (Yape y Transferencias) - Para estudiantes
+        Route::get('/api/student/active-payment-methods', [\App\Http\Controllers\Admin\PaymentMethodConfigController::class, 'getActiveForStudents'])->name('api.student.active-payment-methods');
         
         // Enrollment documents
         Route::get('/api/student/pending-documents', [StudentController::class, 'getPendingDocuments'])->name('api.student.pending-documents');

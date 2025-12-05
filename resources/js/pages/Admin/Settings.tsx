@@ -9,9 +9,12 @@ import {
   RiWhatsappLine,
   RiGlobalLine,
   RiSaveLine,
-  RiFileTextLine
+  RiFileTextLine,
+  RiSecurePaymentLine,
+  RiBankCardLine
 } from 'react-icons/ri';
 import { toast } from 'sonner';
+import PaymentMethodsConfig from '@/components/PaymentMethodsConfig';
 
 interface Setting {
   id: number;
@@ -38,7 +41,7 @@ interface EmailTemplate {
 }
 
 const Settings: React.FC<Props> = ({ settings }) => {
-  const [activeTab, setActiveTab] = useState<'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract' | 'schedule' | 'receipt'>('mail');
+  const [activeTab, setActiveTab] = useState<'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract' | 'schedule' | 'receipt' | 'kulki' | 'payment_methods'>('mail');
   const [selectedMailTemplate, setSelectedMailTemplate] = useState<string>('prospect_welcome');
 
   // Configuración de templates de email
@@ -131,6 +134,12 @@ const Settings: React.FC<Props> = ({ settings }) => {
     allow_partial_payments: settings.payment?.find(s => s.key === 'allow_partial_payments')?.content || 'true',
   });
 
+  const kulkiForm = useForm({
+    culqi_public_key: settings.general?.find(s => s.key === 'culqi_public_key')?.content || '',
+    culqi_api_key: settings.general?.find(s => s.key === 'culqi_api_key')?.content || '',
+    culqi_api_url: settings.general?.find(s => s.key === 'culqi_api_url')?.content || 'https://api.culqi.com',
+  });
+
   const tabs = [
     { id: 'mail', label: 'Templates de Email', icon: RiMailLine },
     { id: 'contract', label: 'Plantilla de Contrato', icon: RiFileTextLine },
@@ -138,6 +147,8 @@ const Settings: React.FC<Props> = ({ settings }) => {
     { id: 'receipt', label: 'Comprobantes', icon: RiFileTextLine },
     { id: 'whatsapp', label: 'Configuración WhatsApp', icon: RiWhatsappLine },
     { id: 'payment', label: 'Configuración de Pagos', icon: RiSettings4Line },
+    { id: 'payment_methods', label: 'Métodos de Pago (Yape/Transfer)', icon: RiBankCardLine },
+    { id: 'kulki', label: 'Pasarela Culqi', icon: RiSecurePaymentLine },
     { id: 'general', label: 'Configuración General', icon: RiGlobalLine },
     { id: 'contact', label: 'Información de Contacto', icon: RiMailLine },
   ];
@@ -372,6 +383,47 @@ const Settings: React.FC<Props> = ({ settings }) => {
     });
   };
 
+  const handleKulkiSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const settingsArray = [
+      {
+        key: 'culqi_public_key',
+        content: kulkiForm.data.culqi_public_key,
+        type: 'general',
+        description: 'Clave pública de Culqi para tokenización en frontend',
+      },
+      {
+        key: 'culqi_api_key',
+        content: kulkiForm.data.culqi_api_key,
+        type: 'general',
+        description: 'Clave API secreta de Culqi',
+      },
+      {
+        key: 'culqi_api_url',
+        content: kulkiForm.data.culqi_api_url,
+        type: 'general',
+        description: 'URL de la API de Culqi',
+      },
+    ];
+
+    kulkiForm.transform(() => ({ settings: settingsArray }));
+    kulkiForm.post('/admin/settings', {
+      onSuccess: () => {
+        toast.success('Configuración guardada', {
+          description: 'La configuración de Culqi ha sido actualizada',
+          duration: 4000,
+        });
+      },
+      onError: () => {
+        toast.error('Error', {
+          description: 'No se pudo guardar la configuración de Culqi',
+          duration: 4000,
+        });
+      }
+    });
+  };
+
   const getMailTemplateDescription = (key: string) => {
     const descriptions: Record<string, string> = {
       'welcome_email': 'Email de bienvenida para nuevos usuarios',
@@ -399,24 +451,27 @@ const Settings: React.FC<Props> = ({ settings }) => {
 
         {/* Tabs */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="border-b border-gray-200">
-            <div className="flex space-x-1 p-2">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as 'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract' | 'schedule' | 'receipt')}
-                    className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${activeTab === tab.id
-                      ? 'bg-gradient-to-r from-[#073372] to-[#17BC91] text-white shadow-md'
-                      : 'text-gray-600 hover:bg-gray-50'
+          <div className="border-b border-gray-200 bg-slate-50">
+            <div className="overflow-x-auto">
+              <div className="flex flex-wrap gap-2 p-4 min-w-max">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id as 'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract' | 'schedule' | 'receipt' | 'kulki' | 'payment_methods')}
+                      className={`flex items-center px-5 py-3 rounded-lg font-medium transition-all whitespace-nowrap ${
+                        activeTab === tab.id
+                          ? 'bg-gradient-to-r from-[#073372] to-[#17BC91] text-white shadow-lg scale-105'
+                          : 'bg-white text-gray-700 hover:bg-gray-100 hover:shadow-md border border-gray-200'
                       }`}
-                  >
-                    <Icon className="h-5 w-5 mr-2" />
-                    {tab.label}
-                  </button>
-                );
-              })}
+                    >
+                      <Icon className="h-5 w-5 mr-2 flex-shrink-0" />
+                      <span className="text-sm">{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -1121,6 +1176,140 @@ const Settings: React.FC<Props> = ({ settings }) => {
                   </button>
                 </div>
               </form>
+            )}
+
+            {/* Culqi Configuration Tab */}
+            {activeTab === 'kulki' && (
+              <form onSubmit={handleKulkiSubmit} className="space-y-6">
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6 mb-6">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">
+                    💳 Configuración de Pasarela Culqi
+                  </h3>
+                  <p className="text-sm text-slate-700">
+                    Configura las credenciales de tu cuenta de Culqi para procesar pagos con tarjeta de crédito.
+                  </p>
+                </div>
+
+                {/* Public Key */}
+                <div>
+                  <Input
+                    label="Clave Pública (Public Key)"
+                    type="text"
+                    value={kulkiForm.data.culqi_public_key}
+                    onChange={(e) => kulkiForm.setData('culqi_public_key', e.target.value)}
+                    helperText="Clave pública de Culqi para tokenización en el frontend. Comienza con 'pk_live_' o 'pk_test_'"
+                    variant="outlined"
+                    placeholder="pk_live_xxxxxxxxxxxxxxxxxx"
+                  />
+                </div>
+
+                {/* Secret Key */}
+                <div>
+                  <Input
+                    label="Clave Secreta (API Key)"
+                    type="password"
+                    value={kulkiForm.data.culqi_api_key}
+                    onChange={(e) => kulkiForm.setData('culqi_api_key', e.target.value)}
+                    helperText="Clave secreta de Culqi para procesar cargos. Comienza con 'sk_live_' o 'sk_test_' - ¡NO COMPARTIR!"
+                    variant="outlined"
+                    placeholder="sk_live_xxxxxxxxxxxxxxxxxx"
+                  />
+                  <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-xs text-red-900">
+                      <strong>🔒 Seguridad:</strong> Esta clave es confidencial y no debe ser compartida. Se utiliza solo en el servidor.
+                    </p>
+                  </div>
+                </div>
+
+                {/* API URL */}
+                <div>
+                  <Input
+                    label="URL de API"
+                    type="text"
+                    value={kulkiForm.data.culqi_api_url}
+                    onChange={(e) => kulkiForm.setData('culqi_api_url', e.target.value)}
+                    helperText="URL base de la API de Culqi (generalmente https://api.culqi.com)"
+                    variant="outlined"
+                    placeholder="https://api.culqi.com"
+                  />
+                </div>
+
+                {/* Info Box */}
+                <div className="p-5 bg-blue-50 border-2 border-blue-200 rounded-xl">
+                  <h4 className="text-sm font-semibold text-blue-900 mb-3">📘 Cómo Funciona Culqi:</h4>
+                  <div className="text-sm text-blue-900 space-y-2">
+                    <p><strong>1. Tokenización en Frontend:</strong> Culqi Checkout captura los datos de la tarjeta del cliente y los convierte en un token seguro (sin exponer los datos).</p>
+                    <p><strong>2. Envío al Backend:</strong> El token se envía a tu servidor donde se procesa el cargo usando tu clave secreta.</p>
+                    <p><strong>3. Confirmación Instantánea:</strong> Culqi responde inmediatamente si el pago fue aprobado o rechazado.</p>
+                  </div>
+                </div>
+
+                {/* Setup Instructions */}
+                <div className="p-5 bg-yellow-50 border-2 border-yellow-200 rounded-xl">
+                  <h4 className="text-sm font-semibold text-yellow-900 mb-3">⚙️ Instrucciones de Configuración:</h4>
+                  <ol className="text-sm text-yellow-900 space-y-2 list-decimal list-inside">
+                    <li>Crea una cuenta en <a href="https://culqi.com" target="_blank" rel="noopener noreferrer" className="underline font-semibold">culqi.com</a></li>
+                    <li>Completa el proceso de KYC (verificación de identidad)</li>
+                    <li>Ve a <strong>Desarrollo → API Keys</strong> en tu panel de Culqi</li>
+                    <li>Copia tu clave pública (pk_test_...) y clave secreta (sk_test_...)</li>
+                    <li>Pega las credenciales aquí y guarda</li>
+                    <li>Para producción, usa las claves pk_live_... y sk_live_...</li>
+                  </ol>
+                </div>
+
+                {/* Features */}
+                <div className="p-5 bg-green-50 border-2 border-green-200 rounded-xl">
+                  <h4 className="text-sm font-semibold text-green-900 mb-3">✅ Funcionalidades Habilitadas:</h4>
+                  <ul className="text-sm text-green-900 space-y-2">
+                    <li className="flex items-start">
+                      <span className="mr-2">💳</span>
+                      <span>Pagos con tarjeta de crédito/débito (Visa, Mastercard, Amex, Diners)</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="mr-2">🔄</span>
+                      <span>Pagos automáticos recurrentes (auto-cobro mensual)</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="mr-2">💾</span>
+                      <span>Almacenamiento seguro de tarjetas tokenizadas</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="mr-2">⚡</span>
+                      <span>Aprobación instantánea de pagos (sin esperar verificación manual)</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="mr-2">🔒</span>
+                      <span>Seguridad PCI-DSS compliant (Culqi se encarga de la seguridad)</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={kulkiForm.processing}
+                    className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50"
+                  >
+                    <RiSaveLine className="h-5 w-5 mr-2" />
+                    {kulkiForm.processing ? 'Guardando...' : 'Guardar Configuración de Culqi'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Payment Methods (Yape y Transferencias) Tab */}
+            {activeTab === 'payment_methods' && (
+              <div>
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 mb-6">
+                  <h4 className="text-lg font-bold text-blue-900 mb-2">📱 Configuración de Métodos de Pago Tradicionales</h4>
+                  <p className="text-sm text-blue-800">
+                    Configura los métodos de pago Yape y Transferencia Bancaria que estarán disponibles para los estudiantes. 
+                    Puedes agregar múltiples cuentas de cada tipo.
+                  </p>
+                </div>
+
+                <PaymentMethodsConfig />
+              </div>
             )}
           </div>
         </div>

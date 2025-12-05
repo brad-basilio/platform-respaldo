@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
-
 import { 
   Calendar, CheckCircle, Clock, 
   AlertCircle, Download, Upload, FileText,
   DollarSign, TrendingUp,
-  RefreshCcw, X, ArrowRight
+  RefreshCcw, X, ArrowRight, CreditCard
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Input } from '@/components/ui/input';
+import PaymentMethodSelectionModal from '@/components/PaymentMethodSelectionModal';
+import CulqiPaymentModal from '@/components/CulqiPaymentModal';
+import YapePaymentModal from '@/components/YapePaymentModal';
+import TransferPaymentModal from '@/components/TransferPaymentModal';
 
 interface Installment {
   id: string;
@@ -89,6 +92,13 @@ const PaymentControl: React.FC = () => {
   const [showPartialPaymentModal, setShowPartialPaymentModal] = useState(false);
   const [partialAmount, setPartialAmount] = useState('');
   const [uploadingPartialPayment, setUploadingPartialPayment] = useState(false);
+
+  // ✨ NUEVOS ESTADOS para modal de método de pago y Culqi
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+  const [showCulqiModal, setShowCulqiModal] = useState(false);
+  const [showYapeModal, setShowYapeModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [selectedInstallmentForPayment, setSelectedInstallmentForPayment] = useState<Installment | null>(null);
 
   useEffect(() => {
     fetchEnrollment();
@@ -721,7 +731,7 @@ const PaymentControl: React.FC = () => {
                   </div>
                 )}
 
-                {/* Upload Voucher - Permitir subir si está pendiente, vencida con mora, o voucher rechazado */}
+                {/* ✨ NUEVO: Botón "Pagar" - Permitir si está pendiente, vencida con mora, o voucher rechazado */}
                 {(installment.status === 'pending' || installment.status === 'late' || installment.isOverdue) && 
                  (!installment.vouchers.length || installment.vouchers.every(v => v.status === 'rejected')) && (
                   <div className="mt-4">
@@ -729,7 +739,7 @@ const PaymentControl: React.FC = () => {
                       <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                         <p className="text-sm text-red-800 font-medium flex items-center">
                           <AlertCircle className="w-4 h-4 mr-2" />
-                          Tu voucher anterior fue rechazado. Por favor, sube un nuevo comprobante válido.
+                          Tu voucher anterior fue rechazado. Por favor, realiza un nuevo pago.
                         </p>
                       </div>
                     )}
@@ -745,43 +755,111 @@ const PaymentControl: React.FC = () => {
                         </p>
                       </div>
                     )}
-                    <label className="block">
-                      <input
-                        type="file"
-                        accept="image/*,.pdf"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            handleUploadVoucher(installment.id, file);
-                          }
-                        }}
-                        disabled={uploadingVoucher === installment.id}
-                        className="hidden"
-                      />
-                      <div className="flex items-center justify-center px-4 py-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all">
-                        {uploadingVoucher === installment.id ? (
-                          <div className="flex items-center space-x-2 text-blue-600">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                            <span className="text-sm font-medium">Subiendo...</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center space-x-2 text-slate-600">
-                            <Upload className="w-5 h-5" />
-                            <span className="text-sm font-medium">
-                              {installment.vouchers.some(v => v.status === 'rejected') 
-                                ? 'Subir Nuevo Comprobante' 
-                                : 'Subir Comprobante de Pago'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </label>
+                    
+                    {/* Botón principal "Pagar" */}
+                    <button
+                      onClick={() => {
+                        setSelectedInstallmentForPayment(installment);
+                        setShowPaymentMethodModal(true);
+                      }}
+                      disabled={uploadingVoucher === installment.id}
+                      className="w-full flex items-center justify-center px-6 py-4 bg-gradient-to-r from-[#073372] to-[#17BC91] hover:from-[#073372]/90 hover:to-[#17BC91]/90 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {uploadingVoucher === installment.id ? (
+                        <div className="flex items-center space-x-2">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <span>Procesando...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-2">
+                          <CreditCard className="w-5 h-5" />
+                          <span>Pagar {formatCurrency(installment.totalDue)}</span>
+                        </div>
+                      )}
+                    </button>
                   </div>
                 )}
               </div>
             ))}
           </div>
         </div>
+
+        {/* ✨ NUEVO: Modal de Selección de Método de Pago */}
+        {showPaymentMethodModal && selectedInstallmentForPayment && (
+          <PaymentMethodSelectionModal
+            isOpen={showPaymentMethodModal}
+            onClose={() => {
+              setShowPaymentMethodModal(false);
+              setSelectedInstallmentForPayment(null);
+            }}
+            onSelectMethod={(method) => {
+              setShowPaymentMethodModal(false);
+              
+              if (method === 'card') {
+                // Abrir modal de Culqi para pago con tarjeta
+                setShowCulqiModal(true);
+              } else if (method === 'yape') {
+                // Abrir modal de Yape
+                setShowYapeModal(true);
+              } else if (method === 'transfer') {
+                // Abrir modal de Transferencia Bancaria
+                setShowTransferModal(true);
+              }
+            }}
+            installmentAmount={selectedInstallmentForPayment.totalDue}
+          />
+        )}
+
+        {/* ✨ NUEVO: Modal de Pago con Culqi */}
+        {showCulqiModal && selectedInstallmentForPayment && (
+          <CulqiPaymentModal
+            isOpen={showCulqiModal}
+            onClose={() => {
+              setShowCulqiModal(false);
+              setSelectedInstallmentForPayment(null);
+            }}
+            onSuccess={() => {
+              fetchEnrollment(); // Recargar datos después del pago exitoso
+            }}
+            installment={{
+              id: Number(selectedInstallmentForPayment.id),
+              amount: selectedInstallmentForPayment.totalDue,
+              installment_number: selectedInstallmentForPayment.installmentNumber,
+            }}
+          />
+        )}
+
+        {/* ✨ NUEVO: Modal de Pago con Yape */}
+        {showYapeModal && selectedInstallmentForPayment && (
+          <YapePaymentModal
+            isOpen={showYapeModal}
+            onClose={() => {
+              setShowYapeModal(false);
+              setSelectedInstallmentForPayment(null);
+            }}
+            onSuccess={() => {
+              fetchEnrollment(); // Recargar datos después del pago exitoso
+            }}
+            installmentId={selectedInstallmentForPayment.id}
+            amount={selectedInstallmentForPayment.totalDue}
+          />
+        )}
+
+        {/* ✨ NUEVO: Modal de Pago con Transferencia Bancaria */}
+        {showTransferModal && selectedInstallmentForPayment && (
+          <TransferPaymentModal
+            isOpen={showTransferModal}
+            onClose={() => {
+              setShowTransferModal(false);
+              setSelectedInstallmentForPayment(null);
+            }}
+            onSuccess={() => {
+              fetchEnrollment(); // Recargar datos después del pago exitoso
+            }}
+            installmentId={selectedInstallmentForPayment.id}
+            amount={selectedInstallmentForPayment.totalDue}
+          />
+        )}
 
         {/* Modal: Cambiar Plan de Pago */}
         {showPlanChangeModal && (

@@ -231,4 +231,38 @@ class Student extends Model
     {
         return $this->hasMany(ContractAcceptance::class);
     }
+
+    /**
+     * Relación con métodos de pago (tarjetas guardadas)
+     */
+    public function paymentMethods(): HasMany
+    {
+        return $this->hasMany(PaymentMethod::class);
+    }
+
+    /**
+     * Relación con transacciones de Culqi
+     */
+    public function culqiTransactions(): HasMany
+    {
+        return $this->hasMany(CulqiTransaction::class);
+    }
+
+    /**
+     * Obtener el método de pago predeterminado
+     */
+    public function defaultPaymentMethod()
+    {
+        return $this->paymentMethods()->where('is_default', true)->first();
+    }
+
+    /**
+     * Verificar si tiene autopago habilitado
+     */
+    public function hasAutoPaymentEnabled(): bool
+    {
+        return $this->paymentMethods()
+            ->where('auto_payment_enabled', true)
+            ->exists();
+    }
 }

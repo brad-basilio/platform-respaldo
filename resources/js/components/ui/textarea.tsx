@@ -43,7 +43,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                 isLabelFloating
                   ? "top-0 -translate-y-1/2 text-xs px-1 bg-white font-medium"
                   : "top-5 text-base",
-                isFocused && !error && "text-blue-600",
+                isFocused && !error && "text-[#073372]",
                 error && "text-red-600",
                 variant === 'filled' && isLabelFloating && "bg-transparent"
               )}
@@ -70,7 +70,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                 "min-h-[100px] px-3 pt-6 pb-2 bg-transparent",
                 "border border-gray-300 rounded-md",
                 "hover:border-gray-900",
-                "focus:border-2 focus:border-blue-600 focus:px-[11px] focus:pt-[23px]",
+                "focus:border-2 focus:border-[#073372] focus:px-[11px] focus:pt-[23px]",
                 error && "border-red-600 hover:border-red-700 focus:border-red-600",
               ],
               
@@ -79,7 +79,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                 "min-h-[100px] px-3 pt-8 pb-2 bg-gray-50",
                 "border-b-2 border-gray-400 rounded-t-md",
                 "hover:bg-gray-100 hover:border-gray-900",
-                "focus:bg-gray-100 focus:border-blue-600",
+                "focus:bg-gray-100 focus:border-[#073372]",
                 error && "border-red-600 hover:border-red-700 focus:border-red-600",
               ],
               

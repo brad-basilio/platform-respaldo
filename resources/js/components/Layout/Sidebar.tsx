@@ -101,6 +101,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
       'document-types': '/admin/document-types',
       'payments': '/admin/payments',
       'payment-control': '/student/payment-control',
+      'billing': '/student/billing',
+      'my-plan': '/student/my-plan',
+      'payment-methods': '/student/payment-methods',
       'admin-payment-control': '/admin/payment-control',
       'cashier-payment-control': '/cashier/payment-control',
       'payment-reports': '/cashier/payment-reports',
@@ -201,11 +204,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
                    // { id: 'certificates', label: 'Certificados', icon: RiAwardLine },
                   ]
                 },*/
-          // ✅ Solo mostrar "Control de Pagos" si el estudiante ha firmado el contrato
+          // ✅ Solo mostrar secciones financieras si el estudiante ha firmado el contrato
           ...(!hasUnsignedContract ? [{
             section: 'FINANZAS',
             items: [
               { id: 'payment-control', label: 'Control de Pagos', icon: RiSecurePaymentLine },
+              { id: 'billing', label: 'Mi Facturación', icon: RiFileTextLine },
+              { id: 'my-plan', label: 'Plan Escogido', icon: RiPieChartLine },
+              { id: 'payment-methods', label: 'Métodos de Pago', icon: RiSecurePaymentLine },
             ]
           }] : []),
           /* {
