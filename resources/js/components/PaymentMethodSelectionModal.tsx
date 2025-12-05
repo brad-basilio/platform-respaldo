@@ -51,12 +51,12 @@ const PaymentMethodSelectionModal: React.FC<PaymentMethodSelectionModalProps> = 
     {
       id: 'card' as const,
       name: 'Tarjeta de Crédito/Débito',
-      description: 'Pago con tarjeta - Próximamente disponible',
+      description: 'Pago con tarjeta Visa, Mastercard, American Express',
       icon: CreditCard,
-      color: 'from-gray-400 to-gray-500',
-      bgColor: 'bg-gray-50',
-      borderColor: 'border-gray-300',
-      hoverColor: 'hover:border-gray-300',
+      color: 'from-[#073372] to-[#17BC91]',
+      bgColor: 'bg-gradient-to-br from-[#073372]/5 to-[#17BC91]/5',
+      borderColor: 'border-[#17BC91]',
+      hoverColor: 'hover:border-[#073372]',
       enabled: false,
     },
   ];
@@ -100,7 +100,7 @@ const PaymentMethodSelectionModal: React.FC<PaymentMethodSelectionModalProps> = 
                 disabled={isDisabled}
                 className={`w-full text-left p-6 rounded-2xl border-2 transition-all ${
                   isDisabled
-                    ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                    ? 'border-slate-200 hover:border-slate-300 '
                     : isSelected
                     ? `${method.borderColor} ${method.bgColor} shadow-lg scale-[1.02]`
                     : `border-slate-200 ${method.hoverColor} hover:shadow-md`
@@ -123,11 +123,7 @@ const PaymentMethodSelectionModal: React.FC<PaymentMethodSelectionModalProps> = 
                           </svg>
                         </div>
                       )}
-                      {isDisabled && (
-                        <span className="text-xs px-3 py-1 bg-gray-200 text-gray-600 rounded-full font-medium">
-                          Próximamente
-                        </span>
-                      )}
+
                     </div>
                     <p className="text-sm text-slate-600">{method.description}</p>
 
