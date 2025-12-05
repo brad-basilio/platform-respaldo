@@ -47,6 +47,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
 
     // Usar component como respaldo si la URL no coincide
     if (currentComponent === 'Student/PaymentControl') return 'payment-control';
+    if (currentComponent === 'Student/Billing') return 'billing';
+    if (currentComponent === 'Student/MyPlan') return 'my-plan';
+    if (currentComponent === 'Student/PaymentMethods') return 'payment-methods';
     if (currentComponent === 'Cashier/PaymentControl') return 'cashier-payment-control';
     if (currentComponent === 'Admin/PaymentControl') return 'admin-payment-control';
     if (currentComponent === 'Cashier/PaymentReports') return 'payment-reports';
@@ -67,6 +70,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
     if (currentUrl.startsWith('/admin/payments')) return 'payments';
     if (currentUrl.startsWith('/admin/analytics')) return 'analytics';
     if (currentUrl.startsWith('/student/payment-control')) return 'payment-control';
+    if (currentUrl.startsWith('/student/billing')) return 'billing';
+    if (currentUrl.startsWith('/student/my-plan')) return 'my-plan';
+    if (currentUrl.startsWith('/student/payment-methods')) return 'payment-methods';
     if (currentUrl.startsWith('/admin/payment-control')) return 'admin-payment-control';
     if (currentUrl.startsWith('/cashier/payment-control')) return 'cashier-payment-control';
     if (currentUrl.startsWith('/cashier/payment-reports')) return 'payment-reports';
