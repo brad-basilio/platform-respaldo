@@ -76,6 +76,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
     if (currentUrl.startsWith('/student/my-plan')) return 'my-plan';
     if (currentUrl.startsWith('/student/payment-methods')) return 'payment-methods';
     if (currentUrl.startsWith('/student/my-classes')) return 'my-classes';
+    if (currentUrl.startsWith('/student/class-templates')) return 'my-classes';
     if (currentUrl.startsWith('/student/class-enrollments')) return 'my-classes';
     if (currentUrl.startsWith('/admin/payment-control')) return 'admin-payment-control';
     if (currentUrl.startsWith('/cashier/payment-control')) return 'cashier-payment-control';
@@ -115,6 +116,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
       'my-plan': '/student/my-plan',
       'payment-methods': '/student/payment-methods',
       'my-classes': '/student/my-classes',
+      
       'admin-payment-control': '/admin/payment-control',
       'cashier-payment-control': '/cashier/payment-control',
       'payment-reports': '/cashier/payment-reports',

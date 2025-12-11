@@ -23,7 +23,9 @@ use App\Http\Controllers\ContractController;
 use App\Http\Controllers\Admin\ContractApprovalController;
 use App\Http\Controllers\Admin\ClassTemplateController;
 use App\Http\Controllers\Admin\ScheduledClassController;
+use App\Http\Controllers\Admin\ClassRequestController as AdminClassRequestController;
 use App\Http\Controllers\Student\StudentClassController;
+use App\Http\Controllers\Student\ClassRequestController as StudentClassRequestController;
 use App\Http\Controllers\Api\ImageUploadController;
 
 Route::get('/', function () {
@@ -251,6 +253,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/admin/scheduled-classes/{scheduledClass}/recording', [ScheduledClassController::class, 'addRecording'])->name('admin.scheduled-classes.recording');
         Route::get('/api/admin/scheduled-classes/{scheduledClass}/available-students', [ScheduledClassController::class, 'getAvailableStudents'])->name('api.admin.scheduled-classes.available-students');
         
+        // ========================================
+        // CLASS REQUESTS - Solicitudes de Clases
+        // ========================================
+        Route::get('/admin/class-requests', [AdminClassRequestController::class, 'index'])->name('admin.class-requests.index');
+        Route::post('/admin/class-requests/{classRequest}/approve', [AdminClassRequestController::class, 'approve'])->name('admin.class-requests.approve');
+        Route::post('/admin/class-requests/{classRequest}/reject', [AdminClassRequestController::class, 'reject'])->name('admin.class-requests.reject');
+        Route::post('/admin/class-requests/{classRequest}/schedule', [AdminClassRequestController::class, 'schedule'])->name('admin.class-requests.schedule');
+        Route::post('/admin/class-requests/{classRequest}/assign-existing', [AdminClassRequestController::class, 'assignToExisting'])->name('admin.class-requests.assign-existing');
+        Route::get('/api/admin/class-templates/{template}/available-classes', [AdminClassRequestController::class, 'getAvailableClasses'])->name('api.admin.class-templates.available-classes');
+        
         // Payments
         Route::get('/admin/payments', function () {
             return inertia('Admin/Payments');
@@ -325,7 +337,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/api/student/documents/{document}/confirm', [StudentController::class, 'confirmDocument'])->name('api.student.confirm-document');
         
         // Student Classes (Mis Clases)
-        Route::get('/student/my-classes', [StudentClassController::class, 'index'])->name('student.my-classes');
+        Route::get('/student/my-classes', [StudentClassRequestController::class, 'index'])->name('student.my-classes');
+        Route::get('/student/class-templates/{template}', [StudentClassRequestController::class, 'show'])->name('student.class-templates.show');
+        Route::post('/student/class-requests', [StudentClassRequestController::class, 'store'])->name('student.class-requests.store');
+        Route::delete('/student/class-requests/{classRequest}', [StudentClassRequestController::class, 'destroy'])->name('student.class-requests.destroy');
+        
+        // Class Enrollments (ver clase inscrita)
         Route::get('/student/class-enrollments/{enrollment}', [StudentClassController::class, 'show'])->name('student.class-enrollments.show');
         Route::post('/student/class-enrollments/{enrollment}/submit-exam', [StudentClassController::class, 'submitExam'])->name('student.class-enrollments.submit-exam');
         
