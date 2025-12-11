@@ -21,6 +21,10 @@ use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ContractController;
 use App\Http\Controllers\Admin\ContractApprovalController;
+use App\Http\Controllers\Admin\ClassTemplateController;
+use App\Http\Controllers\Admin\ScheduledClassController;
+use App\Http\Controllers\Student\StudentClassController;
+use App\Http\Controllers\Api\ImageUploadController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -203,6 +207,50 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/admin/groups/{group}', [GroupController::class, 'update'])->name('admin.groups.update');
         Route::delete('/admin/groups/{group}', [GroupController::class, 'destroy'])->name('admin.groups.destroy');
         
+        // ========================================
+        // CLASS TEMPLATES - Plantillas de Clases
+        // ========================================
+        Route::resource('admin/class-templates', ClassTemplateController::class)->names([
+            'index' => 'admin.class-templates.index',
+            'create' => 'admin.class-templates.create',
+            'store' => 'admin.class-templates.store',
+            'show' => 'admin.class-templates.show',
+            'edit' => 'admin.class-templates.edit',
+            'update' => 'admin.class-templates.update',
+            'destroy' => 'admin.class-templates.destroy',
+        ]);
+        Route::post('/admin/class-templates/{classTemplate}/duplicate', [ClassTemplateController::class, 'duplicate'])->name('admin.class-templates.duplicate');
+        Route::get('/api/admin/class-templates', [ClassTemplateController::class, 'getTemplatesJson'])->name('api.admin.class-templates');
+        
+        // Class Template Questions
+        Route::post('/admin/class-templates/{classTemplate}/questions', [ClassTemplateController::class, 'addQuestion'])->name('admin.class-templates.questions.store');
+        Route::put('/admin/class-templates/{classTemplate}/questions/{question}', [ClassTemplateController::class, 'updateQuestion'])->name('admin.class-templates.questions.update');
+        Route::delete('/admin/class-templates/{classTemplate}/questions/{question}', [ClassTemplateController::class, 'deleteQuestion'])->name('admin.class-templates.questions.destroy');
+        
+        // Class Template Resources
+        Route::post('/admin/class-templates/{classTemplate}/resources', [ClassTemplateController::class, 'uploadResource'])->name('admin.class-templates.resources.store');
+        Route::delete('/admin/class-templates/{classTemplate}/resources/{resource}', [ClassTemplateController::class, 'deleteResource'])->name('admin.class-templates.resources.destroy');
+        
+        // Editor Image Upload (for rich text editor)
+        Route::post('/api/upload-image', [ImageUploadController::class, 'upload'])->name('api.upload-image');
+        
+        // ========================================
+        // SCHEDULED CLASSES - Clases Programadas
+        // ========================================
+        Route::resource('admin/scheduled-classes', ScheduledClassController::class)->names([
+            'index' => 'admin.scheduled-classes.index',
+            'store' => 'admin.scheduled-classes.store',
+            'show' => 'admin.scheduled-classes.show',
+            'update' => 'admin.scheduled-classes.update',
+            'destroy' => 'admin.scheduled-classes.destroy',
+        ])->except(['create', 'edit']);
+        Route::get('/api/admin/scheduled-classes/calendar', [ScheduledClassController::class, 'calendar'])->name('api.admin.scheduled-classes.calendar');
+        Route::post('/admin/scheduled-classes/{scheduledClass}/enroll', [ScheduledClassController::class, 'enrollStudent'])->name('admin.scheduled-classes.enroll');
+        Route::delete('/admin/scheduled-classes/{scheduledClass}/unenroll/{student}', [ScheduledClassController::class, 'unenrollStudent'])->name('admin.scheduled-classes.unenroll');
+        Route::put('/admin/scheduled-classes/{scheduledClass}/status', [ScheduledClassController::class, 'updateStatus'])->name('admin.scheduled-classes.status');
+        Route::post('/admin/scheduled-classes/{scheduledClass}/recording', [ScheduledClassController::class, 'addRecording'])->name('admin.scheduled-classes.recording');
+        Route::get('/api/admin/scheduled-classes/{scheduledClass}/available-students', [ScheduledClassController::class, 'getAvailableStudents'])->name('api.admin.scheduled-classes.available-students');
+        
         // Payments
         Route::get('/admin/payments', function () {
             return inertia('Admin/Payments');
@@ -275,6 +323,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/api/student/pending-documents', [StudentController::class, 'getPendingDocuments'])->name('api.student.pending-documents');
         Route::get('/api/student/all-documents', [StudentController::class, 'getAllDocuments'])->name('api.student.all-documents');
         Route::post('/api/student/documents/{document}/confirm', [StudentController::class, 'confirmDocument'])->name('api.student.confirm-document');
+        
+        // Student Classes (Mis Clases)
+        Route::get('/student/my-classes', [StudentClassController::class, 'index'])->name('student.my-classes');
+        Route::get('/student/class-enrollments/{enrollment}', [StudentClassController::class, 'show'])->name('student.class-enrollments.show');
+        Route::post('/student/class-enrollments/{enrollment}/submit-exam', [StudentClassController::class, 'submitExam'])->name('student.class-enrollments.submit-exam');
         
         // Public settings endpoint (no requiere autenticación)
         Route::get('/api/settings/{key}', function ($key) {

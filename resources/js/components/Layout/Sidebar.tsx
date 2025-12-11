@@ -69,10 +69,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
     if (currentUrl.startsWith('/admin/document-types')) return 'document-types';
     if (currentUrl.startsWith('/admin/payments')) return 'payments';
     if (currentUrl.startsWith('/admin/analytics')) return 'analytics';
+    if (currentUrl.startsWith('/admin/class-templates')) return 'class-templates';
+    if (currentUrl.startsWith('/admin/scheduled-classes')) return 'scheduled-classes';
     if (currentUrl.startsWith('/student/payment-control')) return 'payment-control';
     if (currentUrl.startsWith('/student/billing')) return 'billing';
     if (currentUrl.startsWith('/student/my-plan')) return 'my-plan';
     if (currentUrl.startsWith('/student/payment-methods')) return 'payment-methods';
+    if (currentUrl.startsWith('/student/my-classes')) return 'my-classes';
+    if (currentUrl.startsWith('/student/class-enrollments')) return 'my-classes';
     if (currentUrl.startsWith('/admin/payment-control')) return 'admin-payment-control';
     if (currentUrl.startsWith('/cashier/payment-control')) return 'cashier-payment-control';
     if (currentUrl.startsWith('/cashier/payment-reports')) return 'payment-reports';
@@ -110,12 +114,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
       'billing': '/student/billing',
       'my-plan': '/student/my-plan',
       'payment-methods': '/student/payment-methods',
+      'my-classes': '/student/my-classes',
       'admin-payment-control': '/admin/payment-control',
       'cashier-payment-control': '/cashier/payment-control',
       'payment-reports': '/cashier/payment-reports',
       'analytics': '/admin/analytics',
       'settings': '/admin/settings',
       'users': '/admin/users',
+      'class-templates': '/admin/class-templates',
+      'scheduled-classes': '/admin/scheduled-classes',
     };
 
     const route = routes[view];
@@ -139,6 +146,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
             items: [
               { id: 'students', label: 'Prospectos', icon: RiGroupLine },
               { id: 'enrolled-students', label: 'Participantes Inscritos', icon: RiGraduationCapLine },
+            ]
+          },
+          {
+            section: 'ACADÉMICO',
+            items: [
+              { id: 'class-templates', label: 'Plantillas de Clases', icon: RiBookOpenLine },
+              { id: 'scheduled-classes', label: 'Clases Programadas', icon: RiVideoLine },
             ]
           },
           {
@@ -179,16 +193,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
           {
             section: 'ACADÉMICO',
             items: [
-              { id: 'classes', label: 'Clases', icon: RiBookOpenLine },
-              { id: 'workshops', label: 'Talleres', icon: RiVideoLine },
-              { id: 'evaluations', label: 'Evaluaciones', icon: RiFileTextLine },
+              { id: 'class-templates', label: 'Plantillas de Clases', icon: RiBookOpenLine },
+              { id: 'scheduled-classes', label: 'Mis Clases', icon: RiVideoLine },
               { id: 'students', label: 'Mis Participantes', icon: RiTeamLine },
-            ]
-          },
-          {
-            section: 'COMUNICACIÓN',
-            items: [
-              { id: 'forums', label: 'Foros', icon: RiMessage3Line },
             ]
           },
         ];
@@ -200,16 +207,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
               { id: 'dashboard', label: 'Panel Principal', icon: RiHome5Line },
             ]
           },
-          /*      {
-                  section: 'ACADÉMICO',
-                  items: [
-                //    { id: 'classes', label: 'Clases', icon: RiBookOpenLine },
-                 //   { id: 'workshops', label: 'Talleres', icon: RiVideoLine },
-                  //  { id: 'exams', label: 'Exámenes', icon: RiFileTextLine },
-                   // { id: 'progress', label: 'Progreso', icon: RiBarChartBoxLine },
-                   // { id: 'certificates', label: 'Certificados', icon: RiAwardLine },
-                  ]
-                },*/
+          {
+            section: 'ACADÉMICO',
+            items: [
+              { id: 'my-classes', label: 'Mis Clases', icon: RiBookOpenLine },
+            ]
+          },
           // ✅ Solo mostrar secciones financieras si el estudiante ha firmado el contrato
           ...(!hasUnsignedContract ? [{
             section: 'FINANZAS',
