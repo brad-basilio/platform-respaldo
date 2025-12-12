@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\ClassTemplate;
-use App\Models\ClassTemplateQuestion;
+
 use App\Models\TemplateQuestion;
 use App\Models\User;
 
@@ -52,7 +52,7 @@ class HelloMyDailyLifeSeeder extends Seeder
         // Crear las preguntas del examen
         $this->createQuestions($template->id);
 
-        $this->command->info('✅ Template "Hello! My Daily Life" creado con ' . ClassTemplateQuestion::where('class_template_id', $template->id)->count() . ' preguntas.');
+        $this->command->info('✅ Template "Hello! My Daily Life" creado con ' . TemplateQuestion::where('class_template_id', $template->id)->count() . ' preguntas.');
     }
 
     /**
