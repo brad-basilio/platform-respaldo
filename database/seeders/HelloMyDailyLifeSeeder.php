@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\ClassTemplate;
 use App\Models\ClassTemplateQuestion;
+use App\Models\User;
 
 class HelloMyDailyLifeSeeder extends Seeder
 {
@@ -14,9 +15,13 @@ class HelloMyDailyLifeSeeder extends Seeder
      */
     public function run(): void
     {
+        // Obtener el primer usuario admin o el primer usuario
+        $adminUser = User::where('role', 'admin')->first() ?? User::first();
+        
         // Crear el template de clase
         $template = ClassTemplate::create([
             'academic_level_id' => 3, // Avanzado (cambiar según tu BD)
+            'created_by' => $adminUser->id,
             'title' => 'Hello! My Daily Life',
             'session_number' => '1',
             'duration_minutes' => 60,
