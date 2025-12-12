@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\ClassTemplate;
 use App\Models\ClassTemplateQuestion;
+use App\Models\TemplateQuestion;
 use App\Models\User;
 
 class HelloMyDailyLifeSeeder extends Seeder
@@ -576,7 +577,7 @@ HTML;
         ];
 
         foreach ($questions as $questionData) {
-            ClassTemplateQuestion::create([
+            TemplateQuestion::create([
                 'class_template_id' => $templateId,
                 'question' => $questionData['question'],
                 'type' => $questionData['type'],
