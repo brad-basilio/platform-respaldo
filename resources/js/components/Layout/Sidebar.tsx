@@ -71,6 +71,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
     if (currentUrl.startsWith('/admin/analytics')) return 'analytics';
     if (currentUrl.startsWith('/admin/class-templates')) return 'class-templates';
     if (currentUrl.startsWith('/admin/scheduled-classes')) return 'scheduled-classes';
+    if (currentUrl.startsWith('/admin/class-requests')) return 'class-requests';
     if (currentUrl.startsWith('/student/payment-control')) return 'payment-control';
     if (currentUrl.startsWith('/student/billing')) return 'billing';
     if (currentUrl.startsWith('/student/my-plan')) return 'my-plan';
@@ -125,6 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
       'users': '/admin/users',
       'class-templates': '/admin/class-templates',
       'scheduled-classes': '/admin/scheduled-classes',
+      'class-requests': '/admin/class-requests',
     };
 
     const route = routes[view];
@@ -154,7 +156,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
             section: 'ACADÉMICO',
             items: [
               { id: 'class-templates', label: 'Plantillas de Clases', icon: RiBookOpenLine },
-              { id: 'scheduled-classes', label: 'Clases Programadas', icon: RiVideoLine },
+              { id: 'scheduled-classes', label: 'Grupos de Clase', icon: RiVideoLine },
+              { id: 'class-requests', label: 'Solicitudes de Clases', icon: RiMessage3Line },
             ]
           },
           {

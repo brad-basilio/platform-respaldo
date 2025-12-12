@@ -121,7 +121,7 @@ const ScheduledClassesIndex: React.FC<Props> = ({
   const handleCreate = () => {
     router.post('/admin/scheduled-classes', formData, {
       onSuccess: () => {
-        toast.success('Clase programada exitosamente');
+        toast.success('Grupo creado exitosamente');
         setShowCreateModal(false);
         setFormData({
           class_template_id: '',
@@ -134,7 +134,7 @@ const ScheduledClassesIndex: React.FC<Props> = ({
         });
       },
       onError: () => {
-        toast.error('Error al programar la clase');
+        toast.error('Error al crear el grupo');
       }
     });
   };
@@ -388,15 +388,15 @@ const ScheduledClassesIndex: React.FC<Props> = ({
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Clases Programadas</h1>
-            <p className="text-gray-500 mt-1">Gestiona las sesiones de clase programadas</p>
+            <h1 className="text-2xl font-bold text-gray-900">Grupos de Clase</h1>
+            <p className="text-gray-500 mt-1">Gestiona los grupos de clase y sus horarios</p>
           </div>
           <Button 
             className="bg-[#073372] hover:bg-[#052555]"
             onClick={() => setShowCreateModal(true)}
           >
             <Plus className="w-4 h-4 mr-2" />
-            Programar Clase
+            Nuevo Grupo
           </Button>
         </div>
 
@@ -459,13 +459,13 @@ const ScheduledClassesIndex: React.FC<Props> = ({
           <span>Total: {scheduledClasses.total} clases</span>
         </div>
 
-        {/* Modal Crear Clase */}
+        {/* Modal Crear Grupo */}
         <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Programar Nueva Clase</DialogTitle>
+              <DialogTitle>Crear Nuevo Grupo</DialogTitle>
               <DialogDescription>
-                Programa una nueva sesión de clase basada en una plantilla
+                Crea un nuevo grupo de clase basado en una plantilla
               </DialogDescription>
             </DialogHeader>
             
@@ -540,7 +540,7 @@ const ScheduledClassesIndex: React.FC<Props> = ({
                 Cancelar
               </Button>
               <Button onClick={handleCreate} className="bg-[#073372] hover:bg-[#052555]">
-                Programar Clase
+                Crear Grupo
               </Button>
             </DialogFooter>
           </DialogContent>

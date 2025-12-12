@@ -72,6 +72,15 @@ interface Teacher {
   email: string;
 }
 
+interface ActiveGroup {
+  id: number;
+  scheduled_at: string;
+  teacher_name?: string;
+  enrollments_count: number;
+  max_students: number;
+  available_slots: number;
+}
+
 interface Props {
   requests: {
     data: ClassRequest[];
@@ -91,6 +100,7 @@ interface Props {
     scheduled: number;
     rejected: number;
   };
+  activeGroups: Record<number, ActiveGroup[]>;
 }
 
 const ClassRequestsIndex: React.FC<Props> = ({ 
@@ -98,7 +108,8 @@ const ClassRequestsIndex: React.FC<Props> = ({
   academicLevels, 
   teachers,
   filters, 
-  counts 
+  counts,
+  activeGroups = {}
 }) => {
   const [quickFilterText, setQuickFilterText] = useState('');
   const [statusFilter, setStatusFilter] = useState(filters.status || 'pending');
@@ -271,19 +282,33 @@ const ClassRequestsIndex: React.FC<Props> = ({
       minWidth: 220,
       cellRenderer: (params: any) => {
         const req = params.data;
+        const templateGroups = activeGroups[req.template?.id] || [];
+        const hasAvailableGroups = templateGroups.length > 0;
+        const totalSlots = templateGroups.reduce((sum, g) => sum + g.available_slots, 0);
+        
         return (
           <div className="flex items-center gap-3 h-full">
             <div 
-              className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+              className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 relative"
               style={{ backgroundColor: req.template?.academic_level?.color || '#3B82F6' }}
             >
               <BookOpen className="w-5 h-5 text-white" />
+              {hasAvailableGroups && req.status !== 'scheduled' && (
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                  {templateGroups.length}
+                </div>
+              )}
             </div>
             <div className="min-w-0">
               <div className="text-sm font-medium text-gray-900 truncate">{req.template?.title}</div>
               <div className="text-xs text-gray-500">
                 {req.template?.academic_level?.name} • Sesión {req.template?.session_number}
               </div>
+              {hasAvailableGroups && req.status !== 'scheduled' && (
+                <div className="text-xs text-green-600 font-medium">
+                  {templateGroups.length} grupo{templateGroups.length > 1 ? 's' : ''} • {totalSlots} cupos
+                </div>
+              )}
             </div>
           </div>
         );
@@ -331,23 +356,62 @@ const ClassRequestsIndex: React.FC<Props> = ({
     },
     {
       headerName: 'Acciones',
-      width: 200,
+      width: 220,
       pinned: 'right',
       cellRenderer: (params: any) => {
         const req = params.data;
+        const templateGroups = activeGroups[req.template?.id] || [];
+        const hasAvailableGroups = templateGroups.length > 0;
         
         if (req.status === 'pending') {
           return (
             <div className="flex items-center gap-1 h-full">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 text-green-600"
-                title="Aprobar"
-                onClick={() => handleApprove(req)}
-              >
-                <Check className="h-4 w-4" />
-              </Button>
+              {/* Priorizar "Unir a Grupo" si hay grupos disponibles */}
+              {hasAvailableGroups ? (
+                <>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="h-8 bg-purple-600 hover:bg-purple-700 text-white text-xs px-2"
+                    title="Unir a grupo existente"
+                    onClick={() => openAssignModal(req)}
+                  >
+                    <UserPlus className="h-3.5 w-3.5 mr-1" />
+                    Unir
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-green-600"
+                    title="Aprobar sin asignar"
+                    onClick={() => handleApprove(req)}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2"
+                    title="Crear nuevo grupo"
+                    onClick={() => openScheduleModal(req)}
+                  >
+                    <CalendarPlus className="h-3.5 w-3.5 mr-1" />
+                    Crear
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-green-600"
+                    title="Aprobar sin asignar"
+                    onClick={() => handleApprove(req)}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -357,24 +421,6 @@ const ClassRequestsIndex: React.FC<Props> = ({
               >
                 <X className="h-4 w-4" />
               </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 text-blue-600"
-                title="Programar nueva clase"
-                onClick={() => openScheduleModal(req)}
-              >
-                <CalendarPlus className="h-4 w-4" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 text-purple-600"
-                title="Asignar a clase existente"
-                onClick={() => openAssignModal(req)}
-              >
-                <UserPlus className="h-4 w-4" />
-              </Button>
             </div>
           );
         }
@@ -382,24 +428,40 @@ const ClassRequestsIndex: React.FC<Props> = ({
         if (req.status === 'approved') {
           return (
             <div className="flex items-center gap-1 h-full">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 text-blue-600"
-                title="Programar clase"
-                onClick={() => openScheduleModal(req)}
-              >
-                <CalendarPlus className="h-4 w-4" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 text-purple-600"
-                title="Asignar a clase existente"
-                onClick={() => openAssignModal(req)}
-              >
-                <UserPlus className="h-4 w-4" />
-              </Button>
+              {hasAvailableGroups ? (
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="h-8 bg-purple-600 hover:bg-purple-700 text-white text-xs px-2"
+                  title="Unir a grupo existente"
+                  onClick={() => openAssignModal(req)}
+                >
+                  <UserPlus className="h-3.5 w-3.5 mr-1" />
+                  Unir a Grupo
+                </Button>
+              ) : (
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2"
+                  title="Crear nuevo grupo"
+                  onClick={() => openScheduleModal(req)}
+                >
+                  <CalendarPlus className="h-3.5 w-3.5 mr-1" />
+                  Crear Grupo
+                </Button>
+              )}
+              {hasAvailableGroups && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-blue-600"
+                  title="Crear nuevo grupo"
+                  onClick={() => openScheduleModal(req)}
+                >
+                  <CalendarPlus className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           );
         }
@@ -428,7 +490,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
         return null;
       }
     },
-  ], []);
+  ], [activeGroups]);
 
   const defaultColDef = useMemo(() => ({
     sortable: true,
@@ -595,7 +657,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
                     <CalendarPlus className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-white">Programar Nueva Clase</h3>
+                    <h3 className="text-xl font-bold text-white">Crear Nuevo Grupo</h3>
                     <p className="text-blue-100 text-sm">
                       Para: {selectedRequest.student.name}
                     </p>
@@ -658,7 +720,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
                 </Button>
                 <Button onClick={handleSchedule} className="bg-[#073372] hover:bg-[#052555]">
                   <CalendarPlus className="w-4 h-4 mr-2" />
-                  Programar Clase
+                  Crear Grupo
                 </Button>
               </div>
             </div>
@@ -717,7 +779,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Modal Asignar a Clase Existente */}
+        {/* Modal Unir a Grupo Existente */}
         {showAssignModal && selectedRequest && (
           <div 
             className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
@@ -727,13 +789,13 @@ const ClassRequestsIndex: React.FC<Props> = ({
               className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] px-6 py-5 rounded-t-2xl">
+              <div className="bg-gradient-to-r from-purple-600 to-[#17BC91] px-6 py-5 rounded-t-2xl">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
                     <UserPlus className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-white">Asignar a Clase Existente</h3>
+                    <h3 className="text-xl font-bold text-white">Unir a Grupo Existente</h3>
                     <p className="text-blue-100 text-sm">
                       Estudiante: {selectedRequest.student.name}
                     </p>
@@ -757,12 +819,12 @@ const ClassRequestsIndex: React.FC<Props> = ({
                 ) : availableClasses.length === 0 ? (
                   <div className="text-center py-8">
                     <AlertCircle className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                    <p className="text-gray-600">No hay clases disponibles con cupo</p>
-                    <p className="text-sm text-gray-500 mt-1">Programa una nueva clase para este estudiante</p>
+                    <p className="text-gray-600">No hay grupos disponibles con cupo</p>
+                    <p className="text-sm text-gray-500 mt-1">Crea un nuevo grupo para este estudiante</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Seleccionar clase</label>
+                    <label className="text-sm font-medium text-gray-700">Seleccionar grupo</label>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
                       {availableClasses.map((sc) => (
                         <button
@@ -804,10 +866,10 @@ const ClassRequestsIndex: React.FC<Props> = ({
                 <Button 
                   onClick={handleAssignToExisting} 
                   disabled={!selectedClassId || availableClasses.length === 0}
-                  className="bg-[#073372] hover:bg-[#052555]"
+                  className="bg-purple-600 hover:bg-purple-700"
                 >
                   <UserPlus className="w-4 h-4 mr-2" />
-                  Asignar
+                  Unir al Grupo
                 </Button>
               </div>
             </div>

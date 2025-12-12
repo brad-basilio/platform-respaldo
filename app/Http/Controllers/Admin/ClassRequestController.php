@@ -19,7 +19,7 @@ class ClassRequestController extends Controller
     public function index(Request $request)
     {
         $query = ClassRequest::with([
-            'student.studentProfile.academicLevel',
+            'student.student.academicLevel',
             'template.academicLevel',
             'scheduledClass',
             'processedBy'
@@ -39,7 +39,26 @@ class ClassRequestController extends Controller
 
         // Para los filtros
         $academicLevels = \App\Models\AcademicLevel::orderBy('order')->get();
-        $teachers = User::role('teacher')->orderBy('name')->get(['id', 'name', 'email']);
+        $teachers = User::where('role', 'teacher')->orderBy('name')->get(['id', 'name', 'email']);
+
+        // Obtener grupos activos (clases con cupo) por template
+        $activeGroups = ScheduledClass::where('status', 'scheduled')
+            ->where('scheduled_at', '>', now())
+            ->withCount('enrollments')
+            ->with('teacher:id,name')
+            ->get()
+            ->filter(fn($c) => $c->enrollments_count < $c->max_students)
+            ->groupBy('class_template_id')
+            ->map(function($classes) {
+                return $classes->map(fn($c) => [
+                    'id' => $c->id,
+                    'scheduled_at' => $c->scheduled_at,
+                    'teacher_name' => $c->teacher?->name,
+                    'enrollments_count' => $c->enrollments_count,
+                    'max_students' => $c->max_students,
+                    'available_slots' => $c->max_students - $c->enrollments_count,
+                ]);
+            });
 
         // Contadores para las tabs
         $counts = [
@@ -55,6 +74,7 @@ class ClassRequestController extends Controller
             'teachers' => $teachers,
             'filters' => $request->only(['status', 'level_id']),
             'counts' => $counts,
+            'activeGroups' => $activeGroups,
         ]);
     }
 
@@ -117,9 +137,17 @@ class ClassRequestController extends Controller
             'status' => 'scheduled',
         ]);
 
+        // Obtener el student_id correcto (de la tabla students, no users)
+        $studentUser = $classRequest->student;
+        $student = $studentUser->student; // Relación User->Student
+        
+        if (!$student) {
+            return back()->withErrors(['error' => 'El usuario no tiene un perfil de estudiante.']);
+        }
+
         // Inscribir al estudiante automáticamente
         StudentClassEnrollment::create([
-            'student_id' => $classRequest->student_id,
+            'student_id' => $student->id,
             'scheduled_class_id' => $scheduledClass->id,
         ]);
 
@@ -151,7 +179,14 @@ class ClassRequestController extends Controller
         }
 
         // Verificar que el estudiante no esté ya inscrito
-        $alreadyEnrolled = StudentClassEnrollment::where('student_id', $classRequest->student_id)
+        $studentUser = $classRequest->student;
+        $student = $studentUser->student; // Relación User->Student
+        
+        if (!$student) {
+            return back()->withErrors(['error' => 'El usuario no tiene un perfil de estudiante.']);
+        }
+
+        $alreadyEnrolled = StudentClassEnrollment::where('student_id', $student->id)
             ->where('scheduled_class_id', $scheduledClass->id)
             ->exists();
 
@@ -161,7 +196,7 @@ class ClassRequestController extends Controller
 
         // Inscribir al estudiante
         StudentClassEnrollment::create([
-            'student_id' => $classRequest->student_id,
+            'student_id' => $student->id,
             'scheduled_class_id' => $scheduledClass->id,
         ]);
 
