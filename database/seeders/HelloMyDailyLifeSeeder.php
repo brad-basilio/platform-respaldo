@@ -19,6 +19,21 @@ class HelloMyDailyLifeSeeder extends Seeder
         // Obtener el primer usuario admin o el primer usuario
         $adminUser = User::where('role', 'admin')->first() ?? User::first();
         
+        // Eliminar template existente si existe (para evitar duplicados)
+        $existingTemplate = ClassTemplate::where('title', 'Hello! My Daily Life')
+            ->orWhere(function($query) {
+                $query->where('academic_level_id', 3)
+                      ->where('session_number', '1');
+            })
+            ->first();
+        
+        if ($existingTemplate) {
+            // Eliminar preguntas asociadas primero
+            TemplateQuestion::where('class_template_id', $existingTemplate->id)->delete();
+            $existingTemplate->delete();
+            $this->command->info('🗑️ Template existente eliminado.');
+        }
+        
         // Crear el template de clase
         $template = ClassTemplate::create([
             'academic_level_id' => 3, // Avanzado (cambiar según tu BD)
