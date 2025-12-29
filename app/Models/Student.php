@@ -20,6 +20,7 @@ class Student extends Model
         'verified_enrollment_by',
         'enrollment_verified_at',
         'enrollment_verified',
+        'is_regular_student',
         // Datos Personales
         'first_name',
         'paternal_last_name',
@@ -79,6 +80,7 @@ class Student extends Model
         'payment_verified_at' => 'datetime',
         'enrollment_verified_at' => 'datetime',
         'enrollment_verified' => 'boolean',
+        'is_regular_student' => 'boolean',
         'test_date' => 'date',
         'guardian_birth_date' => 'date',
         'has_placement_test' => 'boolean',

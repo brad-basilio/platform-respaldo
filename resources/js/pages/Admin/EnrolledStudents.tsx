@@ -1177,6 +1177,92 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     }
   };
 
+  const handleToggleRegularStatus = async (student: Student) => {
+    const isCurrentlyRegular = student.isRegularStudent ?? true;
+    const newStatus = !isCurrentlyRegular;
+    
+    const result = await Swal.fire({
+      title: newStatus ? '¿Marcar como Regular?' : '¿Marcar como Especial?',
+      html: `
+        <div class="text-left">
+          <p class="text-gray-700 mb-3">
+            ${newStatus 
+              ? 'Los estudiantes <strong>regulares</strong> deben solicitar clases con anticipación mínima y solo pueden inscribirse en el próximo slot disponible.'
+              : 'Los estudiantes <strong>especiales</strong> pueden solicitar clases en cualquier horario sin restricciones de anticipación.'
+            }
+          </p>
+          <div class="${newStatus ? 'bg-gray-50 border-gray-300' : 'bg-purple-50 border-purple-300'} border-l-4 p-4 rounded">
+            <p class="text-sm ${newStatus ? 'text-gray-700' : 'text-purple-700'}">
+              <strong>${student.name}</strong> será marcado como <strong>${newStatus ? 'Regular' : 'Especial'}</strong>
+            </p>
+          </div>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: newStatus ? '#6b7280' : '#8b5cf6',
+      cancelButtonColor: '#9ca3af',
+      confirmButtonText: newStatus ? 'Sí, marcar como Regular' : 'Sí, marcar como Especial',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true,
+      customClass: {
+        confirmButton: 'px-6 py-2.5 rounded-xl font-medium',
+        cancelButton: 'px-6 py-2.5 rounded-xl font-medium'
+      }
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    try {
+      const response = await axios.patch(`/admin/students/${student.id}/toggle-regular-status`);
+
+      if (response.data.success) {
+        // Actualizar el estudiante en el estado
+        setStudents(prevStudents =>
+          prevStudents.map(s =>
+            s.id === student.id
+              ? {
+                ...s,
+                isRegularStudent: response.data.student.isRegularStudent
+              }
+              : s
+          )
+        );
+
+        await Swal.fire({
+          title: '¡Actualizado!',
+          text: response.data.message,
+          icon: 'success',
+          confirmButtonColor: '#10b981',
+          confirmButtonText: 'Entendido',
+          timer: 2000,
+          timerProgressBar: true,
+          customClass: {
+            confirmButton: 'px-6 py-2.5 rounded-xl font-medium'
+          }
+        });
+      }
+    } catch (error: unknown) {
+      console.error('Error al cambiar tipo de estudiante:', error);
+      const errorMessage = axios.isAxiosError(error)
+        ? error.response?.data?.message || 'Error al cambiar el tipo de estudiante'
+        : 'Error al cambiar el tipo de estudiante';
+
+      await Swal.fire({
+        title: 'Error',
+        text: errorMessage,
+        icon: 'error',
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Cerrar',
+        customClass: {
+          confirmButton: 'px-6 py-2.5 rounded-xl font-medium'
+        }
+      });
+    }
+  };
+
   const getGroupName = useCallback((groupId?: string) => {
     if (!groupId) return 'Sin asignar';
     const group = groups.find(g => g.id === groupId);
@@ -1349,6 +1435,55 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       }
     },
     {
+      headerName: 'Tipo',
+      field: 'isRegularStudent',
+      width: 140,
+      filter: 'agTextColumnFilter',
+      cellRenderer: (params: ICellRendererParams<Student>) => {
+        const student = params.data!;
+        const isRegular = student.isRegularStudent ?? true;
+        const isVerified = student.enrollmentVerified;
+
+        return (
+          <div className="flex items-center gap-2 h-full">
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+              isRegular 
+                ? 'bg-gray-100 text-gray-700 border border-gray-300' 
+                : 'bg-purple-100 text-purple-700 border border-purple-300'
+            }`}>
+              {isRegular ? 'Regular' : 'Especial'}
+            </span>
+
+            {/* Switch para cambiar tipo - solo habilitado si está verificado */}
+            <button
+              onClick={() => handleToggleRegularStatus(student)}
+              disabled={!isVerified}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                !isVerified
+                  ? 'bg-gray-200 cursor-not-allowed opacity-50'
+                  : isRegular
+                    ? 'bg-gray-400 focus:ring-gray-400'
+                    : 'bg-purple-500 focus:ring-purple-500'
+              }`}
+              title={
+                !isVerified
+                  ? 'Debe estar verificado para cambiar tipo'
+                  : isRegular
+                    ? 'Clic para marcar como Especial'
+                    : 'Clic para marcar como Regular'
+              }
+            >
+              <span
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                  !isRegular ? 'translate-x-5' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+          </div>
+        );
+      }
+    },
+    {
       headerName: 'Plan',
       field: 'contractedPlan',
       width: 200,
@@ -1381,7 +1516,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
         );
       }
     }
-  ], [getGroupName, studentsPendingDocs, handleVerifyEnrollment, handleUnverifyEnrollment, handleViewStudent]);
+  ], [getGroupName, studentsPendingDocs, handleVerifyEnrollment, handleUnverifyEnrollment, handleToggleRegularStatus, handleViewStudent]);
 
   // (inner duplicate modal removed)
 

@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { 
   ArrowLeft, Clock, Play, FileText, 
   Send, MessageCircle, Calendar, Lock, Users, Sparkles,
-  BookOpen, Target, Video, CheckCircle, GraduationCap
+  BookOpen, Target, Video, CheckCircle, GraduationCap, UserPlus, Plus
 } from 'lucide-react';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import axios from 'axios';
 
 interface AcademicLevel {
   id: number;
@@ -52,6 +53,7 @@ interface ClassRequest {
   student_message?: string;
   admin_response?: string;
   created_at: string;
+  scheduled_class?: ScheduledClass;
 }
 
 interface ScheduledClass {
@@ -67,35 +69,190 @@ interface Enrollment {
   scheduled_class: ScheduledClass;
 }
 
+interface StudentInfo {
+  isRegularStudent: boolean;
+  isVerified: boolean;
+}
+
+interface ClassConfig {
+  min_advance_hours: number;
+  max_advance_hours: number;
+  operation_start_hour: number;
+  operation_end_hour: number;
+}
+
+interface AvailableClass {
+  id: number;
+  scheduled_at: string;
+  teacher: { id: number; name: string } | null;
+  enrolled_count: number;
+  max_students: number;
+  available_spots: number;
+}
+
 interface Props {
   template: ClassTemplate;
   existingRequest: ClassRequest | null;
   enrollment: Enrollment | null;
+  studentInfo?: StudentInfo;
 }
 
-const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollment }) => {
+const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollment, studentInfo }) => {
   const enrolledClass = enrollment?.scheduled_class || null;
   const isEnrolled = !!enrolledClass;
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  
+  // New state for regular students
+  const [classConfig, setClassConfig] = useState<ClassConfig | null>(null);
+  const [availableClasses, setAvailableClasses] = useState<AvailableClass[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(false);
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  const [calculatedSlot, setCalculatedSlot] = useState<Date | null>(null);
+  
+  // State for special students preferred datetime
+  const [preferredDatetime, setPreferredDatetime] = useState<string>('');
+
+  // Determine if this is a regular verified student
+  const isRegularStudent = studentInfo?.isRegularStudent ?? true;
+  const isVerified = studentInfo?.isVerified ?? false;
+  const useRegularFlow = isRegularStudent && isVerified;
+
+  // Fetch class config on mount for regular students
+  useEffect(() => {
+    if (useRegularFlow) {
+      axios.get('/api/student/class-config')
+        .then(res => setClassConfig(res.data))
+        .catch(err => console.error('Error loading class config:', err));
+    }
+  }, [useRegularFlow]);
+
+  // Calculate the next available slot based on current time and config
+  const nextAvailableSlot = useMemo(() => {
+    if (!classConfig) return null;
+
+    const now = new Date();
+    const { min_advance_hours, operation_start_hour, operation_end_hour } = classConfig;
+
+    // Calculate next slot: current hour + min_advance_hours, rounded up to next full hour
+    let slotHour = now.getHours() + min_advance_hours;
+    
+    // If we're past minutes, add 1 more hour to round up to next complete hour
+    if (now.getMinutes() > 0) {
+      slotHour += 1;
+    }
+
+    // Create the slot date
+    const slot = new Date(now);
+    slot.setHours(slotHour, 0, 0, 0);
+
+    // If slot is outside operation hours today, set to start of tomorrow
+    if (slot.getHours() >= operation_end_hour) {
+      slot.setDate(slot.getDate() + 1);
+      slot.setHours(operation_start_hour, 0, 0, 0);
+    }
+
+    // If slot is before operation start, set to operation start
+    if (slot.getHours() < operation_start_hour) {
+      slot.setHours(operation_start_hour, 0, 0, 0);
+    }
+
+    return slot;
+  }, [classConfig]);
+
+  // Format date to local ISO string (without timezone conversion to UTC)
+  const toLocalISOString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  };
+
+  // Fetch available classes when modal opens for regular students
+  useEffect(() => {
+    if (showRequestModal && useRegularFlow && nextAvailableSlot) {
+      setLoadingClasses(true);
+      setSelectedClassId(null);
+      
+      axios.get(`/api/student/available-classes/${template.id}`, {
+        params: { datetime: toLocalISOString(nextAvailableSlot) }
+      })
+        .then(res => {
+          setAvailableClasses(res.data.classes || []);
+        })
+        .catch(err => {
+          console.error('Error loading available classes:', err);
+          setAvailableClasses([]);
+        })
+        .finally(() => setLoadingClasses(false));
+    }
+  }, [showRequestModal, useRegularFlow, nextAvailableSlot, template.id]);
+
+  // Update calculatedSlot when nextAvailableSlot changes (derived state)
+  useEffect(() => {
+    if (nextAvailableSlot) {
+      setCalculatedSlot(nextAvailableSlot);
+    }
+  }, [nextAvailableSlot]);
 
   const handleSubmitRequest = () => {
     if (existingRequest || enrolledClass) return;
 
     setSubmitting(true);
-    router.post('/student/class-requests', {
+    
+    // Determine requested datetime based on flow type
+    let requestedDatetime: string | null = null;
+    if (useRegularFlow) {
+      // Regular student flow
+      if (selectedClassId) {
+        // Find the selected class and use its datetime (already in correct format from server)
+        const selectedClass = availableClasses.find(c => c.id === selectedClassId);
+        requestedDatetime = selectedClass?.scheduled_at || null;
+      } else if (calculatedSlot) {
+        // Requesting a new class - use calculated slot in LOCAL time (not UTC)
+        requestedDatetime = toLocalISOString(calculatedSlot);
+      }
+    } else {
+      // Special student flow - use their preferred datetime if provided
+      if (preferredDatetime) {
+        requestedDatetime = preferredDatetime;
+      }
+    }
+    
+    const payload = {
       class_template_id: template.id,
       message: message.trim() || null,
-    }, {
+      requested_datetime: requestedDatetime,
+      target_scheduled_class_id: useRegularFlow && selectedClassId ? selectedClassId : null,
+    };
+
+    router.post('/student/class-requests', payload, {
       onSuccess: () => {
         toast.success('¡Solicitud enviada! Te notificaremos cuando sea procesada.');
         setShowRequestModal(false);
+        setMessage('');
+        setSelectedClassId(null);
+        setPreferredDatetime('');
       },
-      onError: () => {
-        toast.error('Error al enviar la solicitud');
+      onError: (errors) => {
+        const errorMsg = Object.values(errors)[0] as string || 'Error al enviar la solicitud';
+        toast.error(errorMsg);
         setSubmitting(false);
       },
+    });
+  };
+
+  const formatSlotTime = (date: Date) => {
+    return date.toLocaleString('es-PE', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
@@ -142,7 +299,15 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
           bgColor: 'bg-green-50',
           borderColor: 'border-green-200',
           label: 'Clase Programada', 
-          description: 'Ya tienes una clase asignada' 
+          description: existingRequest.scheduled_class 
+            ? `Tu clase está programada para el ${new Date(existingRequest.scheduled_class.scheduled_at).toLocaleDateString('es-PE', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}${existingRequest.scheduled_class.teacher ? ` con ${existingRequest.scheduled_class.teacher.name}` : ''}`
+            : 'Ya tienes una clase asignada' 
         },
         rejected: { 
           color: 'bg-red-500',
@@ -311,6 +476,21 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                   {status.type === 'enrolled' && enrolledClass?.meet_url && (
                     <a 
                       href={enrolledClass.meet_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full"
+                    >
+                      <Button className="w-full bg-green-600 hover:bg-green-700 h-12 text-base">
+                        <Play className="w-5 h-5 mr-2" />
+                        Entrar a la clase
+                      </Button>
+                    </a>
+                  )}
+
+                  {/* Show "Enter class" button for scheduled requests with meet_url */}
+                  {status.type === 'requested' && existingRequest?.status === 'scheduled' && existingRequest?.scheduled_class?.meet_url && (
+                    <a 
+                      href={existingRequest.scheduled_class.meet_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block w-full"
@@ -716,7 +896,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
           onClick={() => !submitting && setShowRequestModal(false)}
         >
           <div 
-            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md"
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] px-6 py-5 rounded-t-2xl">
@@ -731,32 +911,185 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
               </div>
             </div>
 
-            <div className="p-6 space-y-4">
-              <p className="text-gray-600">
-                ¿Deseas solicitar esta clase? Nuestro equipo académico revisará tu solicitud y te 
-                programará una sesión.
-              </p>
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* Regular Student Flow */}
+              {useRegularFlow ? (
+                <>
+                  {/* Calculated Slot Info */}
+                  {calculatedSlot && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                      <div className="flex items-center gap-2 text-blue-800 mb-2">
+                        <Calendar className="w-5 h-5" />
+                        <span className="font-semibold">Tu próximo horario disponible</span>
+                      </div>
+                      <p className="text-blue-900 font-medium capitalize">
+                        {formatSlotTime(calculatedSlot)}
+                      </p>
+                      <p className="text-sm text-blue-700 mt-1">
+                        Las clases deben solicitarse con al menos {classConfig?.min_advance_hours || 1} hora(s) de anticipación
+                      </p>
+                    </div>
+                  )}
 
-              <Textarea
-                label="Mensaje (opcional)"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="¿Tienes alguna preferencia de horario o comentario?"
-                rows={3}
-              />
+                  {/* Available Classes */}
+                  {loadingClasses ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="w-8 h-8 border-3 border-[#073372]/30 border-t-[#073372] rounded-full animate-spin"></div>
+                      <span className="ml-3 text-gray-600">Buscando clases disponibles...</span>
+                    </div>
+                  ) : availableClasses.length > 0 ? (
+                    <div className="space-y-3">
+                      <p className="text-gray-700 font-medium flex items-center gap-2">
+                        <Users className="w-4 h-4 text-[#17BC91]" />
+                        Grupos disponibles para este horario:
+                      </p>
+                      
+                      {availableClasses.map((cls) => (
+                        <div
+                          key={cls.id}
+                          onClick={() => setSelectedClassId(cls.id === selectedClassId ? null : cls.id)}
+                          className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                            selectedClassId === cls.id
+                              ? 'border-[#17BC91] bg-[#17BC91]/5'
+                              : 'border-gray-200 hover:border-gray-300 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                selectedClassId === cls.id ? 'bg-[#17BC91] text-white' : 'bg-gray-100 text-gray-600'
+                              }`}>
+                                <UserPlus className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900">
+                                  {cls.teacher?.name || 'Profesor por asignar'}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  {new Date(cls.scheduled_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                                cls.available_spots <= 2 
+                                  ? 'bg-orange-100 text-orange-700' 
+                                  : 'bg-green-100 text-green-700'
+                              }`}>
+                                {cls.enrolled_count}/{cls.max_students} estudiantes
+                              </span>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {cls.available_spots} cupo{cls.available_spots !== 1 ? 's' : ''} disponible{cls.available_spots !== 1 ? 's' : ''}
+                              </p>
+                            </div>
+                          </div>
+                          {selectedClassId === cls.id && (
+                            <div className="mt-3 pt-3 border-t border-[#17BC91]/20">
+                              <p className="text-sm text-[#17BC91] flex items-center gap-1">
+                                <CheckCircle className="w-4 h-4" />
+                                Solicitar unirse a este grupo
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Option to request new class */}
+                      <div className="pt-2 border-t border-gray-200">
+                        <button
+                          onClick={() => setSelectedClassId(null)}
+                          className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${
+                            selectedClassId === null
+                              ? 'border-[#073372] bg-[#073372]/5'
+                              : 'border-dashed border-gray-300 hover:border-gray-400'
+                          }`}
+                        >
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            selectedClassId === null ? 'bg-[#073372] text-white' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            <Plus className="w-5 h-5" />
+                          </div>
+                          <div className="text-left">
+                            <p className="font-medium text-gray-900">Solicitar nueva clase</p>
+                            <p className="text-sm text-gray-500">Se creará un nuevo grupo para este horario</p>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Calendar className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <p className="text-gray-700 font-medium">No hay grupos disponibles</p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Se solicitará crear una nueva clase para este horario
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Message */}
+                  <Textarea
+                    label="Mensaje (opcional)"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="¿Tienes algún comentario adicional?"
+                    rows={2}
+                  />
+                </>
+              ) : (
+                /* Special Student Flow - With datetime preference */
+                <>
+                  <p className="text-gray-600">
+                    ¿Deseas solicitar esta clase? Nuestro equipo académico revisará tu solicitud y te 
+                    programará una sesión.
+                  </p>
+
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                    <label className="flex items-center gap-2 text-purple-800 mb-3">
+                      <Calendar className="w-5 h-5" />
+                      <span className="font-semibold">¿Cuándo te gustaría tomar la clase?</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="datetime-local"
+                        value={preferredDatetime}
+                        onChange={(e) => setPreferredDatetime(e.target.value)}
+                        className="w-full h-14 px-4 bg-white border-2 border-purple-300 rounded-lg text-gray-900 text-base cursor-pointer focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 hover:border-purple-400 transition-all duration-200"
+                        style={{ colorScheme: 'light' }}
+                      />
+                    </div>
+                    <p className="text-xs text-purple-600 mt-2">
+                      Haz clic en el campo para seleccionar fecha y hora. El equipo académico lo revisará y confirmará.
+                    </p>
+                  </div>
+
+                  <Textarea
+                    label="Mensaje adicional (opcional)"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="¿Algún comentario o preferencia adicional?"
+                    rows={2}
+                  />
+                </>
+              )}
             </div>
 
             <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end gap-3 border-t">
               <Button 
                 variant="outline" 
-                onClick={() => setShowRequestModal(false)}
+                onClick={() => {
+                  setShowRequestModal(false);
+                  setSelectedClassId(null);
+                  setMessage('');
+                }}
                 disabled={submitting}
               >
                 Cancelar
               </Button>
               <Button 
                 onClick={handleSubmitRequest}
-                disabled={submitting}
+                disabled={submitting || (useRegularFlow && !calculatedSlot)}
                 className="bg-[#073372] hover:bg-[#052555]"
               >
                 {submitting ? (
@@ -767,7 +1100,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                 ) : (
                   <>
                     <Send className="w-4 h-4 mr-2" />
-                    Enviar Solicitud
+                    {selectedClassId ? 'Solicitar Unirme' : 'Enviar Solicitud'}
                   </>
                 )}
               </Button>

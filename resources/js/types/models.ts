@@ -114,6 +114,7 @@ export interface Student extends User {
   };
   enrollmentVerifiedAt?: string;
   enrollmentVerified?: boolean; // Control anti-fraude para comisiones
+  isRegularStudent?: boolean; // true = flujo con restricción horaria, false = flujo especial sin restricciones
 
   // Matrícula activa
   enrollment?: Enrollment;

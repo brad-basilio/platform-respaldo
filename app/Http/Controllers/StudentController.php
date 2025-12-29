@@ -122,6 +122,7 @@ class StudentController extends Controller
                     ] : null,
                     'enrollmentVerifiedAt' => $student->enrollment_verified_at?->toISOString(),
                     'enrollmentVerified' => $student->enrollment_verified ?? false,
+                    'isRegularStudent' => $student->is_regular_student ?? true,
                     'createdAt' => $student->created_at->toISOString(),
                     'enrolledGroups' => $student->groups->pluck('id')->toArray(),
                     'assignedGroupId' => $student->groups->first()?->id,
@@ -1756,6 +1757,65 @@ class StudentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al remover la verificación'
+            ], 500);
+        }
+    }
+
+    /**
+     * Toggle regular student status
+     * Estudiantes regulares siguen flujo con restricción horaria
+     * Estudiantes especiales mantienen flujo actual sin restricciones
+     */
+    public function toggleRegularStatus(Request $request, Student $student)
+    {
+        // Solo admins pueden cambiar el tipo de estudiante
+        if (!auth()->user()->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo los administradores pueden cambiar el tipo de estudiante'
+            ], 403);
+        }
+
+        // Solo se puede cambiar si está verificado
+        if (!$student->enrollment_verified) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El estudiante debe estar verificado para cambiar su tipo'
+            ], 422);
+        }
+
+        try {
+            $newStatus = !$student->is_regular_student;
+            $student->update([
+                'is_regular_student' => $newStatus,
+            ]);
+
+            Log::info('Tipo de estudiante actualizado', [
+                'student_id' => $student->id,
+                'student_name' => $student->user->name ?? 'N/A',
+                'is_regular_student' => $newStatus,
+                'changed_by' => auth()->user()->name,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => $newStatus 
+                    ? 'Estudiante marcado como regular' 
+                    : 'Estudiante marcado como especial',
+                'student' => [
+                    'id' => $student->id,
+                    'isRegularStudent' => $newStatus,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al cambiar tipo de estudiante', [
+                'student_id' => $student->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cambiar el tipo de estudiante'
             ], 500);
         }
     }

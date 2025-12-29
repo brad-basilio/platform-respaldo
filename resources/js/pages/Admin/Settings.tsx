@@ -11,7 +11,8 @@ import {
   RiSaveLine,
   RiFileTextLine,
   RiSecurePaymentLine,
-  RiBankCardLine
+  RiBankCardLine,
+  RiCalendarLine
 } from 'react-icons/ri';
 import { toast } from 'sonner';
 import PaymentMethodsConfig from '@/components/PaymentMethodsConfig';
@@ -41,7 +42,7 @@ interface EmailTemplate {
 }
 
 const Settings: React.FC<Props> = ({ settings }) => {
-  const [activeTab, setActiveTab] = useState<'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract' | 'schedule' | 'receipt' | 'kulki' | 'payment_methods'>('mail');
+  const [activeTab, setActiveTab] = useState<'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract' | 'schedule' | 'receipt' | 'kulki' | 'payment_methods' | 'classes'>('mail');
   const [selectedMailTemplate, setSelectedMailTemplate] = useState<string>('prospect_welcome');
 
   // Configuración de templates de email
@@ -140,6 +141,13 @@ const Settings: React.FC<Props> = ({ settings }) => {
     culqi_api_url: settings.general?.find(s => s.key === 'culqi_api_url')?.content || 'https://api.culqi.com',
   });
 
+  const classesForm = useForm({
+    class_request_min_advance_hours: settings.general?.find(s => s.key === 'class_request_min_advance_hours')?.content || '1',
+    class_request_max_advance_hours: settings.general?.find(s => s.key === 'class_request_max_advance_hours')?.content || '2',
+    class_operation_start_hour: settings.general?.find(s => s.key === 'class_operation_start_hour')?.content || '8',
+    class_operation_end_hour: settings.general?.find(s => s.key === 'class_operation_end_hour')?.content || '22',
+  });
+
   const tabs = [
     { id: 'mail', label: 'Templates de Email', icon: RiMailLine },
     { id: 'contract', label: 'Plantilla de Contrato', icon: RiFileTextLine },
@@ -147,6 +155,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
     { id: 'receipt', label: 'Comprobantes', icon: RiFileTextLine },
     { id: 'whatsapp', label: 'Configuración WhatsApp', icon: RiWhatsappLine },
     { id: 'payment', label: 'Configuración de Pagos', icon: RiSettings4Line },
+    { id: 'classes', label: 'Configuración de Clases', icon: RiCalendarLine },
     { id: 'payment_methods', label: 'Métodos de Pago (Yape/Transfer)', icon: RiBankCardLine },
     { id: 'kulki', label: 'Pasarela Culqi', icon: RiSecurePaymentLine },
     { id: 'general', label: 'Configuración General', icon: RiGlobalLine },
@@ -424,6 +433,53 @@ const Settings: React.FC<Props> = ({ settings }) => {
     });
   };
 
+  const handleClassesSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const settingsArray = [
+      {
+        key: 'class_request_min_advance_hours',
+        content: classesForm.data.class_request_min_advance_hours,
+        type: 'general',
+        description: 'Anticipación mínima en horas para solicitar clase',
+      },
+      {
+        key: 'class_request_max_advance_hours',
+        content: classesForm.data.class_request_max_advance_hours,
+        type: 'general',
+        description: 'Anticipación máxima en horas para solicitar clase',
+      },
+      {
+        key: 'class_operation_start_hour',
+        content: classesForm.data.class_operation_start_hour,
+        type: 'general',
+        description: 'Hora de inicio de operación para clases',
+      },
+      {
+        key: 'class_operation_end_hour',
+        content: classesForm.data.class_operation_end_hour,
+        type: 'general',
+        description: 'Hora de fin de operación para clases',
+      },
+    ];
+
+    classesForm.transform(() => ({ settings: settingsArray }));
+    classesForm.post('/admin/settings', {
+      onSuccess: () => {
+        toast.success('Configuración guardada', {
+          description: 'La configuración de clases ha sido actualizada',
+          duration: 4000,
+        });
+      },
+      onError: () => {
+        toast.error('Error', {
+          description: 'No se pudo guardar la configuración de clases',
+          duration: 4000,
+        });
+      }
+    });
+  };
+
   const getMailTemplateDescription = (key: string) => {
     const descriptions: Record<string, string> = {
       'welcome_email': 'Email de bienvenida para nuevos usuarios',
@@ -459,7 +515,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                   return (
                     <button
                       key={tab.id}
-                      onClick={() => setActiveTab(tab.id as 'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract' | 'schedule' | 'receipt' | 'kulki' | 'payment_methods')}
+                      onClick={() => setActiveTab(tab.id as 'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract' | 'schedule' | 'receipt' | 'kulki' | 'payment_methods' | 'classes')}
                       className={`flex items-center px-5 py-3 rounded-lg font-medium transition-all whitespace-nowrap ${
                         activeTab === tab.id
                           ? 'bg-gradient-to-r from-[#073372] to-[#17BC91] text-white shadow-lg scale-105'
@@ -1173,6 +1229,139 @@ const Settings: React.FC<Props> = ({ settings }) => {
                   >
                     <RiSaveLine className="h-5 w-5 mr-2" />
                     {paymentForm.processing ? 'Guardando...' : 'Guardar Configuración de Pagos'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Classes Configuration Tab */}
+            {activeTab === 'classes' && (
+              <form onSubmit={handleClassesSubmit} className="space-y-6">
+                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-6 mb-6">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">
+                    📅 Configuración de Solicitud de Clases
+                  </h3>
+                  <p className="text-sm text-slate-700">
+                    Configura las reglas de anticipación y horarios de operación para que los estudiantes regulares puedan solicitar clases.
+                  </p>
+                </div>
+
+                {/* Anticipación */}
+                <div className="bg-white border border-gray-200 rounded-xl p-6">
+                  <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    ⏱️ Reglas de Anticipación
+                  </h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Define la ventana de tiempo en que un estudiante regular puede solicitar una clase. 
+                    Por ejemplo, si configuras <strong>mínimo 1 hora</strong> y <strong>máximo 2 horas</strong>, 
+                    un estudiante que solicite entre las 2pm y 3pm podrá inscribirse para la clase de las 4pm.
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Anticipación mínima (horas)"
+                      type="number"
+                      min="1"
+                      max="24"
+                      value={classesForm.data.class_request_min_advance_hours}
+                      onChange={(e) => classesForm.setData('class_request_min_advance_hours', e.target.value)}
+                      helperText="Mínimo de horas antes de la clase"
+                      variant="outlined"
+                    />
+                    <Input
+                      label="Anticipación máxima (horas)"
+                      type="number"
+                      min="1"
+                      max="24"
+                      value={classesForm.data.class_request_max_advance_hours}
+                      onChange={(e) => classesForm.setData('class_request_max_advance_hours', e.target.value)}
+                      helperText="Máximo de horas antes de la clase"
+                      variant="outlined"
+                    />
+                  </div>
+                </div>
+
+                {/* Horario de operación */}
+                <div className="bg-white border border-gray-200 rounded-xl p-6">
+                  <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    🕐 Horario de Operación
+                  </h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Define el rango de horas en que se pueden programar clases. Solo se mostrarán slots dentro de este horario.
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Hora de inicio</label>
+                      <select
+                        value={classesForm.data.class_operation_start_hour}
+                        onChange={(e) => classesForm.setData('class_operation_start_hour', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17BC91] focus:border-transparent transition-all"
+                      >
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <option key={i} value={i.toString()}>
+                            {i.toString().padStart(2, '0')}:00 {i < 12 ? 'AM' : 'PM'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Hora de fin</label>
+                      <select
+                        value={classesForm.data.class_operation_end_hour}
+                        onChange={(e) => classesForm.setData('class_operation_end_hour', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17BC91] focus:border-transparent transition-all"
+                      >
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <option key={i} value={i.toString()}>
+                            {i.toString().padStart(2, '0')}:00 {i < 12 ? 'AM' : 'PM'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vista previa */}
+                <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <h4 className="text-sm font-semibold text-purple-900 mb-3">📊 Resumen de Configuración:</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-purple-700">Ventana de anticipación:</span>
+                      <span className="font-bold text-purple-900">
+                        {classesForm.data.class_request_min_advance_hours} - {classesForm.data.class_request_max_advance_hours} horas antes
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-purple-700">Horario de operación:</span>
+                      <span className="font-bold text-purple-900">
+                        {classesForm.data.class_operation_start_hour.toString().padStart(2, '0')}:00 - {classesForm.data.class_operation_end_hour.toString().padStart(2, '0')}:00
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ejemplo explicativo */}
+                <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
+                  <h4 className="text-sm font-semibold text-blue-900 mb-3">💡 Ejemplo de Funcionamiento:</h4>
+                  <p className="text-sm text-blue-800">
+                    Con la configuración actual, si un estudiante regular solicita una clase a las <strong>2:30 PM</strong>:
+                  </p>
+                  <ul className="text-sm text-blue-800 mt-2 space-y-1 list-disc list-inside">
+                    <li>Se verifica que esté dentro del horario de operación ({classesForm.data.class_operation_start_hour}:00 - {classesForm.data.class_operation_end_hour}:00)</li>
+                    <li>Se calcula el slot disponible: 2:30 PM + {classesForm.data.class_request_max_advance_hours} horas = <strong>{parseInt(classesForm.data.class_operation_start_hour) <= 14 + parseInt(classesForm.data.class_request_max_advance_hours) ? `${14 + parseInt(classesForm.data.class_request_max_advance_hours)}:00` : 'siguiente día'}</strong></li>
+                    <li>Se muestran los grupos existentes para ese horario o la opción de crear uno nuevo</li>
+                  </ul>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={classesForm.processing}
+                    className="inline-flex items-center px-6 py-3 bg-[#073372] hover:bg-[#17BC91] text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50"
+                  >
+                    <RiSaveLine className="h-5 w-5 mr-2" />
+                    {classesForm.processing ? 'Guardando...' : 'Guardar Configuración de Clases'}
                   </button>
                 </div>
               </form>

@@ -21,7 +21,8 @@ class ClassRequestController extends Controller
         $query = ClassRequest::with([
             'student.student.academicLevel',
             'template.academicLevel',
-            'scheduledClass',
+            'scheduledClass.teacher',
+            'targetScheduledClass.teacher',
             'processedBy'
         ]);
 

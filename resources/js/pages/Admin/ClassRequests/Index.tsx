@@ -58,6 +58,8 @@ interface ClassRequest {
   status: 'pending' | 'approved' | 'rejected' | 'scheduled';
   student_message?: string;
   admin_response?: string;
+  requested_datetime?: string;
+  target_scheduled_class?: ScheduledClass;
   created_at: string;
   processed_at?: string;
   student: User;
@@ -176,8 +178,17 @@ const ClassRequestsIndex: React.FC<Props> = ({
 
   const openScheduleModal = (request: ClassRequest) => {
     setSelectedRequest(request);
+    
+    // Pre-fill with requested datetime if available
+    let scheduledAt = '';
+    if (request.requested_datetime) {
+      const date = new Date(request.requested_datetime);
+      // Format for datetime-local input: YYYY-MM-DDTHH:MM
+      scheduledAt = date.toISOString().slice(0, 16);
+    }
+    
     setScheduleForm({
-      scheduled_at: '',
+      scheduled_at: scheduledAt,
       teacher_id: '',
       meet_url: '',
       max_students: 6,
@@ -202,7 +213,8 @@ const ClassRequestsIndex: React.FC<Props> = ({
 
   const openAssignModal = async (request: ClassRequest) => {
     setSelectedRequest(request);
-    setSelectedClassId('');
+    // Pre-select the group if student requested a specific one
+    setSelectedClassId(request.target_scheduled_class ? String(request.target_scheduled_class.id) : '');
     setLoadingClasses(true);
     setShowAssignModal(true);
 
@@ -315,18 +327,75 @@ const ClassRequestsIndex: React.FC<Props> = ({
       }
     },
     {
-      headerName: 'Mensaje',
-      width: 180,
+      headerName: 'Solicitud',
+      width: 220,
       cellRenderer: (params: any) => {
         const req = params.data;
+        const hasRequestedTime = !!req.requested_datetime;
+        const wantsToJoinGroup = !!req.target_scheduled_class;
+        
+        // Caso: Sin preferencia específica (ni horario ni grupo)
+        if (!hasRequestedTime && !wantsToJoinGroup) {
+          return (
+            <div className="flex flex-col justify-center h-full py-1">
+              <div className="flex items-center gap-1">
+                <CalendarPlus className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                <span className="text-xs font-medium text-gray-500">
+                  Sin preferencia horaria
+                </span>
+              </div>
+              {req.student_message && (
+                <span className="text-xs text-gray-500 truncate" title={req.student_message}>
+                  "{req.student_message}"
+                </span>
+              )}
+            </div>
+          );
+        }
+        
         return (
-          <div className="flex items-center h-full">
-            {req.student_message ? (
-              <span className="text-sm text-gray-600 truncate" title={req.student_message}>
-                {req.student_message}
-              </span>
+          <div className="flex flex-col justify-center h-full py-1">
+            {wantsToJoinGroup ? (
+              <div className="flex items-center gap-1">
+                <UserPlus className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" />
+                <span className="text-xs font-medium text-purple-700">
+                  Unirse a grupo
+                </span>
+              </div>
             ) : (
-              <span className="text-xs text-gray-400">Sin mensaje</span>
+              <div className="flex items-center gap-1">
+                <CalendarPlus className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                <span className="text-xs font-medium text-blue-700">
+                  Nueva clase
+                </span>
+              </div>
+            )}
+            {hasRequestedTime && (
+              <span className="text-xs text-gray-600 font-medium">
+                📅 {new Date(req.requested_datetime!).toLocaleDateString('es-PE', {
+                  weekday: 'short',
+                  day: '2-digit',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </span>
+            )}
+            {wantsToJoinGroup && req.target_scheduled_class?.scheduled_at && (
+              <span className="text-xs text-purple-600">
+                📅 {new Date(req.target_scheduled_class.scheduled_at).toLocaleDateString('es-PE', {
+                  weekday: 'short',
+                  day: '2-digit',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </span>
+            )}
+            {wantsToJoinGroup && req.target_scheduled_class?.teacher && (
+              <span className="text-xs text-gray-500 truncate">
+                Prof: {req.target_scheduled_class.teacher.name}
+              </span>
             )}
           </div>
         );
@@ -363,11 +432,64 @@ const ClassRequestsIndex: React.FC<Props> = ({
         const templateGroups = activeGroups[req.template?.id] || [];
         const hasAvailableGroups = templateGroups.length > 0;
         
+        // Determinar qué pidió el estudiante
+        const wantsToJoinGroup = !!req.target_scheduled_class;
+        const wantsNewClass = !!req.requested_datetime && !req.target_scheduled_class;
+        
         if (req.status === 'pending') {
           return (
             <div className="flex items-center gap-1 h-full">
-              {/* Priorizar "Unir a Grupo" si hay grupos disponibles */}
-              {hasAvailableGroups ? (
+              {/* Priorizar según la preferencia del estudiante */}
+              {wantsToJoinGroup ? (
+                // El estudiante quiere unirse a un grupo específico
+                <>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="h-8 bg-purple-600 hover:bg-purple-700 text-white text-xs px-2"
+                    title="Unir al grupo solicitado"
+                    onClick={() => openAssignModal(req)}
+                  >
+                    <UserPlus className="h-3.5 w-3.5 mr-1" />
+                    Unir
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-blue-600"
+                    title="Crear nuevo grupo en su lugar"
+                    onClick={() => openScheduleModal(req)}
+                  >
+                    <CalendarPlus className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : wantsNewClass ? (
+                // El estudiante quiere una nueva clase
+                <>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2"
+                    title="Crear nuevo grupo"
+                    onClick={() => openScheduleModal(req)}
+                  >
+                    <CalendarPlus className="h-3.5 w-3.5 mr-1" />
+                    Crear
+                  </Button>
+                  {hasAvailableGroups && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-purple-600"
+                      title="Unir a grupo existente en su lugar"
+                      onClick={() => openAssignModal(req)}
+                    >
+                      <UserPlus className="h-4 w-4" />
+                    </Button>
+                  )}
+                </>
+              ) : hasAvailableGroups ? (
+                // Solicitud libre - hay grupos disponibles
                 <>
                   <Button 
                     variant="default" 
@@ -382,35 +504,25 @@ const ClassRequestsIndex: React.FC<Props> = ({
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8 text-green-600"
-                    title="Aprobar sin asignar"
-                    onClick={() => handleApprove(req)}
-                  >
-                    <Check className="h-4 w-4" />
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button 
-                    variant="default" 
-                    size="sm" 
-                    className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2"
+                    className="h-8 w-8 text-blue-600"
                     title="Crear nuevo grupo"
                     onClick={() => openScheduleModal(req)}
                   >
-                    <CalendarPlus className="h-3.5 w-3.5 mr-1" />
-                    Crear
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 text-green-600"
-                    title="Aprobar sin asignar"
-                    onClick={() => handleApprove(req)}
-                  >
-                    <Check className="h-4 w-4" />
+                    <CalendarPlus className="h-4 w-4" />
                   </Button>
                 </>
+              ) : (
+                // Solicitud libre - no hay grupos disponibles
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2"
+                  title="Crear nuevo grupo"
+                  onClick={() => openScheduleModal(req)}
+                >
+                  <CalendarPlus className="h-3.5 w-3.5 mr-1" />
+                  Crear
+                </Button>
               )}
               <Button 
                 variant="ghost" 
@@ -428,17 +540,74 @@ const ClassRequestsIndex: React.FC<Props> = ({
         if (req.status === 'approved') {
           return (
             <div className="flex items-center gap-1 h-full">
-              {hasAvailableGroups ? (
-                <Button 
-                  variant="default" 
-                  size="sm" 
-                  className="h-8 bg-purple-600 hover:bg-purple-700 text-white text-xs px-2"
-                  title="Unir a grupo existente"
-                  onClick={() => openAssignModal(req)}
-                >
-                  <UserPlus className="h-3.5 w-3.5 mr-1" />
-                  Unir a Grupo
-                </Button>
+              {wantsToJoinGroup ? (
+                <>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="h-8 bg-purple-600 hover:bg-purple-700 text-white text-xs px-2"
+                    title="Unir al grupo solicitado"
+                    onClick={() => openAssignModal(req)}
+                  >
+                    <UserPlus className="h-3.5 w-3.5 mr-1" />
+                    Unir a Grupo
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-blue-600"
+                    title="Crear nuevo grupo"
+                    onClick={() => openScheduleModal(req)}
+                  >
+                    <CalendarPlus className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : wantsNewClass ? (
+                <>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2"
+                    title="Crear nuevo grupo"
+                    onClick={() => openScheduleModal(req)}
+                  >
+                    <CalendarPlus className="h-3.5 w-3.5 mr-1" />
+                    Crear Grupo
+                  </Button>
+                  {hasAvailableGroups && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-purple-600"
+                      title="Unir a grupo existente"
+                      onClick={() => openAssignModal(req)}
+                    >
+                      <UserPlus className="h-4 w-4" />
+                    </Button>
+                  )}
+                </>
+              ) : hasAvailableGroups ? (
+                <>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="h-8 bg-purple-600 hover:bg-purple-700 text-white text-xs px-2"
+                    title="Unir a grupo existente"
+                    onClick={() => openAssignModal(req)}
+                  >
+                    <UserPlus className="h-3.5 w-3.5 mr-1" />
+                    Unir a Grupo
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-blue-600"
+                    title="Crear nuevo grupo"
+                    onClick={() => openScheduleModal(req)}
+                  >
+                    <CalendarPlus className="h-4 w-4" />
+                  </Button>
+                </>
               ) : (
                 <Button 
                   variant="default" 
@@ -449,17 +618,6 @@ const ClassRequestsIndex: React.FC<Props> = ({
                 >
                   <CalendarPlus className="h-3.5 w-3.5 mr-1" />
                   Crear Grupo
-                </Button>
-              )}
-              {hasAvailableGroups && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8 text-blue-600"
-                  title="Crear nuevo grupo"
-                  onClick={() => openScheduleModal(req)}
-                >
-                  <CalendarPlus className="h-4 w-4" />
                 </Button>
               )}
             </div>
@@ -673,6 +831,31 @@ const ClassRequestsIndex: React.FC<Props> = ({
                   </p>
                 </div>
 
+                {/* Show student request info if available */}
+                {(selectedRequest.requested_datetime || selectedRequest.target_scheduled_class) && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-xs font-medium text-blue-800 mb-1">📋 Solicitud del estudiante:</p>
+                    {selectedRequest.target_scheduled_class ? (
+                      <p className="text-sm text-blue-700">
+                        Quiere unirse a grupo existente
+                        {selectedRequest.target_scheduled_class.teacher && (
+                          <span> (Prof. {selectedRequest.target_scheduled_class.teacher.name})</span>
+                        )}
+                      </p>
+                    ) : selectedRequest.requested_datetime ? (
+                      <p className="text-sm text-blue-700">
+                        Horario solicitado: {new Date(selectedRequest.requested_datetime).toLocaleDateString('es-PE', {
+                          weekday: 'short',
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    ) : null}
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Fecha y Hora *</label>
                   <input
@@ -810,6 +993,25 @@ const ClassRequestsIndex: React.FC<Props> = ({
                     {selectedRequest.template.academic_level.name} • Sesión {selectedRequest.template.session_number}
                   </p>
                 </div>
+
+                {/* Show if student requested a specific group */}
+                {selectedRequest.target_scheduled_class && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                    <p className="text-xs font-medium text-purple-800 mb-1">📋 El estudiante solicitó unirse a:</p>
+                    <p className="text-sm text-purple-700">
+                      {new Date(selectedRequest.target_scheduled_class.scheduled_at).toLocaleDateString('es-PE', {
+                        weekday: 'short',
+                        day: '2-digit',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                      {selectedRequest.target_scheduled_class.teacher && (
+                        <span className="font-medium"> - Prof. {selectedRequest.target_scheduled_class.teacher.name}</span>
+                      )}
+                    </p>
+                  </div>
+                )}
 
                 {loadingClasses ? (
                   <div className="text-center py-8">

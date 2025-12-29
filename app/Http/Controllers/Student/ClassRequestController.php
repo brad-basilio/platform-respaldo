@@ -5,12 +5,67 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\ClassRequest;
 use App\Models\ClassTemplate;
+use App\Models\ScheduledClass;
 use App\Models\StudentClassEnrollment;
+use App\Models\Setting;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ClassRequestController extends Controller
 {
+    /**
+     * Get class configuration settings
+     */
+    public function getClassConfig()
+    {
+        return response()->json([
+            'min_advance_hours' => (int) (Setting::where('key', 'class_request_min_advance_hours')->value('content') ?? 1),
+            'max_advance_hours' => (int) (Setting::where('key', 'class_request_max_advance_hours')->value('content') ?? 2),
+            'operation_start_hour' => (int) (Setting::where('key', 'class_operation_start_hour')->value('content') ?? 8),
+            'operation_end_hour' => (int) (Setting::where('key', 'class_operation_end_hour')->value('content') ?? 22),
+        ]);
+    }
+
+    /**
+     * Get available scheduled classes for a template at a specific datetime
+     */
+    public function getAvailableClasses(ClassTemplate $template, Request $request)
+    {
+        $request->validate([
+            'datetime' => 'required|date',
+        ]);
+
+        // The datetime from frontend already includes min_advance_hours + rounding to next full hour
+        // We use this as the minimum time for available classes
+        $calculatedSlot = Carbon::parse($request->datetime);
+        
+        // Find scheduled classes for this template on the same day
+        // Only show classes that are >= the calculated slot (which respects min advance time)
+        $classes = ScheduledClass::where('class_template_id', $template->id)
+            ->where('status', 'scheduled')
+            ->whereDate('scheduled_at', $calculatedSlot->toDateString())
+            ->where('scheduled_at', '>=', $calculatedSlot) // Only classes from calculated slot onwards
+            ->with(['teacher:id,name'])
+            ->withCount(['enrollments as enrolled_count'])
+            ->orderBy('scheduled_at')
+            ->get()
+            ->filter(fn($class) => $class->hasAvailableSpace())
+            ->map(fn($class) => [
+                'id' => $class->id,
+                'scheduled_at' => $class->scheduled_at->toISOString(),
+                'teacher' => $class->teacher ? ['id' => $class->teacher->id, 'name' => $class->teacher->name] : null,
+                'enrolled_count' => $class->enrolled_count,
+                'max_students' => $class->max_students,
+                'available_spots' => $class->max_students - $class->enrolled_count,
+            ])
+            ->values();
+
+        return response()->json([
+            'classes' => $classes,
+        ]);
+    }
+
     /**
      * Mostrar todas las plantillas del nivel del estudiante
      */
@@ -38,14 +93,14 @@ class ClassRequestController extends Controller
             ->get();
 
         // Obtener las clases en las que está inscrito el estudiante
-        $enrollments = StudentClassEnrollment::where('student_id', $user->id)
+        $enrollments = StudentClassEnrollment::where('student_id', $student->id)
             ->with(['scheduledClass.template.academicLevel'])
             ->get()
             ->keyBy(fn($e) => $e->scheduledClass->class_template_id);
 
         // Obtener las solicitudes pendientes del estudiante
         $myRequests = ClassRequest::where('student_id', $user->id)
-            ->whereIn('status', ['pending', 'approved'])
+            ->whereIn('status', ['pending', 'approved', 'scheduled'])
             ->get()
             ->keyBy('class_template_id');
 
@@ -73,20 +128,25 @@ class ClassRequestController extends Controller
         $template->load(['academicLevel', 'questions', 'resources']);
 
         // Verificar si ya tiene una inscripción o solicitud
-        $enrollment = StudentClassEnrollment::where('student_id', $user->id)
+        $enrollment = StudentClassEnrollment::where('student_id', $student->id)
             ->whereHas('scheduledClass', fn($q) => $q->where('class_template_id', $template->id))
-            ->with('scheduledClass')
+            ->with(['scheduledClass.teacher'])
             ->first();
 
         $existingRequest = ClassRequest::where('student_id', $user->id)
             ->where('class_template_id', $template->id)
-            ->whereIn('status', ['pending', 'approved'])
+            ->whereIn('status', ['pending', 'approved', 'scheduled'])
+            ->with('scheduledClass.teacher')
             ->first();
 
         return Inertia::render('Student/ClassTemplateView', [
             'template' => $template,
             'enrollment' => $enrollment,
             'existingRequest' => $existingRequest,
+            'studentInfo' => [
+                'isRegularStudent' => $student->is_regular_student ?? true,
+                'isVerified' => $student->enrollment_verified ?? false,
+            ],
         ]);
     }
 
@@ -95,10 +155,14 @@ class ClassRequestController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $rules = [
             'class_template_id' => 'required|exists:class_templates,id',
             'message' => 'nullable|string|max:500',
-        ]);
+            'requested_datetime' => 'nullable|date',
+            'target_scheduled_class_id' => 'nullable|exists:scheduled_classes,id',
+        ];
+
+        $request->validate($rules);
 
         $user = auth()->user();
         $student = $user->student;
@@ -128,11 +192,68 @@ class ClassRequestController extends Controller
             return back()->withErrors(['error' => 'Ya estás inscrito en una clase de esta sesión.']);
         }
 
+        // Si es estudiante regular verificado, validar el datetime
+        $isRegularStudent = $student->is_regular_student ?? true;
+        $isVerified = $student->enrollment_verified ?? false;
+        
+        $requestedDatetime = null;
+        $targetScheduledClassId = null;
+
+        if ($isRegularStudent && $isVerified) {
+            // Flujo regular: validar horario estrictamente
+            if (!$request->requested_datetime) {
+                return back()->withErrors(['error' => 'Debes seleccionar un horario para tu clase.']);
+            }
+
+            $requestedDatetime = Carbon::parse($request->requested_datetime);
+            $now = Carbon::now();
+
+            // Obtener configuración
+            $minAdvance = (int) (Setting::where('key', 'class_request_min_advance_hours')->value('content') ?? 1);
+            $maxAdvance = (int) (Setting::where('key', 'class_request_max_advance_hours')->value('content') ?? 2);
+            $operationStart = (int) (Setting::where('key', 'class_operation_start_hour')->value('content') ?? 8);
+            $operationEnd = (int) (Setting::where('key', 'class_operation_end_hour')->value('content') ?? 22);
+
+            // Validar que el horario esté dentro del rango de operación
+            $requestedHour = $requestedDatetime->hour;
+            if ($requestedHour < $operationStart || $requestedHour >= $operationEnd) {
+                return back()->withErrors(['error' => "El horario debe estar entre las {$operationStart}:00 y las {$operationEnd}:00."]);
+            }
+
+            // Validar anticipación mínima
+            $hoursUntilClass = $now->diffInHours($requestedDatetime, false);
+            if ($hoursUntilClass < $minAdvance) {
+                return back()->withErrors(['error' => "Debes solicitar con al menos {$minAdvance} hora(s) de anticipación."]);
+            }
+
+            // Si quiere unirse a una clase existente
+            if ($request->target_scheduled_class_id) {
+                $targetClass = ScheduledClass::find($request->target_scheduled_class_id);
+                
+                if (!$targetClass || !$targetClass->hasAvailableSpace()) {
+                    return back()->withErrors(['error' => 'La clase seleccionada ya no tiene espacio disponible.']);
+                }
+                
+                if ($targetClass->class_template_id !== $template->id) {
+                    return back()->withErrors(['error' => 'La clase seleccionada no corresponde a esta sesión.']);
+                }
+
+                $targetScheduledClassId = $targetClass->id;
+            }
+        } else {
+            // Flujo especial: guardar la preferencia de horario sin validaciones estrictas
+            if ($request->requested_datetime) {
+                $requestedDatetime = Carbon::parse($request->requested_datetime);
+            }
+        }
+
         // Crear la solicitud
         ClassRequest::create([
             'student_id' => $user->id,
             'class_template_id' => $template->id,
             'student_message' => $request->message,
+            'requested_datetime' => $requestedDatetime,
+            'target_scheduled_class_id' => $targetScheduledClassId,
             'status' => 'pending',
         ]);
 

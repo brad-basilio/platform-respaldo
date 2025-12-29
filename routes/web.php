@@ -120,6 +120,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/admin/enrolled-students', [StudentController::class, 'enrolledStudents'])->name('admin.enrolled-students');
         Route::post('/admin/students/{student}/verify-enrollment', [StudentController::class, 'verifyEnrollment'])->name('admin.students.verify-enrollment');
         Route::post('/admin/students/{student}/unverify-enrollment', [StudentController::class, 'unverifyEnrollment'])->name('admin.students.unverify-enrollment');
+        Route::patch('/admin/students/{student}/toggle-regular-status', [StudentController::class, 'toggleRegularStatus'])->name('admin.students.toggle-regular-status');
         Route::get('/admin/students/{student}/enrollment-documents', [StudentController::class, 'getEnrollmentDocuments'])->name('admin.students.enrollment-documents');
         Route::post('/admin/students/{student}/resend-contract-email', [StudentController::class, 'resendContractEmail'])->name('admin.students.resend-contract-email');
         Route::get('/admin/students/{student}/payment-schedule', [StudentController::class, 'downloadPaymentSchedule'])->name('admin.students.payment-schedule');
@@ -341,6 +342,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/student/class-templates/{template}', [StudentClassRequestController::class, 'show'])->name('student.class-templates.show');
         Route::post('/student/class-requests', [StudentClassRequestController::class, 'store'])->name('student.class-requests.store');
         Route::delete('/student/class-requests/{classRequest}', [StudentClassRequestController::class, 'destroy'])->name('student.class-requests.destroy');
+        
+        // Class config and available classes for regular students
+        Route::get('/api/student/class-config', [StudentClassRequestController::class, 'getClassConfig'])->name('api.student.class-config');
+        Route::get('/api/student/available-classes/{template}', [StudentClassRequestController::class, 'getAvailableClasses'])->name('api.student.available-classes');
         
         // Class Enrollments (ver clase inscrita)
         Route::get('/student/class-enrollments/{enrollment}', [StudentClassController::class, 'show'])->name('student.class-enrollments.show');

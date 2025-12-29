@@ -15,6 +15,8 @@ class ClassRequest extends Model
         'class_template_id',
         'status',
         'student_message',
+        'requested_datetime',
+        'target_scheduled_class_id',
         'admin_response',
         'scheduled_class_id',
         'processed_by',
@@ -23,6 +25,7 @@ class ClassRequest extends Model
 
     protected $casts = [
         'processed_at' => 'datetime',
+        'requested_datetime' => 'datetime',
     ];
 
     // Relaciones
@@ -39,6 +42,11 @@ class ClassRequest extends Model
     public function scheduledClass(): BelongsTo
     {
         return $this->belongsTo(ScheduledClass::class);
+    }
+
+    public function targetScheduledClass(): BelongsTo
+    {
+        return $this->belongsTo(ScheduledClass::class, 'target_scheduled_class_id');
     }
 
     public function processedBy(): BelongsTo
