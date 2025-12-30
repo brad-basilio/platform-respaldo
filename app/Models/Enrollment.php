@@ -107,19 +107,28 @@ class Enrollment extends Model
     }
 
     /**
-     * Total pagado hasta ahora (suma de todos los paid_amount aprobados)
+     * Total pagado hasta ahora
+     * 
+     * Incluye:
+     * - Cuotas verificadas (status = 'verified'): 100% del paid_amount
+     * - Cuotas pagadas pendientes de verificación (status = 'paid'): 100% del paid_amount
+     * - Cuotas pendientes con pago parcial (status = 'pending' pero paid_amount > 0): el paid_amount
+     * 
+     * Esto refleja todo el dinero que el estudiante ya ha pagado, 
+     * independientemente de si está verificado o no.
      */
     public function getTotalPaidAttribute(): float
     {
-        // Sumar el paid_amount de todas las cuotas
-        // (solo cuenta lo que realmente está aprobado/verificado)
-        return $this->installments()
-            ->whereIn('status', ['paid', 'verified'])
-            ->sum('paid_amount');
+        // Sumar el paid_amount de TODAS las cuotas que tienen pagos registrados
+        // Esto incluye:
+        // - verified: completamente pagadas y verificadas
+        // - paid: pagadas pero pendientes de verificación por el cajero
+        // - pending con paid_amount > 0: pagos parciales aplicados
+        return $this->installments()->sum('paid_amount');
     }
 
     /**
-     * Total pendiente (considerando pagos parciales)
+     * Total pendiente (considerando todos los pagos registrados)
      */
     public function getTotalPendingAttribute(): float
     {
