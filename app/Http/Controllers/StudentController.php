@@ -122,7 +122,7 @@ class StudentController extends Controller
                     ] : null,
                     'enrollmentVerifiedAt' => $student->enrollment_verified_at?->toISOString(),
                     'enrollmentVerified' => $student->enrollment_verified ?? false,
-                    'isRegularStudent' => $student->is_regular_student ?? true,
+                    'studentType' => $student->student_type ?? 'regular',
                     'createdAt' => $student->created_at->toISOString(),
                     'enrolledGroups' => $student->groups->pluck('id')->toArray(),
                     'assignedGroupId' => $student->groups->first()?->id,
@@ -1762,11 +1762,12 @@ class StudentController extends Controller
     }
 
     /**
-     * Toggle regular student status
-     * Estudiantes regulares siguen flujo con restricción horaria
-     * Estudiantes especiales mantienen flujo actual sin restricciones
+     * Update student type (regular, daily, weekly)
+     * - Regular: Sistema actual (1 hora anticipación, próximo slot disponible)
+     * - Daily: Puede elegir cualquier hora del día actual
+     * - Weekly: Puede elegir cualquier hora de cualquier día de la semana
      */
-    public function toggleRegularStatus(Request $request, Student $student)
+    public function updateStudentType(Request $request, Student $student)
     {
         // Solo admins pueden cambiar el tipo de estudiante
         if (!auth()->user()->isAdmin()) {
@@ -1784,27 +1785,37 @@ class StudentController extends Controller
             ], 422);
         }
 
+        // Validar el tipo
+        $request->validate([
+            'student_type' => 'required|in:regular,daily,weekly'
+        ]);
+
+        $newType = $request->student_type;
+
         try {
-            $newStatus = !$student->is_regular_student;
             $student->update([
-                'is_regular_student' => $newStatus,
+                'student_type' => $newType,
             ]);
+
+            $typeLabels = [
+                'regular' => 'Regular',
+                'daily' => 'Diario',
+                'weekly' => 'Semanal'
+            ];
 
             Log::info('Tipo de estudiante actualizado', [
                 'student_id' => $student->id,
                 'student_name' => $student->user->name ?? 'N/A',
-                'is_regular_student' => $newStatus,
+                'student_type' => $newType,
                 'changed_by' => auth()->user()->name,
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => $newStatus 
-                    ? 'Estudiante marcado como regular' 
-                    : 'Estudiante marcado como especial',
+                'message' => 'Estudiante marcado como ' . $typeLabels[$newType],
                 'student' => [
                     'id' => $student->id,
-                    'isRegularStudent' => $newStatus,
+                    'studentType' => $newType,
                 ]
             ]);
         } catch (\Exception $e) {

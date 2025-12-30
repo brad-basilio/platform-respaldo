@@ -6,7 +6,12 @@ use App\Models\Student;
 use App\Models\Enrollment;
 use App\Models\Installment;
 use App\Models\InstallmentVoucher;
+use App\Services\PaymentReceiptService;
+use App\Mail\PaymentReceiptMail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -262,6 +267,9 @@ class CashierController extends Controller
                             'payment_date' => $voucher->payment_date?->format('Y-m-d'),
                             'payment_method' => $voucher->payment_method,
                             'status' => $voucher->status,
+                            'receipt_url' => $voucher->status === 'approved' && $voucher->receipt_path
+                                ? route('voucher.receipt', $voucher->id)
+                                : null,
                             'uploadedBy' => $voucher->uploadedBy ? [
                                 'id' => $voucher->uploadedBy->id,
                                 'name' => $voucher->uploadedBy->name,
@@ -289,7 +297,7 @@ class CashierController extends Controller
         ]);
 
         // Cargar voucher con sus relaciones
-        $voucher = InstallmentVoucher::with(['installment.enrollment.student'])->findOrFail($voucherId);
+        $voucher = InstallmentVoucher::with(['installment.enrollment.student.user'])->findOrFail($voucherId);
         
         $installment = $voucher->installment;
         $student = $installment->enrollment->student;
@@ -317,11 +325,16 @@ class CashierController extends Controller
             $voucher->reviewed_at = now();
             $voucher->save();
 
-            // Actualizar el monto pagado de la cuota
-            $installment->paid_amount = $voucher->declared_amount;
+            // Calcular el total pagado sumando TODOS los vouchers aprobados de esta cuota
+            $totalPaid = $installment->vouchers()
+                ->where('status', 'approved')
+                ->sum('declared_amount');
             
-            // Si el monto pagado cubre el total, marcar como verificado
-            if ($installment->paid_amount >= $installment->amount) {
+            $installment->paid_amount = $totalPaid;
+            
+            // Si el monto pagado cubre el total (con mora si aplica), marcar como verificado
+            $totalDue = $installment->total_due; // amount + late_fee
+            if ($installment->paid_amount >= $totalDue) {
                 $installment->status = 'verified';
                 $installment->verified_by = $request->user()->id;
                 $installment->verified_at = now();
@@ -331,6 +344,26 @@ class CashierController extends Controller
             }
             
             $installment->save();
+
+            // Generar boleta de pago
+            try {
+                $receiptService = new PaymentReceiptService();
+                $receiptPath = $receiptService->generate($voucher);
+                
+                // Guardar la ruta de la boleta en el voucher
+                $voucher->receipt_path = $receiptPath;
+                $voucher->save();
+
+                // Enviar correo con la boleta al estudiante
+                $studentEmail = $student->user->email ?? $student->email;
+                if ($studentEmail) {
+                    Mail::to($studentEmail)->queue(new PaymentReceiptMail($voucher, $receiptPath));
+                    Log::info("Boleta enviada a {$studentEmail} para voucher #{$voucherId}");
+                }
+            } catch (\Exception $e) {
+                Log::error("Error generando/enviando boleta: " . $e->getMessage());
+                // No fallar la aprobación si falla la boleta
+            }
 
             $message = 'Voucher aprobado exitosamente';
         } else {
@@ -372,5 +405,82 @@ class CashierController extends Controller
         return Inertia::render('Cashier/PaymentReports', [
             'message' => 'Reportes de pagos - Próximamente'
         ]);
+    }
+
+    /**
+     * Descargar boleta de pago del voucher
+     * Accesible por: admin, cashier, y estudiantes (solo sus propios vouchers)
+     */
+    public function downloadReceipt(Request $request, int $voucherId)
+    {
+        $user = $request->user();
+        $voucher = InstallmentVoucher::with('installment.enrollment.student')->findOrFail($voucherId);
+
+        // Validar acceso según rol
+        if ($user->role === 'student') {
+            // Los estudiantes solo pueden descargar sus propias boletas
+            $student = $user->student;
+            if (!$student || $voucher->installment->enrollment->student_id !== $student->id) {
+                return response()->json([
+                    'message' => 'No tienes permiso para acceder a esta boleta'
+                ], 403);
+            }
+        } elseif (!in_array($user->role, ['admin', 'cashier'])) {
+            return response()->json([
+                'message' => 'No tienes permiso para acceder a esta boleta'
+            ], 403);
+        }
+
+        if ($voucher->status !== 'approved') {
+            return response()->json([
+                'message' => 'El voucher no ha sido aprobado aún'
+            ], 400);
+        }
+
+        if (!$voucher->receipt_path) {
+            // Si no tiene boleta, intentar generarla
+            try {
+                $receiptService = new PaymentReceiptService();
+                $receiptPath = $receiptService->generate($voucher);
+                $voucher->receipt_path = $receiptPath;
+                $voucher->save();
+            } catch (\Exception $e) {
+                Log::error('Error generando boleta: ' . $e->getMessage());
+                return response()->json([
+                    'message' => 'No se pudo generar la boleta de pago'
+                ], 500);
+            }
+        }
+
+        // Verificar que el archivo existe
+        if (!Storage::disk('public')->exists($voucher->receipt_path)) {
+            // Intentar regenerar
+            try {
+                $receiptService = new PaymentReceiptService();
+                $receiptPath = $receiptService->generate($voucher);
+                $voucher->receipt_path = $receiptPath;
+                $voucher->save();
+            } catch (\Exception $e) {
+                Log::error('Error regenerando boleta: ' . $e->getMessage());
+                return response()->json([
+                    'message' => 'El archivo de boleta no existe'
+                ], 404);
+            }
+        }
+
+        // Generar nombre de archivo descriptivo
+        $studentName = $voucher->installment->enrollment->student->user->name ?? 'estudiante';
+        $installmentNumber = $voucher->installment->installment_number;
+        $fileName = 'Boleta_Cuota' . $installmentNumber . '_' . str_replace(' ', '_', $studentName) . '.pdf';
+
+        // Descargar el archivo (forzar descarga, no abrir en navegador)
+        return Storage::disk('public')->download(
+            $voucher->receipt_path,
+            $fileName,
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $fileName . '"'
+            ]
+        );
     }
 }

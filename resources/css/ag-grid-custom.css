@@ -352,3 +352,58 @@
   text-align: center;
 }
 
+/* =========================================
+   FIX: Permitir que los dropdowns sobresalgan de las celdas
+   ========================================= */
+
+/* Para ag-theme-quartz (tema usado actualmente) */
+.ag-theme-quartz .ag-row {
+  overflow: visible !important;
+}
+
+.ag-theme-quartz .ag-cell {
+  overflow: visible !important;
+}
+
+.ag-theme-quartz .ag-cell-wrapper {
+  overflow: visible !important;
+}
+
+.ag-theme-quartz .ag-center-cols-viewport {
+  overflow: visible !important;
+}
+
+.ag-theme-quartz .ag-center-cols-container {
+  overflow: visible !important;
+}
+
+.ag-theme-quartz .ag-body-viewport {
+  overflow: visible !important;
+  overflow-y: auto !important;
+}
+
+/* Para ag-theme-alpine (por si se usa) */
+.ag-theme-alpine .ag-row {
+  overflow: visible !important;
+}
+
+.ag-theme-alpine .ag-cell {
+  overflow: visible !important;
+}
+
+.ag-theme-alpine .ag-cell-wrapper {
+  overflow: visible !important;
+}
+
+.ag-theme-alpine .ag-center-cols-viewport {
+  overflow: visible !important;
+}
+
+.ag-theme-alpine .ag-center-cols-container {
+  overflow: visible !important;
+}
+
+.ag-theme-alpine .ag-body-viewport {
+  overflow: visible !important;
+  overflow-y: auto !important;
+}

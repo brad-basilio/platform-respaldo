@@ -98,7 +98,7 @@ interface Enrollment {
 }
 
 interface StudentInfo {
-  isRegularStudent: boolean;
+  studentType: 'regular' | 'daily' | 'weekly';
   isVerified: boolean;
 }
 
@@ -188,19 +188,21 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
     passing_score: number;
   } | null>(null);
 
-  // Determine if this is a regular verified student
-  const isRegularStudent = studentInfo?.isRegularStudent ?? true;
+  // Determine student type and verification status
+  const studentType = studentInfo?.studentType ?? 'regular';
   const isVerified = studentInfo?.isVerified ?? false;
-  const useRegularFlow = isRegularStudent && isVerified;
+  const useRegularFlow = studentType === 'regular' && isVerified;
+  const useDailyFlow = studentType === 'daily' && isVerified;
+  const useWeeklyFlow = studentType === 'weekly' && isVerified;
 
-  // Fetch class config on mount for regular students
+  // Fetch class config on mount for regular, daily and weekly students
   useEffect(() => {
-    if (useRegularFlow) {
+    if (useRegularFlow || useDailyFlow || useWeeklyFlow) {
       axios.get('/api/student/class-config')
         .then(res => setClassConfig(res.data))
         .catch(err => console.error('Error loading class config:', err));
     }
-  }, [useRegularFlow]);
+  }, [useRegularFlow, useDailyFlow, useWeeklyFlow]);
 
   // Calculate the next available slot based on current time and config
   const nextAvailableSlot = useMemo(() => {
@@ -266,6 +268,26 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
     }
   }, [showRequestModal, useRegularFlow, nextAvailableSlot, template.id]);
 
+  // Fetch available classes for daily/weekly students when they select a datetime
+  useEffect(() => {
+    if (showRequestModal && (useDailyFlow || useWeeklyFlow) && preferredDatetime) {
+      setLoadingClasses(true);
+      setSelectedClassId(null);
+      
+      axios.get(`/api/student/available-classes/${template.id}`, {
+        params: { datetime: preferredDatetime }
+      })
+        .then(res => {
+          setAvailableClasses(res.data.classes || []);
+        })
+        .catch(err => {
+          console.error('Error loading available classes:', err);
+          setAvailableClasses([]);
+        })
+        .finally(() => setLoadingClasses(false));
+    }
+  }, [showRequestModal, useDailyFlow, useWeeklyFlow, preferredDatetime, template.id]);
+
   // Update calculatedSlot when nextAvailableSlot changes (derived state)
   useEffect(() => {
     if (nextAvailableSlot) {
@@ -280,18 +302,27 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
     
     // Determine requested datetime based on flow type
     let requestedDatetime: string | null = null;
+    let targetClassId: number | null = null;
+
     if (useRegularFlow) {
-      // Regular student flow
+      // Regular student flow - próximo slot disponible
       if (selectedClassId) {
-        // Find the selected class and use its datetime (already in correct format from server)
         const selectedClass = availableClasses.find(c => c.id === selectedClassId);
         requestedDatetime = selectedClass?.scheduled_at || null;
+        targetClassId = selectedClassId;
       } else if (calculatedSlot) {
-        // Requesting a new class - use calculated slot in LOCAL time (not UTC)
         requestedDatetime = toLocalISOString(calculatedSlot);
       }
+    } else if (useDailyFlow || useWeeklyFlow) {
+      // Daily/Weekly flow - usa el horario seleccionado
+      if (preferredDatetime) {
+        requestedDatetime = preferredDatetime;
+        if (selectedClassId) {
+          targetClassId = selectedClassId;
+        }
+      }
     } else {
-      // Special student flow - use their preferred datetime if provided
+      // Non-verified flow - guardar preferencia sin validaciones
       if (preferredDatetime) {
         requestedDatetime = preferredDatetime;
       }
@@ -301,7 +332,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
       class_template_id: template.id,
       message: message.trim() || null,
       requested_datetime: requestedDatetime,
-      target_scheduled_class_id: useRegularFlow && selectedClassId ? selectedClassId : null,
+      target_scheduled_class_id: targetClassId,
     };
 
     router.post('/student/class-requests', payload, {
@@ -1277,7 +1308,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
             </div>
 
             <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-              {/* Regular Student Flow */}
+              {/* Regular Student Flow - Próximo slot disponible */}
               {useRegularFlow ? (
                 <>
                   {/* Calculated Slot Info */}
@@ -1402,8 +1433,218 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                     rows={2}
                   />
                 </>
+              ) : useDailyFlow ? (
+                /* Daily Student Flow - Cualquier hora del día actual */
+                <>
+                  <div className="bg-[#17BC91]/5 border border-[#17BC91]/20 rounded-xl p-4">
+                    <div className="flex items-center gap-2 text-[#17BC91] mb-2">
+                      <Clock className="w-5 h-5" />
+                      <span className="font-semibold">Plan Diario</span>
+                    </div>
+                    <p className="text-sm text-[#17BC91]/80">
+                      Puedes elegir cualquier hora disponible para hoy. La clase debe ser al menos 30 minutos en el futuro.
+                    </p>
+                  </div>
+
+                  <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <label className="flex items-center gap-2 text-gray-700 mb-3">
+                      <Calendar className="w-5 h-5" />
+                      <span className="font-semibold">Selecciona la hora de tu clase (hoy)</span>
+                    </label>
+                    <select
+                      value={preferredDatetime}
+                      onChange={(e) => setPreferredDatetime(e.target.value)}
+                      className="w-full h-14 px-4 bg-white border-2 border-gray-200 rounded-lg text-gray-900 text-base focus:outline-none focus:border-[#17BC91] focus:ring-2 focus:ring-[#17BC91]/20 transition-all"
+                    >
+                      <option value="">Selecciona una hora...</option>
+                      {(() => {
+                        const now = new Date();
+                        const operationStart = classConfig?.operation_start_hour || 8;
+                        const operationEnd = classConfig?.operation_end_hour || 22;
+                        const options = [];
+                        
+                        for (let hour = operationStart; hour < operationEnd; hour++) {
+                          const slotDate = new Date(now);
+                          slotDate.setHours(hour, 0, 0, 0);
+                          
+                          // Solo mostrar horas que sean al menos 30 min en el futuro
+                          if (slotDate.getTime() > now.getTime() + 30 * 60 * 1000) {
+                            const value = toLocalISOString(slotDate);
+                            options.push(
+                              <option key={hour} value={value}>
+                                {hour.toString().padStart(2, '0')}:00
+                              </option>
+                            );
+                          }
+                        }
+                        return options;
+                      })()}
+                    </select>
+                  </div>
+
+                  {/* Available Classes for selected time */}
+                  {preferredDatetime && (
+                    <>
+                      {loadingClasses ? (
+                        <div className="flex items-center justify-center py-4">
+                          <div className="w-6 h-6 border-2 border-[#17BC91]/30 border-t-[#17BC91] rounded-full animate-spin"></div>
+                          <span className="ml-2 text-gray-600 text-sm">Buscando grupos...</span>
+                        </div>
+                      ) : availableClasses.length > 0 ? (
+                        <div className="space-y-3">
+                          <p className="text-gray-700 font-medium text-sm flex items-center gap-2">
+                            <Users className="w-4 h-4 text-[#17BC91]" />
+                            Grupos disponibles:
+                          </p>
+                          {availableClasses.map((cls) => (
+                            <div
+                              key={cls.id}
+                              onClick={() => setSelectedClassId(cls.id === selectedClassId ? null : cls.id)}
+                              className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                                selectedClassId === cls.id
+                                  ? 'border-[#17BC91] bg-[#17BC91]/5'
+                                  : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-gray-900">{cls.teacher?.name || 'Por asignar'}</span>
+                                <span className="text-xs text-gray-500">{cls.available_spots} cupos</span>
+                              </div>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => setSelectedClassId(null)}
+                            className={`w-full p-3 rounded-lg border-2 border-dashed transition-all ${
+                              selectedClassId === null ? 'border-[#073372] bg-[#073372]/5' : 'border-gray-300'
+                            }`}
+                          >
+                            <span className="text-sm text-gray-700">+ Solicitar nueva clase</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500 text-center py-2">
+                          No hay grupos. Se creará una nueva clase.
+                        </p>
+                      )}
+                    </>
+                  )}
+
+                  <Textarea
+                    label="Mensaje (opcional)"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="¿Tienes algún comentario adicional?"
+                    rows={2}
+                  />
+                </>
+              ) : useWeeklyFlow ? (
+                /* Weekly Student Flow - Cualquier hora de cualquier día de la semana */
+                <>
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                    <div className="flex items-center gap-2 text-purple-700 mb-2">
+                      <Calendar className="w-5 h-5" />
+                      <span className="font-semibold">Plan Semanal</span>
+                    </div>
+                    <p className="text-sm text-purple-600">
+                      Puedes elegir cualquier hora y día dentro de los próximos 7 días.
+                    </p>
+                  </div>
+
+                  <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <label className="flex items-center gap-2 text-gray-700 mb-3">
+                      <Calendar className="w-5 h-5" />
+                      <span className="font-semibold">Selecciona fecha y hora</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={preferredDatetime}
+                      onChange={(e) => setPreferredDatetime(e.target.value)}
+                      min={(() => {
+                        const now = new Date();
+                        now.setMinutes(now.getMinutes() + 30);
+                        return toLocalISOString(now).slice(0, 16);
+                      })()}
+                      max={(() => {
+                        const maxDate = new Date();
+                        maxDate.setDate(maxDate.getDate() + 7);
+                        return toLocalISOString(maxDate).slice(0, 16);
+                      })()}
+                      className="w-full h-14 px-4 bg-white border-2 border-gray-200 rounded-lg text-gray-900 text-base focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                      style={{ colorScheme: 'light' }}
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      Horarios disponibles: {classConfig?.operation_start_hour || 8}:00 - {classConfig?.operation_end_hour || 22}:00
+                    </p>
+                  </div>
+
+                  {/* Available Classes for selected time */}
+                  {preferredDatetime && (
+                    <>
+                      {loadingClasses ? (
+                        <div className="flex items-center justify-center py-4">
+                          <div className="w-6 h-6 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>
+                          <span className="ml-2 text-gray-600 text-sm">Buscando grupos...</span>
+                        </div>
+                      ) : availableClasses.length > 0 ? (
+                        <div className="space-y-3">
+                          <p className="text-gray-700 font-medium text-sm flex items-center gap-2">
+                            <Users className="w-4 h-4 text-purple-600" />
+                            Grupos disponibles para este horario:
+                          </p>
+                          {availableClasses.map((cls) => (
+                            <div
+                              key={cls.id}
+                              onClick={() => setSelectedClassId(cls.id === selectedClassId ? null : cls.id)}
+                              className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                                selectedClassId === cls.id
+                                  ? 'border-purple-500 bg-purple-50'
+                                  : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <span className="font-medium text-gray-900">{cls.teacher?.name || 'Por asignar'}</span>
+                                  <p className="text-xs text-gray-500">
+                                    {new Date(cls.scheduled_at).toLocaleString('es-PE', { 
+                                      weekday: 'short', 
+                                      day: 'numeric', 
+                                      month: 'short',
+                                      hour: '2-digit', 
+                                      minute: '2-digit' 
+                                    })}
+                                  </p>
+                                </div>
+                                <span className="text-xs text-gray-500">{cls.available_spots} cupos</span>
+                              </div>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => setSelectedClassId(null)}
+                            className={`w-full p-3 rounded-lg border-2 border-dashed transition-all ${
+                              selectedClassId === null ? 'border-purple-500 bg-purple-50' : 'border-gray-300'
+                            }`}
+                          >
+                            <span className="text-sm text-gray-700">+ Solicitar nueva clase</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500 text-center py-2">
+                          No hay grupos para este horario. Se creará una nueva clase.
+                        </p>
+                      )}
+                    </>
+                  )}
+
+                  <Textarea
+                    label="Mensaje (opcional)"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="¿Tienes algún comentario adicional?"
+                    rows={2}
+                  />
+                </>
               ) : (
-                /* Special Student Flow - With datetime preference */
+                /* Non-verified Student Flow - Sin validaciones estrictas */
                 <>
                   <p className="text-gray-600">
                     ¿Deseas solicitar esta clase? Nuestro equipo académico revisará tu solicitud y te 
@@ -1447,6 +1688,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                   setShowRequestModal(false);
                   setSelectedClassId(null);
                   setMessage('');
+                  setPreferredDatetime('');
                 }}
                 disabled={submitting}
               >
@@ -1454,7 +1696,11 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
               </Button>
               <Button 
                 onClick={handleSubmitRequest}
-                disabled={submitting || (useRegularFlow && !calculatedSlot)}
+                disabled={
+                  submitting || 
+                  (useRegularFlow && !calculatedSlot) ||
+                  ((useDailyFlow || useWeeklyFlow) && !preferredDatetime)
+                }
                 className="bg-[#073372] hover:bg-[#052555]"
               >
                 {submitting ? (

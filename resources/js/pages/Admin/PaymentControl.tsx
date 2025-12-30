@@ -227,9 +227,22 @@ const PaymentScheduleModal: React.FC<{
                                       Ver
                                     </a>
                                     {voucherStatus === 'approved' && (
-                                      <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
-                                        Aprobado
-                                      </span>
+                                      <>
+                                        <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                                          Aprobado
+                                        </span>
+                                        {voucher.receipt_url && (
+                                          <a
+                                            href={voucher.receipt_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center text-xs px-2 py-1 bg-[#073372] text-white rounded-full hover:bg-[#073372]/90"
+                                          >
+                                            <FileText className="w-3 h-3 mr-1" />
+                                            Boleta
+                                          </a>
+                                        )}
+                                      </>
                                     )}
                                     {voucherStatus === 'pending' && (
                                       <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">

@@ -453,6 +453,21 @@ const VoucherDetailModal: React.FC<{
                           </div>
                         )}
 
+                        {/* Botón de Descargar Boleta para vouchers aprobados */}
+                        {isApproved && voucher.receipt_url && (
+                          <div className="mt-4">
+                            <a
+                              href={voucher.receipt_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center px-4 py-2 bg-[#073372] hover:bg-[#073372]/90 text-white text-sm font-semibold rounded-lg transition-colors"
+                            >
+                              <FileText className="w-4 h-4 mr-2" />
+                              Ver Boleta de Pago
+                            </a>
+                          </div>
+                        )}
+
                         {/* Información del verificador si existe */}
                         {(isApproved || isRejected) && voucher.verified_by && (
                           <div className="mt-3 flex items-center text-xs text-slate-600">

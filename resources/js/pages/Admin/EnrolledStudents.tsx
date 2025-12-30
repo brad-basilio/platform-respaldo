@@ -1,5 +1,6 @@
-﻿import React, { useState, useMemo, useCallback } from 'react';
-import { Users, Eye, UserCheck, UserX, BookOpen, GraduationCap, Calendar, XCircle, CheckCircle, AlertCircle, Search, Clock, Phone, MapPin, Mail, FileText, CreditCard, User } from 'lucide-react';
+﻿import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
+import { Users, Eye, UserCheck, UserX, BookOpen, GraduationCap, Calendar, XCircle, CheckCircle, AlertCircle, Search, Clock, Phone, MapPin, Mail, FileText, CreditCard, User, ChevronDown } from 'lucide-react';
 import { Student, Group } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import { AgGridReact } from 'ag-grid-react';
@@ -11,6 +12,160 @@ import { Input, Select } from '@/components/ui/input';
 import '../../../css/ag-grid-custom.css';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Componente Dropdown para tipo de estudiante (usando Portal para sobresalir de AG Grid)
+const StudentTypeDropdown: React.FC<{
+  studentType: 'regular' | 'daily' | 'weekly';
+  isVerified: boolean;
+  onSelect: (type: 'regular' | 'daily' | 'weekly') => void;
+}> = ({ studentType, isVerified, onSelect }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const typeConfig = {
+    regular: { 
+      label: 'Regular', 
+      description: 'Solicita con 1 hora de anticipación',
+      bgClass: 'bg-gray-100', 
+      textClass: 'text-gray-700', 
+      borderClass: 'border-gray-300',
+      hoverClass: 'hover:bg-gray-50',
+      iconBg: 'bg-gray-200'
+    },
+    daily: { 
+      label: 'Diario', 
+      description: 'Elige cualquier hora del día actual',
+      bgClass: 'bg-emerald-50', 
+      textClass: 'text-emerald-700', 
+      borderClass: 'border-emerald-200',
+      hoverClass: 'hover:bg-emerald-50',
+      iconBg: 'bg-emerald-100'
+    },
+    weekly: { 
+      label: 'Semanal', 
+      description: 'Elige cualquier hora en los próximos 7 días',
+      bgClass: 'bg-purple-50', 
+      textClass: 'text-purple-700', 
+      borderClass: 'border-purple-200',
+      hoverClass: 'hover:bg-purple-50',
+      iconBg: 'bg-purple-100'
+    }
+  };
+
+  // Calcular posición del dropdown cuando se abre
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX
+      });
+    }
+  }, [isOpen]);
+
+  // Cerrar al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current && 
+        !dropdownRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Cerrar al hacer scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isOpen) setIsOpen(false);
+    };
+    window.addEventListener('scroll', handleScroll, true);
+    return () => window.removeEventListener('scroll', handleScroll, true);
+  }, [isOpen]);
+
+  const config = typeConfig[studentType];
+
+  if (!isVerified) {
+    return (
+      <div className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed">
+        {config.label}
+      </div>
+    );
+  }
+
+  // Dropdown menu renderizado como Portal
+  const dropdownMenu = isOpen ? ReactDOM.createPortal(
+    <div 
+      ref={dropdownRef}
+      className="fixed w-64 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden"
+      style={{ 
+        top: dropdownPosition.top, 
+        left: dropdownPosition.left,
+        zIndex: 99999
+      }}
+    >
+      <div className="p-2">
+        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold px-2 py-1">Tipo de estudiante</p>
+        {(Object.keys(typeConfig) as Array<'regular' | 'daily' | 'weekly'>).map((type) => {
+          const opt = typeConfig[type];
+          const isSelected = type === studentType;
+          return (
+            <button
+              key={type}
+              onClick={() => {
+                if (type !== studentType) {
+                  onSelect(type);
+                }
+                setIsOpen(false);
+              }}
+              className={`w-full text-left px-3 py-2.5 rounded-lg transition-all ${
+                isSelected 
+                  ? `${opt.bgClass} ${opt.borderClass} border` 
+                  : `${opt.hoverClass} border border-transparent`
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div className={`w-8 h-8 rounded-lg ${opt.iconBg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                  {isSelected && <CheckCircle className={`w-4 h-4 ${opt.textClass}`} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-semibold ${isSelected ? opt.textClass : 'text-gray-900'}`}>
+                    {opt.label}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-tight">
+                    {opt.description}
+                  </p>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>,
+    document.body
+  ) : null;
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${config.bgClass} ${config.textClass} ${config.borderClass} hover:shadow-md`}
+      >
+        <span>{config.label}</span>
+        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {dropdownMenu}
+    </>
+  );
+};
 
 interface Props {
   students: Student[];
@@ -1177,32 +1332,49 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     }
   };
 
-  const handleToggleRegularStatus = async (student: Student) => {
-    const isCurrentlyRegular = student.isRegularStudent ?? true;
-    const newStatus = !isCurrentlyRegular;
+  const handleChangeStudentType = async (student: Student, newType: 'regular' | 'daily' | 'weekly') => {
+    const currentType = student.studentType ?? 'regular';
+    if (currentType === newType) return;
+
+    const typeLabels = {
+      regular: 'Regular',
+      daily: 'Diario',
+      weekly: 'Semanal'
+    };
+
+    const typeDescriptions = {
+      regular: 'debe solicitar clases con anticipación mínima (1 hora) y solo puede inscribirse en el próximo slot disponible.',
+      daily: 'puede elegir cualquier hora del día actual para su clase.',
+      weekly: 'puede elegir cualquier hora de cualquier día dentro de los próximos 7 días.'
+    };
+
+    const typeColors = {
+      regular: { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-700' },
+      daily: { bg: 'bg-[#17BC91]/10', border: 'border-[#17BC91]', text: 'text-[#17BC91]' },
+      weekly: { bg: 'bg-purple-50', border: 'border-purple-300', text: 'text-purple-700' }
+    };
+
+    const colors = typeColors[newType];
     
     const result = await Swal.fire({
-      title: newStatus ? '¿Marcar como Regular?' : '¿Marcar como Especial?',
+      title: `¿Cambiar a ${typeLabels[newType]}?`,
       html: `
         <div class="text-left">
           <p class="text-gray-700 mb-3">
-            ${newStatus 
-              ? 'Los estudiantes <strong>regulares</strong> deben solicitar clases con anticipación mínima y solo pueden inscribirse en el próximo slot disponible.'
-              : 'Los estudiantes <strong>especiales</strong> pueden solicitar clases en cualquier horario sin restricciones de anticipación.'
-            }
+            El estudiante <strong>${typeLabels[newType]}</strong> ${typeDescriptions[newType]}
           </p>
-          <div class="${newStatus ? 'bg-gray-50 border-gray-300' : 'bg-purple-50 border-purple-300'} border-l-4 p-4 rounded">
-            <p class="text-sm ${newStatus ? 'text-gray-700' : 'text-purple-700'}">
-              <strong>${student.name}</strong> será marcado como <strong>${newStatus ? 'Regular' : 'Especial'}</strong>
+          <div class="${colors.bg} ${colors.border} border-l-4 p-4 rounded">
+            <p class="text-sm ${colors.text}">
+              <strong>${student.name}</strong> será marcado como <strong>${typeLabels[newType]}</strong>
             </p>
           </div>
         </div>
       `,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonColor: newStatus ? '#6b7280' : '#8b5cf6',
+      confirmButtonColor: newType === 'regular' ? '#6b7280' : newType === 'daily' ? '#17BC91' : '#8b5cf6',
       cancelButtonColor: '#9ca3af',
-      confirmButtonText: newStatus ? 'Sí, marcar como Regular' : 'Sí, marcar como Especial',
+      confirmButtonText: `Sí, marcar como ${typeLabels[newType]}`,
       cancelButtonText: 'Cancelar',
       reverseButtons: true,
       customClass: {
@@ -1216,7 +1388,9 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     }
 
     try {
-      const response = await axios.patch(`/admin/students/${student.id}/toggle-regular-status`);
+      const response = await axios.patch(`/admin/students/${student.id}/student-type`, {
+        student_type: newType
+      });
 
       if (response.data.success) {
         // Actualizar el estudiante en el estado
@@ -1225,7 +1399,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
             s.id === student.id
               ? {
                 ...s,
-                isRegularStudent: response.data.student.isRegularStudent
+                studentType: response.data.student.studentType
               }
               : s
           )
@@ -1436,49 +1610,21 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     },
     {
       headerName: 'Tipo',
-      field: 'isRegularStudent',
-      width: 140,
+      field: 'studentType',
+      width: 150,
       filter: 'agTextColumnFilter',
       cellRenderer: (params: ICellRendererParams<Student>) => {
         const student = params.data!;
-        const isRegular = student.isRegularStudent ?? true;
+        const studentType = student.studentType ?? 'regular';
         const isVerified = student.enrollmentVerified;
 
         return (
-          <div className="flex items-center gap-2 h-full">
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-              isRegular 
-                ? 'bg-gray-100 text-gray-700 border border-gray-300' 
-                : 'bg-purple-100 text-purple-700 border border-purple-300'
-            }`}>
-              {isRegular ? 'Regular' : 'Especial'}
-            </span>
-
-            {/* Switch para cambiar tipo - solo habilitado si está verificado */}
-            <button
-              onClick={() => handleToggleRegularStatus(student)}
-              disabled={!isVerified}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                !isVerified
-                  ? 'bg-gray-200 cursor-not-allowed opacity-50'
-                  : isRegular
-                    ? 'bg-gray-400 focus:ring-gray-400'
-                    : 'bg-purple-500 focus:ring-purple-500'
-              }`}
-              title={
-                !isVerified
-                  ? 'Debe estar verificado para cambiar tipo'
-                  : isRegular
-                    ? 'Clic para marcar como Especial'
-                    : 'Clic para marcar como Regular'
-              }
-            >
-              <span
-                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                  !isRegular ? 'translate-x-5' : 'translate-x-0.5'
-                }`}
-              />
-            </button>
+          <div className="flex items-center h-full">
+            <StudentTypeDropdown
+              studentType={studentType}
+              isVerified={isVerified ?? false}
+              onSelect={(type) => handleChangeStudentType(student, type)}
+            />
           </div>
         );
       }
@@ -1516,7 +1662,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
         );
       }
     }
-  ], [getGroupName, studentsPendingDocs, handleVerifyEnrollment, handleUnverifyEnrollment, handleToggleRegularStatus, handleViewStudent]);
+  ], [getGroupName, studentsPendingDocs, handleVerifyEnrollment, handleUnverifyEnrollment, handleChangeStudentType, handleViewStudent]);
 
   // (inner duplicate modal removed)
 

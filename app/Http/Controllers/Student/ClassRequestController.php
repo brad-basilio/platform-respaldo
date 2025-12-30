@@ -165,7 +165,7 @@ class ClassRequestController extends Controller
             'enrollment' => $enrollment,
             'existingRequest' => $existingRequest,
             'studentInfo' => [
-                'isRegularStudent' => $student->is_regular_student ?? true,
+                'studentType' => $student->student_type ?? 'regular',
                 'isVerified' => $student->enrollment_verified ?? false,
             ],
         ]);
@@ -214,14 +214,14 @@ class ClassRequestController extends Controller
         }
 
         // Si es estudiante regular verificado, validar el datetime
-        $isRegularStudent = $student->is_regular_student ?? true;
+        $studentType = $student->student_type ?? 'regular';
         $isVerified = $student->enrollment_verified ?? false;
         
         $requestedDatetime = null;
         $targetScheduledClassId = null;
 
-        if ($isRegularStudent && $isVerified) {
-            // Flujo regular: validar horario estrictamente
+        if ($studentType === 'regular' && $isVerified) {
+            // Flujo regular: validar horario estrictamente (1 hora anticipación, próximo slot)
             if (!$request->requested_datetime) {
                 return back()->withErrors(['error' => 'Debes seleccionar un horario para tu clase.']);
             }
@@ -261,8 +261,95 @@ class ClassRequestController extends Controller
 
                 $targetScheduledClassId = $targetClass->id;
             }
+        } elseif ($studentType === 'daily' && $isVerified) {
+            // Flujo diario: puede elegir cualquier hora del día actual
+            if (!$request->requested_datetime) {
+                return back()->withErrors(['error' => 'Debes seleccionar un horario para tu clase.']);
+            }
+
+            $requestedDatetime = Carbon::parse($request->requested_datetime);
+            $now = Carbon::now();
+
+            // Validar que sea del día actual
+            if (!$requestedDatetime->isSameDay($now)) {
+                return back()->withErrors(['error' => 'Como estudiante diario, solo puedes solicitar clases para hoy.']);
+            }
+
+            // Obtener configuración de horarios de operación
+            $operationStart = (int) (Setting::where('key', 'class_operation_start_hour')->value('content') ?? 8);
+            $operationEnd = (int) (Setting::where('key', 'class_operation_end_hour')->value('content') ?? 22);
+
+            // Validar que el horario esté dentro del rango de operación
+            $requestedHour = $requestedDatetime->hour;
+            if ($requestedHour < $operationStart || $requestedHour >= $operationEnd) {
+                return back()->withErrors(['error' => "El horario debe estar entre las {$operationStart}:00 y las {$operationEnd}:00."]);
+            }
+
+            // Validar que sea al menos 30 minutos en el futuro
+            if ($requestedDatetime->diffInMinutes($now, false) > -30) {
+                return back()->withErrors(['error' => 'Debes solicitar con al menos 30 minutos de anticipación.']);
+            }
+
+            // Si quiere unirse a una clase existente
+            if ($request->target_scheduled_class_id) {
+                $targetClass = ScheduledClass::find($request->target_scheduled_class_id);
+                
+                if (!$targetClass || !$targetClass->hasAvailableSpace()) {
+                    return back()->withErrors(['error' => 'La clase seleccionada ya no tiene espacio disponible.']);
+                }
+                
+                if ($targetClass->class_template_id !== $template->id) {
+                    return back()->withErrors(['error' => 'La clase seleccionada no corresponde a esta sesión.']);
+                }
+
+                $targetScheduledClassId = $targetClass->id;
+            }
+        } elseif ($studentType === 'weekly' && $isVerified) {
+            // Flujo semanal: puede elegir cualquier hora de cualquier día de la semana
+            if (!$request->requested_datetime) {
+                return back()->withErrors(['error' => 'Debes seleccionar un horario para tu clase.']);
+            }
+
+            $requestedDatetime = Carbon::parse($request->requested_datetime);
+            $now = Carbon::now();
+
+            // Validar que sea dentro de los próximos 7 días
+            $maxDate = $now->copy()->addDays(7)->endOfDay();
+            if ($requestedDatetime->gt($maxDate)) {
+                return back()->withErrors(['error' => 'Solo puedes solicitar clases para los próximos 7 días.']);
+            }
+
+            // Obtener configuración de horarios de operación
+            $operationStart = (int) (Setting::where('key', 'class_operation_start_hour')->value('content') ?? 8);
+            $operationEnd = (int) (Setting::where('key', 'class_operation_end_hour')->value('content') ?? 22);
+
+            // Validar que el horario esté dentro del rango de operación
+            $requestedHour = $requestedDatetime->hour;
+            if ($requestedHour < $operationStart || $requestedHour >= $operationEnd) {
+                return back()->withErrors(['error' => "El horario debe estar entre las {$operationStart}:00 y las {$operationEnd}:00."]);
+            }
+
+            // Validar que sea al menos 30 minutos en el futuro
+            if ($requestedDatetime->diffInMinutes($now, false) > -30) {
+                return back()->withErrors(['error' => 'Debes solicitar con al menos 30 minutos de anticipación.']);
+            }
+
+            // Si quiere unirse a una clase existente
+            if ($request->target_scheduled_class_id) {
+                $targetClass = ScheduledClass::find($request->target_scheduled_class_id);
+                
+                if (!$targetClass || !$targetClass->hasAvailableSpace()) {
+                    return back()->withErrors(['error' => 'La clase seleccionada ya no tiene espacio disponible.']);
+                }
+                
+                if ($targetClass->class_template_id !== $template->id) {
+                    return back()->withErrors(['error' => 'La clase seleccionada no corresponde a esta sesión.']);
+                }
+
+                $targetScheduledClassId = $targetClass->id;
+            }
         } else {
-            // Flujo especial: guardar la preferencia de horario sin validaciones estrictas
+            // Flujo para no verificados: guardar la preferencia de horario sin validaciones estrictas
             if ($request->requested_datetime) {
                 $requestedDatetime = Carbon::parse($request->requested_datetime);
             }

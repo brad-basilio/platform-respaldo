@@ -152,6 +152,9 @@ class StudentPaymentController extends Controller
                                 'paymentMethod' => $voucher->payment_method,
                                 'status' => $voucher->status,
                                 'rejectionReason' => $voucher->rejection_reason,
+                                'receiptUrl' => $voucher->status === 'approved' && $voucher->receipt_path
+                                    ? route('voucher.receipt', $voucher->id)
+                                    : null,
                                 'uploadedBy' => $voucher->uploadedBy ? [
                                     'id' => $voucher->uploadedBy->id,
                                     'name' => $voucher->uploadedBy->name,
@@ -722,6 +725,79 @@ class StudentPaymentController extends Controller
         return response()->json([
             'plans' => $plans
         ]);
+    }
+
+    /**
+     * Descargar boleta de pago del voucher
+     */
+    public function downloadReceipt(int $voucherId)
+    {
+        $user = Auth::user();
+        $student = $user->student;
+
+        if (!$student) {
+            return response()->json([
+                'message' => 'No se encontró información de estudiante'
+            ], 404);
+        }
+
+        // Buscar el voucher verificando que pertenezca al estudiante
+        $voucher = InstallmentVoucher::with('installment.enrollment')
+            ->where('id', $voucherId)
+            ->whereHas('installment.enrollment', function ($query) use ($student) {
+                $query->where('student_id', $student->id);
+            })
+            ->first();
+
+        if (!$voucher) {
+            return response()->json([
+                'message' => 'Voucher no encontrado'
+            ], 404);
+        }
+
+        if ($voucher->status !== 'approved') {
+            return response()->json([
+                'message' => 'El voucher no ha sido aprobado aún'
+            ], 400);
+        }
+
+        if (!$voucher->receipt_path) {
+            // Si no tiene boleta, intentar generarla
+            try {
+                $receiptService = new \App\Services\PaymentReceiptService();
+                $receiptPath = $receiptService->generate($voucher);
+                $voucher->receipt_path = $receiptPath;
+                $voucher->save();
+            } catch (\Exception $e) {
+                Log::error('Error generando boleta: ' . $e->getMessage());
+                return response()->json([
+                    'message' => 'No se pudo generar la boleta de pago'
+                ], 500);
+            }
+        }
+
+        // Verificar que el archivo existe
+        if (!Storage::disk('public')->exists($voucher->receipt_path)) {
+            // Intentar regenerar
+            try {
+                $receiptService = new \App\Services\PaymentReceiptService();
+                $receiptPath = $receiptService->generate($voucher);
+                $voucher->receipt_path = $receiptPath;
+                $voucher->save();
+            } catch (\Exception $e) {
+                Log::error('Error regenerando boleta: ' . $e->getMessage());
+                return response()->json([
+                    'message' => 'El archivo de boleta no existe'
+                ], 404);
+            }
+        }
+
+        // Descargar el archivo
+        return Storage::disk('public')->download(
+            $voucher->receipt_path,
+            'boleta_' . $voucher->id . '.pdf',
+            ['Content-Type' => 'application/pdf']
+        );
     }
 }
 

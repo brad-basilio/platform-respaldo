@@ -212,16 +212,21 @@ const Billing: React.FC = () => {
 
                     {/* Actions */}
                     <div className="flex items-center space-x-2 ml-4">
-                      {invoice.receiptUrl && (
+                      {invoice.receiptUrl ? (
                         <a
                           href={invoice.receiptUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-3 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
-                          title="Descargar comprobante"
+                          className="px-4 py-2 bg-[#073372] hover:bg-[#073372]/90 text-white rounded-lg transition-colors flex items-center space-x-2"
+                          title="Descargar Boleta de Pago"
                         >
-                          <Download className="w-5 h-5" />
+                          <Download className="w-4 h-4" />
+                          <span className="text-sm font-medium">Ver Boleta</span>
                         </a>
+                      ) : (
+                        <span className="px-4 py-2 bg-slate-100 text-slate-500 rounded-lg text-sm">
+                          Sin boleta
+                        </span>
                       )}
                     </div>
                   </div>

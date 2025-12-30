@@ -114,7 +114,7 @@ export interface Student extends User {
   };
   enrollmentVerifiedAt?: string;
   enrollmentVerified?: boolean; // Control anti-fraude para comisiones
-  isRegularStudent?: boolean; // true = flujo con restricción horaria, false = flujo especial sin restricciones
+  studentType?: 'regular' | 'daily' | 'weekly'; // Tipo de estudiante para flujo de clases
 
   // Matrícula activa
   enrollment?: Enrollment;
@@ -416,6 +416,7 @@ export interface InstallmentVoucher {
   installment?: Installment;
   voucher_path: string;
   voucher_url?: string;
+  receipt_url?: string; // ✅ URL para descargar boleta de pago
   declared_amount: number;
   payment_date: string;
   payment_method: 'cash' | 'transfer' | 'deposit' | 'card';

@@ -41,6 +41,7 @@ interface Installment {
     paymentMethod: string;
     status: 'pending' | 'approved' | 'rejected';
     rejectionReason: string | null;
+    receiptUrl: string | null; // ✅ URL para descargar boleta
     uploadedBy: { id: string; name: string } | null;
     reviewedBy: { id: string; name: string } | null;
     reviewedAt: string | null;
@@ -660,9 +661,24 @@ const PaymentControl: React.FC = () => {
                         </div>
                         <div className="flex items-center space-x-2">
                           {voucher.status === 'approved' && (
-                            <span className="text-xs px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium">
-                              ✓ Aprobado
-                            </span>
+                            <>
+                              <span className="text-xs px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium">
+                                ✓ Aprobado
+                              </span>
+                              {/* Botón para descargar boleta */}
+                              {voucher.receiptUrl && (
+                                <a
+                                  href={voucher.receiptUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-3 py-1.5 bg-[#073372] hover:bg-[#073372]/90 text-white text-xs font-medium rounded-lg transition-colors flex items-center space-x-1"
+                                  title="Descargar Boleta de Pago"
+                                >
+                                  <FileText className="w-3 h-3" />
+                                  <span>Ver Boleta</span>
+                                </a>
+                              )}
+                            </>
                           )}
                           {voucher.status === 'pending' && (
                             <>

@@ -65,6 +65,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('api.notifications.mark-all-as-read');
     
     // ========================================
+    // Shared route for downloading payment receipts (boletas)
+    // Accessible by admin, cashier, and students (with ownership validation)
+    // ========================================
+    Route::get('/vouchers/{voucher}/receipt', [CashierController::class, 'downloadReceipt'])->name('voucher.receipt');
+    
+    // ========================================
     // Student/Prospect Management (accessible by admin, sales_advisor, cashier)
     // ========================================
     Route::middleware('prospect.access')->group(function () {
@@ -120,7 +126,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/admin/enrolled-students', [StudentController::class, 'enrolledStudents'])->name('admin.enrolled-students');
         Route::post('/admin/students/{student}/verify-enrollment', [StudentController::class, 'verifyEnrollment'])->name('admin.students.verify-enrollment');
         Route::post('/admin/students/{student}/unverify-enrollment', [StudentController::class, 'unverifyEnrollment'])->name('admin.students.unverify-enrollment');
-        Route::patch('/admin/students/{student}/toggle-regular-status', [StudentController::class, 'toggleRegularStatus'])->name('admin.students.toggle-regular-status');
+        Route::patch('/admin/students/{student}/student-type', [StudentController::class, 'updateStudentType'])->name('admin.students.update-student-type');
         Route::get('/admin/students/{student}/enrollment-documents', [StudentController::class, 'getEnrollmentDocuments'])->name('admin.students.enrollment-documents');
         Route::post('/admin/students/{student}/resend-contract-email', [StudentController::class, 'resendContractEmail'])->name('admin.students.resend-contract-email');
         Route::get('/admin/students/{student}/payment-schedule', [StudentController::class, 'downloadPaymentSchedule'])->name('admin.students.payment-schedule');
