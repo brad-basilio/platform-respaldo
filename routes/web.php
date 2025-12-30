@@ -349,6 +349,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         // Class Enrollments (ver clase inscrita)
         Route::get('/student/class-enrollments/{enrollment}', [StudentClassController::class, 'show'])->name('student.class-enrollments.show');
+        Route::get('/api/student/class-enrollments/{enrollment}/exam-questions', [StudentClassController::class, 'getExamQuestions'])->name('api.student.exam-questions');
+        Route::get('/api/student/class-enrollments/{enrollment}/exam-results', [StudentClassController::class, 'getExamResults'])->name('api.student.exam-results');
         Route::post('/student/class-enrollments/{enrollment}/submit-exam', [StudentClassController::class, 'submitExam'])->name('student.class-enrollments.submit-exam');
         
         // Public settings endpoint (no requiere autenticación)

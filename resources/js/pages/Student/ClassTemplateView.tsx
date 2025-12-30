@@ -2,13 +2,16 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { 
   ArrowLeft, Clock, Play, FileText, 
-  Send, MessageCircle, Calendar, Lock, Users, Sparkles,
-  BookOpen, Target, Video, CheckCircle, GraduationCap, UserPlus, Plus
+  Send, Calendar, Lock, Users, Sparkles,
+  BookOpen, Target, Video, CheckCircle, GraduationCap, UserPlus, Plus,
+  FileQuestion, Award, Download, ExternalLink, Image, Film, Link as LinkIcon,
+  X, ChevronLeft, ChevronRight, Loader2, Eye, XCircle
 } from 'lucide-react';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import axios from 'axios';
 
@@ -24,11 +27,22 @@ interface Question {
   order: number;
 }
 
+interface ExamQuestion {
+  id: number;
+  question: string;
+  type: 'multiple_choice' | 'true_false';
+  options: { text: string }[];
+  points: number;
+}
+
 interface Resource {
   id: number;
-  title: string;
-  type: 'video' | 'pdf' | 'image' | 'link' | 'document';
+  name: string;
+  file_type: 'video' | 'pdf' | 'image' | 'link' | 'document';
   description?: string;
+  file_path?: string;
+  file_size?: number;
+  download_url?: string;
 }
 
 interface ClassTemplate {
@@ -45,6 +59,11 @@ interface ClassTemplate {
   academic_level: AcademicLevel;
   questions: Question[];
   resources: Resource[];
+  // Exam configuration
+  has_exam: boolean;
+  exam_questions_count: number;
+  exam_passing_score: number;
+  exam_max_attempts?: number;
 }
 
 interface ClassRequest {
@@ -67,6 +86,14 @@ interface ScheduledClass {
 interface Enrollment {
   id: number;
   scheduled_class: ScheduledClass;
+  exam_completed?: boolean;
+  exam_score?: number;
+  // Latest exam attempt info
+  latest_exam_score?: number;
+  latest_exam_total_points?: number;
+  latest_exam_percentage?: number;
+  latest_exam_passed?: boolean;
+  exam_attempts_count?: number;
 }
 
 interface StudentInfo {
@@ -113,6 +140,48 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
   
   // State for special students preferred datetime
   const [preferredDatetime, setPreferredDatetime] = useState<string>('');
+
+  // Exam modal states
+  const [showExamModal, setShowExamModal] = useState(false);
+  const [examQuestions, setExamQuestions] = useState<ExamQuestion[]>([]);
+  const [loadingExam, setLoadingExam] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [submittingExam, setSubmittingExam] = useState(false);
+  const [examResult, setExamResult] = useState<{
+    score: number;
+    total_points: number;
+    percentage: number;
+    passed: boolean;
+    passing_score: number;
+    attempts: number;
+  } | null>(null);
+
+  // Exam review modal states
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [loadingReview, setLoadingReview] = useState(false);
+  const [examReview, setExamReview] = useState<{
+    attempt: {
+      score: number;
+      total_points: number;
+      percentage: number;
+      passed: boolean;
+      completed_at: string;
+    };
+    questions: Array<{
+      question: string;
+      student_answer: string | null;
+      is_correct: boolean;
+      points_earned: number;
+      points_possible: number;
+      correct_answer?: string;
+    }>;
+    attempts_used: number;
+    max_attempts: number;
+    attempts_exhausted: boolean;
+    show_correct_answers: boolean;
+    passing_score: number;
+  } | null>(null);
 
   // Determine if this is a regular verified student
   const isRegularStudent = studentInfo?.isRegularStudent ?? true;
@@ -256,14 +325,104 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
     });
   };
 
+  // Exam functions
+  const handleStartExam = async () => {
+    if (!enrollment) return;
+    
+    setLoadingExam(true);
+    setShowExamModal(true);
+    setAnswers({});
+    setCurrentQuestion(0);
+    setExamResult(null);
+    
+    try {
+      const response = await axios.get(`/api/student/class-enrollments/${enrollment.id}/exam-questions`);
+      setExamQuestions(response.data.questions);
+    } catch (error) {
+      const axiosError = error as { response?: { data?: { error?: string } } };
+      toast.error(axiosError.response?.data?.error || 'Error al cargar el examen');
+      setShowExamModal(false);
+    } finally {
+      setLoadingExam(false);
+    }
+  };
+
+  const handleAnswerSelect = (questionIndex: number, answer: string) => {
+    setAnswers(prev => ({
+      ...prev,
+      [questionIndex]: answer
+    }));
+  };
+
+  const handleSubmitExam = async () => {
+    if (!enrollment || examQuestions.length === 0) return;
+    
+    setSubmittingExam(true);
+    
+    // Send question IDs along with answers to ensure correct matching
+    const answersWithQuestions = examQuestions.map((question, index) => ({
+      question_id: question.id,
+      answer: answers[index] || null
+    }));
+    
+    try {
+      const response = await axios.post(`/student/class-enrollments/${enrollment.id}/submit-exam`, {
+        answers: answersWithQuestions
+      });
+      
+      // Show results
+      setExamResult(response.data);
+      setSubmittingExam(false);
+      
+      if (response.data.passed) {
+        toast.success('¡Felicitaciones! Has aprobado la evaluación.');
+      } else {
+        toast.error('No alcanzaste el puntaje mínimo. Puedes intentar de nuevo.');
+      }
+    } catch (error) {
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      toast.error(axiosError.response?.data?.message || 'Error al enviar el examen');
+      setSubmittingExam(false);
+    }
+  };
+
+  const handleCloseExamAndReload = () => {
+    setShowExamModal(false);
+    setExamResult(null);
+    router.reload();
+  };
+
+  // View exam results/review
+  const handleViewExamReview = async () => {
+    if (!enrollment) return;
+    
+    setLoadingReview(true);
+    setShowReviewModal(true);
+    
+    try {
+      const response = await axios.get(`/api/student/class-enrollments/${enrollment.id}/exam-results`);
+      setExamReview(response.data);
+    } catch (error) {
+      const axiosError = error as { response?: { data?: { error?: string } } };
+      toast.error(axiosError.response?.data?.error || 'Error al cargar los resultados');
+      setShowReviewModal(false);
+    } finally {
+      setLoadingReview(false);
+    }
+  };
+
+  const examProgress = examQuestions.length > 0
+    ? Math.round((Object.keys(answers).length / examQuestions.length) * 100)
+    : 0;
+
   const getStatusInfo = () => {
     if (enrolledClass) {
       return {
         type: 'enrolled',
-        color: 'bg-green-500',
-        textColor: 'text-green-700',
-        bgColor: 'bg-green-50',
-        borderColor: 'border-green-200',
+        color: 'bg-[#17BC91]',
+        textColor: 'text-[#17BC91]',
+        bgColor: 'bg-[#17BC91]/10',
+        borderColor: 'border-[#17BC91]/30',
         label: 'Inscrito',
         description: `Clase programada para el ${new Date(enrolledClass.scheduled_at).toLocaleDateString('es-PE', {
           weekday: 'long',
@@ -278,26 +437,26 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
     if (existingRequest) {
       const statuses: Record<string, { color: string; textColor: string; bgColor: string; borderColor: string; label: string; description: string }> = {
         pending: { 
-          color: 'bg-orange-500',
-          textColor: 'text-orange-700',
-          bgColor: 'bg-orange-50',
-          borderColor: 'border-orange-200',
+          color: 'bg-[#F98613]',
+          textColor: 'text-[#F98613]',
+          bgColor: 'bg-[#F98613]/10',
+          borderColor: 'border-[#F98613]/30',
           label: 'Solicitud Pendiente', 
           description: 'Tu solicitud está siendo revisada por el equipo académico' 
         },
         approved: { 
-          color: 'bg-cyan-500',
-          textColor: 'text-cyan-700',
-          bgColor: 'bg-cyan-50',
-          borderColor: 'border-cyan-200',
+          color: 'bg-[#17BC91]',
+          textColor: 'text-[#17BC91]',
+          bgColor: 'bg-[#17BC91]/10',
+          borderColor: 'border-[#17BC91]/30',
           label: 'Solicitud Aprobada', 
           description: 'Tu solicitud fue aprobada. Pronto te asignarán una clase' 
         },
         scheduled: { 
-          color: 'bg-green-500',
-          textColor: 'text-green-700',
-          bgColor: 'bg-green-50',
-          borderColor: 'border-green-200',
+          color: 'bg-[#17BC91]',
+          textColor: 'text-[#17BC91]',
+          bgColor: 'bg-[#17BC91]/10',
+          borderColor: 'border-[#17BC91]/30',
           label: 'Clase Programada', 
           description: existingRequest.scheduled_class 
             ? `Tu clase está programada para el ${new Date(existingRequest.scheduled_class.scheduled_at).toLocaleDateString('es-PE', {
@@ -311,7 +470,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
         },
         rejected: { 
           color: 'bg-red-500',
-          textColor: 'text-red-700',
+          textColor: 'text-red-600',
           bgColor: 'bg-red-50',
           borderColor: 'border-red-200',
           label: 'Solicitud Rechazada', 
@@ -437,18 +596,20 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                 )}
 
                 {/* Stats */}
-                <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-6">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    <span>{template.duration_minutes} minutos</span>
+                <div className="flex flex-wrap gap-3 text-sm mb-6">
+                  <div className="flex items-center gap-2 bg-[#073372]/5 px-3 py-1.5 rounded-full">
+                    <Clock className="w-4 h-4 text-[#073372]" />
+                    <span className="text-[#073372] font-medium">{template.duration_minutes} min</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <MessageCircle className="w-4 h-4" />
-                    <span>{template.questions.length} preguntas</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    <span>{template.resources.length} recursos</span>
+                  {template.has_exam && (
+                    <div className="flex items-center gap-2 bg-[#F98613]/10 px-3 py-1.5 rounded-full">
+                      <FileQuestion className="w-4 h-4 text-[#F98613]" />
+                      <span className="text-[#F98613] font-medium">{template.exam_questions_count} preguntas</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 bg-[#17BC91]/10 px-3 py-1.5 rounded-full">
+                    <FileText className="w-4 h-4 text-[#17BC91]" />
+                    <span className="text-[#17BC91] font-medium">{template.resources.length} recursos</span>
                   </div>
                 </div>
 
@@ -525,10 +686,10 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
               {/* Objetivos */}
               {template.objectives && (
                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                  <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                  <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-[#073372]/5 to-transparent">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Target className="w-5 h-5 text-blue-600" />
+                      <div className="w-10 h-10 bg-[#073372] rounded-lg flex items-center justify-center">
+                        <Target className="w-5 h-5 text-white" />
                       </div>
                       <h2 className="text-lg font-semibold text-gray-900">Objetivos de Aprendizaje</h2>
                     </div>
@@ -544,10 +705,10 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
               {/* Contenido */}
               {template.content && (
                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                  <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                  <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-[#17BC91]/5 to-transparent">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <BookOpen className="w-5 h-5 text-purple-600" />
+                      <div className="w-10 h-10 bg-[#17BC91] rounded-lg flex items-center justify-center">
+                        <BookOpen className="w-5 h-5 text-white" />
                       </div>
                       <h2 className="text-lg font-semibold text-gray-900">Contenido de la Clase</h2>
                     </div>
@@ -561,69 +722,180 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                 </div>
               )}
 
-              {/* Preguntas de Discusión - BLOQUEADAS si no está inscrito */}
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                        <MessageCircle className="w-5 h-5 text-amber-600" />
+              {/* Sección de Examen - Solo si tiene examen */}
+              {template.has_exam && (
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                  <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-[#F98613]/5 to-transparent">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-[#F98613] rounded-lg flex items-center justify-center">
+                          <FileQuestion className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-semibold text-gray-900">Examen de Evaluación</h2>
+                          <p className="text-sm text-gray-500">Evalúa tu comprensión del tema</p>
+                        </div>
                       </div>
-                      <div>
-                        <h2 className="text-lg font-semibold text-gray-900">Preguntas de Discusión</h2>
-                        <p className="text-sm text-gray-500">{template.questions.length} preguntas preparadas</p>
-                      </div>
+                      {canAccessContent && enrollment?.exam_completed && (
+                        <Badge className="bg-emerald-500 text-white">
+                          <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                          Completado
+                        </Badge>
+                      )}
                     </div>
-                    {!canAccessContent && (
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <Lock className="w-4 h-4" />
-                        <span className="text-sm">Bloqueado</span>
+                  </div>
+                  
+                  <div className="p-6">
+                    {canAccessContent ? (
+                      <div className="space-y-4">
+                        {/* Exam Info Cards */}
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="bg-[#073372]/5 rounded-xl p-4 text-center">
+                            <div className="w-12 h-12 bg-[#073372] rounded-full flex items-center justify-center mx-auto mb-2">
+                              <FileQuestion className="w-6 h-6 text-white" />
+                            </div>
+                            <p className="text-2xl font-bold text-[#073372]">{template.exam_questions_count}</p>
+                            <p className="text-xs text-gray-500">Preguntas</p>
+                          </div>
+                          <div className="bg-[#17BC91]/5 rounded-xl p-4 text-center">
+                            <div className="w-12 h-12 bg-[#17BC91] rounded-full flex items-center justify-center mx-auto mb-2">
+                              <Award className="w-6 h-6 text-white" />
+                            </div>
+                            <p className="text-2xl font-bold text-[#17BC91]">{template.exam_passing_score}%</p>
+                            <p className="text-xs text-gray-500">Para aprobar</p>
+                          </div>
+                          <div className="bg-[#F98613]/5 rounded-xl p-4 text-center">
+                            <div className="w-12 h-12 bg-[#F98613] rounded-full flex items-center justify-center mx-auto mb-2">
+                              <Clock className="w-6 h-6 text-white" />
+                            </div>
+                            <p className="text-2xl font-bold text-[#F98613]">~{Math.ceil(template.exam_questions_count * 1.5)}</p>
+                            <p className="text-xs text-gray-500">Minutos aprox.</p>
+                          </div>
+                        </div>
+
+                        {/* Exam Status & Action */}
+                        {enrollment?.exam_completed ? (
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center">
+                                  <CheckCircle className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-emerald-800">¡Examen aprobado!</p>
+                                  <p className="text-sm text-emerald-600">
+                                    Tu puntuación: {enrollment.latest_exam_percentage ?? enrollment.exam_score}%
+                                    {enrollment.exam_attempts_count && enrollment.exam_attempts_count > 1 && (
+                                      <span className="text-emerald-500 ml-2">({enrollment.exam_attempts_count} intentos)</span>
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                              <Button 
+                                variant="outline" 
+                                className="border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                                onClick={handleViewExamReview}
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                Ver examen
+                              </Button>
+                            </div>
+                          </div>
+                        ) : enrollment?.exam_attempts_count && enrollment.exam_attempts_count > 0 ? (
+                          /* Has attempted but not passed yet */
+                          (() => {
+                            const maxAttempts = template.exam_max_attempts ?? 3;
+                            const attemptsUsed = enrollment.exam_attempts_count;
+                            const attemptsRemaining = maxAttempts - attemptsUsed;
+                            const attemptsExhausted = attemptsRemaining <= 0;
+                            
+                            return (
+                              <div className={`${attemptsExhausted ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'} border rounded-xl p-4`}>
+                                <div className="flex flex-col gap-4">
+                                  <div className="flex items-start gap-3">
+                                    <div className={`w-10 h-10 ${attemptsExhausted ? 'bg-red-500' : 'bg-amber-500'} rounded-full flex items-center justify-center flex-shrink-0`}>
+                                      <FileQuestion className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className={`font-semibold ${attemptsExhausted ? 'text-red-800' : 'text-amber-800'}`}>
+                                        {attemptsExhausted ? 'Sin intentos restantes' : 'Examen no aprobado aún'}
+                                      </p>
+                                      <p className={`text-sm ${attemptsExhausted ? 'text-red-600' : 'text-amber-600'}`}>
+                                        Último intento: {enrollment.latest_exam_percentage}% 
+                                        <span className={`ml-1 ${attemptsExhausted ? 'text-red-500' : 'text-amber-500'}`}>(mínimo: {template.exam_passing_score}%)</span>
+                                      </p>
+                                      <p className={`text-xs mt-1 ${attemptsExhausted ? 'text-red-500' : 'text-amber-500'}`}>
+                                        {attemptsUsed} de {maxAttempts} intento{maxAttempts !== 1 ? 's' : ''} usado{attemptsUsed !== 1 ? 's' : ''}
+                                        {!attemptsExhausted && (
+                                          <span className="font-medium ml-1">
+                                            • {attemptsRemaining} restante{attemptsRemaining !== 1 ? 's' : ''}
+                                          </span>
+                                        )}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex flex-wrap gap-2 justify-end">
+                                    <Button 
+                                      variant="outline"
+                                      className={`${attemptsExhausted ? 'border-red-300 text-red-700 hover:bg-red-100' : 'border-amber-300 text-amber-700 hover:bg-amber-100'}`}
+                                      onClick={handleViewExamReview}
+                                    >
+                                      <Eye className="w-4 h-4 mr-2" />
+                                      Ver mi examen
+                                    </Button>
+                                    {!attemptsExhausted && (
+                                      <Button 
+                                        className="bg-[#F98613] hover:bg-[#d96f0a] text-white"
+                                        onClick={handleStartExam}
+                                      >
+                                        <FileQuestion className="w-4 h-4 mr-2" />
+                                        Intentar de nuevo
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <div className="bg-gradient-to-r from-[#F98613]/10 to-[#F98613]/5 border border-[#F98613]/20 rounded-xl p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-gray-900">¿Listo para el examen?</p>
+                                <p className="text-sm text-gray-600">Pon a prueba lo que has aprendido</p>
+                              </div>
+                              <Button 
+                                className="bg-[#F98613] hover:bg-[#d96f0a] text-white"
+                                onClick={handleStartExam}
+                              >
+                                <FileQuestion className="w-4 h-4 mr-2" />
+                                Iniciar Examen
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Lock className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <p className="text-gray-500 font-medium mb-1">Examen bloqueado</p>
+                        <p className="text-sm text-gray-400">Inscríbete en la clase para acceder al examen</p>
                       </div>
                     )}
                   </div>
                 </div>
-                
-                {canAccessContent ? (
-                  <div className="px-6 py-4">
-                    {template.questions.length > 0 ? (
-                      <div className="space-y-3">
-                        {template.questions.sort((a, b) => a.order - b.order).map((q, idx) => (
-                          <div 
-                            key={q.id} 
-                            className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg"
-                          >
-                            <div 
-                              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-white"
-                              style={{ backgroundColor: template.academic_level?.color || '#073372' }}
-                            >
-                              {idx + 1}
-                            </div>
-                            <p className="text-gray-700 leading-relaxed pt-1">{q.question}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 text-center py-4">No hay preguntas definidas</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="px-6 py-8 text-center">
-                    <Lock className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p className="text-gray-500 mb-1">Contenido bloqueado</p>
-                    <p className="text-sm text-gray-400">
-                      Solicita esta clase para ver las preguntas de discusión
-                    </p>
-                  </div>
-                )}
-              </div>
+              )}
 
-              {/* Recursos - BLOQUEADOS si no está inscrito */}
+              {/* Recursos de la Clase - Mejorado */}
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-[#17BC91]/5 to-transparent">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                        <FileText className="w-5 h-5 text-green-600" />
+                      <div className="w-10 h-10 bg-[#17BC91] rounded-lg flex items-center justify-center">
+                        <FileText className="w-5 h-5 text-white" />
                       </div>
                       <div>
                         <h2 className="text-lg font-semibold text-gray-900">Recursos de la Clase</h2>
@@ -640,32 +912,81 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                 </div>
                 
                 {canAccessContent ? (
-                  <div className="px-6 py-4">
+                  <div className="p-6">
                     {template.resources.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {template.resources.map((res) => (
-                          <div
-                            key={res.id}
-                            className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors cursor-pointer"
-                          >
-                            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                              <FileText className="w-5 h-5 text-gray-600" />
+                      <div className="space-y-3">
+                        {template.resources.map((res) => {
+                          const getResourceIcon = () => {
+                            switch (res.file_type) {
+                              case 'video': return <Film className="w-5 h-5" />;
+                              case 'pdf': return <FileText className="w-5 h-5" />;
+                              case 'image': return <Image className="w-5 h-5" />;
+                              case 'link': return <LinkIcon className="w-5 h-5" />;
+                              default: return <FileText className="w-5 h-5" />;
+                            }
+                          };
+                          
+                          const getResourceColor = () => {
+                            switch (res.file_type) {
+                              case 'video': return 'bg-red-500';
+                              case 'pdf': return 'bg-red-600';
+                              case 'image': return 'bg-blue-500';
+                              case 'link': return 'bg-[#17BC91]';
+                              default: return 'bg-gray-500';
+                            }
+                          };
+
+                          return (
+                            <div
+                              key={res.id}
+                              className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-[#17BC91]/50 hover:shadow-md transition-all duration-200 group cursor-pointer"
+                            >
+                              <div className={`w-12 h-12 ${getResourceColor()} rounded-xl flex items-center justify-center flex-shrink-0 text-white`}>
+                                {getResourceIcon()}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 group-hover:text-[#073372] transition-colors">{res.name}</p>
+                                {res.description && (
+                                  <p className="text-sm text-gray-500 line-clamp-1">{res.description}</p>
+                                )}
+                                <p className="text-xs text-gray-400 capitalize mt-1">{res.file_type}</p>
+                              </div>
+                              <Button 
+                                size="sm" 
+                                variant="ghost"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-[#17BC91] hover:text-[#14a77f] hover:bg-[#17BC91]/10"
+                              >
+                                {res.file_type === 'link' ? (
+                                  <>
+                                    <ExternalLink className="w-4 h-4 mr-1" />
+                                    Abrir
+                                  </>
+                                ) : (
+                                  <>
+                                    <Download className="w-4 h-4 mr-1" />
+                                    Descargar
+                                  </>
+                                )}
+                              </Button>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">{res.title}</p>
-                              <p className="text-xs text-gray-500 capitalize">{res.type}</p>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
-                      <p className="text-gray-500 text-center py-4">No hay recursos disponibles</p>
+                      <div className="text-center py-8">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <FileText className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <p className="text-gray-500">No hay recursos disponibles para esta clase</p>
+                      </div>
                     )}
                   </div>
                 ) : (
                   <div className="px-6 py-8 text-center">
-                    <Lock className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p className="text-gray-500 mb-1">Contenido bloqueado</p>
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Lock className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <p className="text-gray-500 font-medium mb-1">Contenido bloqueado</p>
                     <p className="text-sm text-gray-400">
                       Solicita esta clase para acceder a los recursos
                     </p>
@@ -710,32 +1031,43 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                     <span className="text-gray-500 text-sm">Duración</span>
                     <span className="font-medium text-gray-900">{template.duration_minutes} min</span>
                   </div>
+
+                  {template.has_exam && (
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-gray-500 text-sm">Examen</span>
+                      <Badge className="bg-[#F98613] text-white border-0">
+                        {template.exam_questions_count} preguntas
+                      </Badge>
+                    </div>
+                  )}
                   
                   <div className="flex items-center justify-between py-2">
-                    <span className="text-gray-500 text-sm">Preguntas</span>
-                    <span className="font-medium text-gray-900">{template.questions.length}</span>
+                    <span className="text-gray-500 text-sm">Recursos</span>
+                    <span className="font-medium text-gray-900">{template.resources.length}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Tips Card */}
-              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-100 p-6">
-                <h3 className="font-semibold text-blue-900 mb-3">💡 Consejos</h3>
-                <ul className="space-y-2 text-sm text-blue-800">
+              {/* Tips Card - Con colores UNCED */}
+              <div className="bg-gradient-to-br from-[#073372]/5 via-white to-[#17BC91]/5 rounded-xl border border-[#073372]/10 p-6">
+                <h3 className="font-semibold text-[#073372] mb-3 flex items-center gap-2">
+                  💡 Consejos para la clase
+                </h3>
+                <ul className="space-y-2 text-sm text-gray-700">
                   <li className="flex items-start gap-2">
-                    <CheckCircle className="w-4 h-4 mt-0.5 text-blue-500 flex-shrink-0" />
+                    <CheckCircle className="w-4 h-4 mt-0.5 text-[#17BC91] flex-shrink-0" />
                     <span>Revisa los objetivos antes de la clase</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle className="w-4 h-4 mt-0.5 text-blue-500 flex-shrink-0" />
+                    <CheckCircle className="w-4 h-4 mt-0.5 text-[#17BC91] flex-shrink-0" />
                     <span>Prepara vocabulario relacionado al tema</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle className="w-4 h-4 mt-0.5 text-blue-500 flex-shrink-0" />
+                    <CheckCircle className="w-4 h-4 mt-0.5 text-[#17BC91] flex-shrink-0" />
                     <span>No tengas miedo de cometer errores</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle className="w-4 h-4 mt-0.5 text-blue-500 flex-shrink-0" />
+                    <CheckCircle className="w-4 h-4 mt-0.5 text-[#17BC91] flex-shrink-0" />
                     <span>Participa activamente en las discusiones</span>
                   </li>
                 </ul>
@@ -749,7 +1081,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                     Tu Profesor
                   </h3>
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-[#073372] flex items-center justify-center text-white font-bold">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#073372] to-[#17BC91] flex items-center justify-center text-white font-bold">
                       {enrolledClass.teacher.name.charAt(0)}
                     </div>
                     <div>
@@ -762,12 +1094,12 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
 
               {/* Scheduled Info */}
               {isEnrolled && enrolledClass && (
-                <div className="bg-green-50 rounded-xl border border-green-200 p-6">
-                  <h3 className="font-semibold text-green-900 mb-3 flex items-center gap-2">
+                <div className="bg-gradient-to-br from-[#17BC91]/10 to-[#17BC91]/5 rounded-xl border border-[#17BC91]/20 p-6">
+                  <h3 className="font-semibold text-[#17BC91] mb-3 flex items-center gap-2">
                     <Calendar className="w-5 h-5" />
                     Clase Programada
                   </h3>
-                  <p className="text-green-800">
+                  <p className="text-gray-800 font-medium">
                     {new Date(enrolledClass.scheduled_at).toLocaleDateString('es-PE', {
                       weekday: 'long',
                       day: 'numeric',
@@ -777,6 +1109,19 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                       minute: '2-digit'
                     })}
                   </p>
+                  {enrolledClass.meet_url && (
+                    <a 
+                      href={enrolledClass.meet_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 inline-block"
+                    >
+                      <Button size="sm" className="bg-[#17BC91] hover:bg-[#14a77f] text-white">
+                        <Play className="w-4 h-4 mr-1" />
+                        Entrar a clase
+                      </Button>
+                    </a>
+                  )}
                 </div>
               )}
             </div>
@@ -856,12 +1201,12 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
           margin: 1rem 0;
         }
         .rich-content a {
-          color: #3b82f6;
+          color: #073372;
           text-decoration: underline;
           cursor: pointer;
         }
         .rich-content a:hover {
-          color: #2563eb;
+          color: #17BC91;
         }
         .rich-content hr {
           border: none;
@@ -917,15 +1262,15 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                 <>
                   {/* Calculated Slot Info */}
                   {calculatedSlot && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                      <div className="flex items-center gap-2 text-blue-800 mb-2">
+                    <div className="bg-[#073372]/5 border border-[#073372]/20 rounded-xl p-4">
+                      <div className="flex items-center gap-2 text-[#073372] mb-2">
                         <Calendar className="w-5 h-5" />
                         <span className="font-semibold">Tu próximo horario disponible</span>
                       </div>
-                      <p className="text-blue-900 font-medium capitalize">
+                      <p className="text-[#073372] font-medium capitalize">
                         {formatSlotTime(calculatedSlot)}
                       </p>
-                      <p className="text-sm text-blue-700 mt-1">
+                      <p className="text-sm text-[#073372]/70 mt-1">
                         Las clases deben solicitarse con al menos {classConfig?.min_advance_hours || 1} hora(s) de anticipación
                       </p>
                     </div>
@@ -1045,8 +1390,8 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                     programará una sesión.
                   </p>
 
-                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-                    <label className="flex items-center gap-2 text-purple-800 mb-3">
+                  <div className="bg-[#F98613]/5 border border-[#F98613]/30 rounded-xl p-4">
+                    <label className="flex items-center gap-2 text-[#F98613] mb-3">
                       <Calendar className="w-5 h-5" />
                       <span className="font-semibold">¿Cuándo te gustaría tomar la clase?</span>
                     </label>
@@ -1055,11 +1400,11 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                         type="datetime-local"
                         value={preferredDatetime}
                         onChange={(e) => setPreferredDatetime(e.target.value)}
-                        className="w-full h-14 px-4 bg-white border-2 border-purple-300 rounded-lg text-gray-900 text-base cursor-pointer focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 hover:border-purple-400 transition-all duration-200"
+                        className="w-full h-14 px-4 bg-white border-2 border-[#F98613]/40 rounded-lg text-gray-900 text-base cursor-pointer focus:outline-none focus:border-[#F98613] focus:ring-2 focus:ring-[#F98613]/20 hover:border-[#F98613]/60 transition-all duration-200"
                         style={{ colorScheme: 'light' }}
                       />
                     </div>
-                    <p className="text-xs text-purple-600 mt-2">
+                    <p className="text-xs text-[#F98613]/80 mt-2">
                       Haz clic en el campo para seleccionar fecha y hora. El equipo académico lo revisará y confirmará.
                     </p>
                   </div>
@@ -1104,6 +1449,439 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                   </>
                 )}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Exam Modal */}
+      {showExamModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl">
+            {/* Header */}
+            <div className={`px-6 py-4 flex items-center justify-between ${
+              examResult 
+                ? examResult.passed 
+                  ? 'bg-gradient-to-r from-[#17BC91] to-[#14a57f]' 
+                  : 'bg-gradient-to-r from-red-500 to-red-600'
+                : 'bg-gradient-to-r from-[#F98613] to-[#d96f0a]'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                  {examResult ? (
+                    examResult.passed ? <Award className="w-5 h-5 text-white" /> : <FileQuestion className="w-5 h-5 text-white" />
+                  ) : (
+                    <FileQuestion className="w-5 h-5 text-white" />
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">
+                    {examResult ? (examResult.passed ? '¡Aprobado!' : 'No aprobado') : 'Evaluación'}
+                  </h2>
+                  <p className="text-white/80 text-sm">{template.title}</p>
+                </div>
+              </div>
+              <button
+                onClick={examResult ? handleCloseExamAndReload : () => setShowExamModal(false)}
+                className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+              {loadingExam ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="w-12 h-12 text-[#F98613] animate-spin mb-4" />
+                  <p className="text-gray-600">Cargando preguntas del examen...</p>
+                </div>
+              ) : examResult ? (
+                /* Results Screen */
+                <div className="text-center py-8">
+                  <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 ${
+                    examResult.passed ? 'bg-[#17BC91]/10' : 'bg-red-50'
+                  }`}>
+                    {examResult.passed ? (
+                      <Award className="w-12 h-12 text-[#17BC91]" />
+                    ) : (
+                      <FileQuestion className="w-12 h-12 text-red-500" />
+                    )}
+                  </div>
+                  
+                  <h3 className={`text-2xl font-bold mb-2 ${
+                    examResult.passed ? 'text-[#17BC91]' : 'text-red-600'
+                  }`}>
+                    {examResult.passed ? '¡Felicitaciones!' : 'Sigue intentando'}
+                  </h3>
+                  
+                  <p className="text-gray-600 mb-6">
+                    {examResult.passed 
+                      ? 'Has aprobado la evaluación exitosamente.' 
+                      : 'No alcanzaste el puntaje mínimo para aprobar.'}
+                  </p>
+
+                  {/* Score Display */}
+                  <div className="bg-gray-50 rounded-2xl p-6 mb-6 max-w-sm mx-auto">
+                    <div className="text-5xl font-bold mb-2" style={{ color: examResult.passed ? '#17BC91' : '#ef4444' }}>
+                      {examResult.percentage}%
+                    </div>
+                    <p className="text-gray-500 text-sm mb-4">
+                      {examResult.score} de {examResult.total_points} puntos
+                    </p>
+                    
+                    <div className="flex items-center justify-center gap-4 text-sm">
+                      <div className="text-center">
+                        <p className="font-semibold text-gray-900">{examResult.passing_score}%</p>
+                        <p className="text-gray-500 text-xs">Puntaje mínimo</p>
+                      </div>
+                      <div className="w-px h-8 bg-gray-200"></div>
+                      <div className="text-center">
+                        <p className="font-semibold text-gray-900">{examResult.attempts} / {template.exam_max_attempts ?? 3}</p>
+                        <p className="text-gray-500 text-xs">Intentos usados</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    {!examResult.passed && examResult.attempts < (template.exam_max_attempts ?? 3) && (
+                      <Button 
+                        onClick={handleStartExam}
+                        className="bg-[#F98613] hover:bg-[#d96f0a]"
+                      >
+                        <FileQuestion className="w-4 h-4 mr-2" />
+                        Intentar de nuevo
+                      </Button>
+                    )}
+                    {!examResult.passed && (
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          setShowExamModal(false);
+                          setExamResult(null);
+                          handleViewExamReview();
+                        }}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        Ver mi examen
+                      </Button>
+                    )}
+                    <Button 
+                      variant={examResult.passed ? "default" : "outline"}
+                      onClick={handleCloseExamAndReload}
+                      className={examResult.passed ? "bg-[#17BC91] hover:bg-[#14a57f]" : ""}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      {examResult.passed ? 'Continuar' : 'Cerrar'}
+                    </Button>
+                  </div>
+                </div>
+              ) : examQuestions.length === 0 ? (
+                <div className="text-center py-12">
+                  <FileQuestion className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-gray-500">No hay preguntas disponibles para este examen.</p>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowExamModal(false)}
+                    className="mt-4"
+                  >
+                    Cerrar
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {/* Progress */}
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">
+                        Pregunta {currentQuestion + 1} de {examQuestions.length}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        {Object.keys(answers).length} de {examQuestions.length} respondidas
+                      </span>
+                    </div>
+                    <Progress value={examProgress} className="h-2" />
+                  </div>
+
+                  {/* Question */}
+                  <div className="bg-gray-50 rounded-xl p-6 mb-6">
+                    <p className="text-lg font-medium text-gray-900 mb-6">
+                      {examQuestions[currentQuestion].question}
+                    </p>
+                    <div className="space-y-2">
+                      {examQuestions[currentQuestion].options.map((option, i) => (
+                        <div 
+                          key={i} 
+                          onClick={() => handleAnswerSelect(currentQuestion, option.text)}
+                          className={`flex items-center space-x-3 p-4 rounded-lg cursor-pointer transition-all ${
+                            answers[currentQuestion] === option.text
+                              ? 'bg-[#F98613]/10 border-2 border-[#F98613]'
+                              : 'bg-white border-2 border-gray-200 hover:border-[#F98613]/50 hover:bg-[#F98613]/5'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                            answers[currentQuestion] === option.text
+                              ? 'border-[#F98613] bg-[#F98613]'
+                              : 'border-gray-300'
+                          }`}>
+                            {answers[currentQuestion] === option.text && (
+                              <div className="w-2 h-2 rounded-full bg-white"></div>
+                            )}
+                          </div>
+                          <span className="flex-1 text-gray-700">
+                            {option.text}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Question Navigation */}
+                  <div className="flex flex-wrap gap-2 justify-center mb-6">
+                    {examQuestions.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentQuestion(i)}
+                        className={`w-10 h-10 rounded-lg text-sm font-medium transition ${
+                          i === currentQuestion
+                            ? 'bg-[#F98613] text-white shadow-lg'
+                            : answers[i]
+                              ? 'bg-[#17BC91] text-white'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Navigation Buttons */}
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={() => setCurrentQuestion(prev => Math.max(0, prev - 1))}
+                      disabled={currentQuestion === 0}
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-1" />
+                      Anterior
+                    </Button>
+                    
+                    {currentQuestion === examQuestions.length - 1 ? (
+                      <Button
+                        onClick={handleSubmitExam}
+                        disabled={Object.keys(answers).length < examQuestions.length || submittingExam}
+                        className="bg-[#17BC91] hover:bg-[#14a57f]"
+                      >
+                        {submittingExam ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Enviando...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Enviar Examen
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => setCurrentQuestion(prev => Math.min(examQuestions.length - 1, prev + 1))}
+                        className="bg-[#073372] hover:bg-[#052555]"
+                      >
+                        Siguiente
+                        <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Exam Review Modal */}
+      {showReviewModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl">
+            {/* Header */}
+            <div className={`px-6 py-4 flex items-center justify-between ${
+              examReview?.attempt.passed 
+                ? 'bg-gradient-to-r from-[#17BC91] to-[#14a57f]' 
+                : examReview?.attempts_exhausted
+                  ? 'bg-gradient-to-r from-red-500 to-red-600'
+                  : 'bg-gradient-to-r from-amber-500 to-amber-600'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                  <Eye className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">Revisión del Examen</h2>
+                  <p className="text-white/80 text-sm">{template.title}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowReviewModal(false)}
+                className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+              {loadingReview ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="w-12 h-12 text-[#F98613] animate-spin mb-4" />
+                  <p className="text-gray-600">Cargando resultados del examen...</p>
+                </div>
+              ) : examReview ? (
+                <div className="space-y-6">
+                  {/* Summary Card */}
+                  <div className={`rounded-xl p-4 ${
+                    examReview.attempt.passed 
+                      ? 'bg-emerald-50 border border-emerald-200' 
+                      : examReview.attempts_exhausted
+                        ? 'bg-red-50 border border-red-200'
+                        : 'bg-amber-50 border border-amber-200'
+                  }`}>
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className={`text-4xl font-bold ${
+                          examReview.attempt.passed ? 'text-emerald-600' : examReview.attempts_exhausted ? 'text-red-600' : 'text-amber-600'
+                        }`}>
+                          {examReview.attempt.percentage}%
+                        </div>
+                        <div>
+                          <p className={`font-semibold ${
+                            examReview.attempt.passed ? 'text-emerald-800' : examReview.attempts_exhausted ? 'text-red-800' : 'text-amber-800'
+                          }`}>
+                            {examReview.attempt.passed ? '¡Aprobado!' : examReview.attempts_exhausted ? 'No aprobado' : 'En progreso'}
+                          </p>
+                          <p className={`text-sm ${
+                            examReview.attempt.passed ? 'text-emerald-600' : examReview.attempts_exhausted ? 'text-red-600' : 'text-amber-600'
+                          }`}>
+                            {examReview.attempt.score} de {examReview.attempt.total_points} puntos
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right text-sm">
+                        <p className="text-gray-600">
+                          Intentos: {examReview.attempts_used}/{examReview.max_attempts}
+                        </p>
+                        <p className="text-gray-500">
+                          Mínimo para aprobar: {examReview.passing_score}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Info Banner */}
+                  {!examReview.show_correct_answers && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Eye className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-blue-800">Modo de revisión limitado</p>
+                          <p className="text-sm text-blue-600">
+                            Puedes ver si tus respuestas fueron correctas o incorrectas. 
+                            Las respuestas correctas se mostrarán cuando agotes tus intentos o apruebes el examen.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Questions Review */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-gray-900">Detalle de respuestas</h3>
+                    {examReview.questions.map((q, index) => (
+                      <div 
+                        key={index} 
+                        className={`rounded-xl border-2 p-4 ${
+                          q.is_correct 
+                            ? 'border-emerald-200 bg-emerald-50/50' 
+                            : 'border-red-200 bg-red-50/50'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            q.is_correct ? 'bg-emerald-500' : 'bg-red-500'
+                          }`}>
+                            {q.is_correct ? (
+                              <CheckCircle className="w-5 h-5 text-white" />
+                            ) : (
+                              <XCircle className="w-5 h-5 text-white" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900 mb-2">
+                              {index + 1}. {q.question}
+                            </p>
+                            
+                            {/* Student's Answer */}
+                            <div className={`rounded-lg p-3 mb-2 ${
+                              q.is_correct 
+                                ? 'bg-emerald-100 border border-emerald-300' 
+                                : 'bg-red-100 border border-red-300'
+                            }`}>
+                              <p className="text-sm font-medium text-gray-700 mb-1">Tu respuesta:</p>
+                              <p className={`${q.is_correct ? 'text-emerald-800' : 'text-red-800'}`}>
+                                {q.student_answer || <span className="italic text-gray-400">Sin respuesta</span>}
+                              </p>
+                            </div>
+
+                            {/* Correct Answer - Only if allowed */}
+                            {examReview.show_correct_answers && q.correct_answer && !q.is_correct && (
+                              <div className="rounded-lg p-3 bg-emerald-100 border border-emerald-300">
+                                <p className="text-sm font-medium text-gray-700 mb-1">Respuesta correcta:</p>
+                                <p className="text-emerald-800">{q.correct_answer}</p>
+                              </div>
+                            )}
+
+                            {/* Points */}
+                            <div className="mt-2 text-sm text-gray-500">
+                              {q.points_earned} / {q.points_possible} punto{q.points_possible !== 1 ? 's' : ''}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex flex-wrap gap-3 justify-center pt-4 border-t">
+                    {!examReview.attempt.passed && !examReview.attempts_exhausted && (
+                      <Button 
+                        onClick={() => {
+                          setShowReviewModal(false);
+                          handleStartExam();
+                        }}
+                        className="bg-[#F98613] hover:bg-[#d96f0a]"
+                      >
+                        <FileQuestion className="w-4 h-4 mr-2" />
+                        Intentar de nuevo
+                      </Button>
+                    )}
+                    <Button 
+                      variant="outline"
+                      onClick={() => setShowReviewModal(false)}
+                    >
+                      Cerrar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <FileQuestion className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-gray-500">No se pudieron cargar los resultados.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

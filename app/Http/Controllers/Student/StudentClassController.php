@@ -130,28 +130,35 @@ class StudentClassController extends Controller
         }
 
         $request->validate([
-            'answers' => 'required|array'
+            'answers' => 'required|array',
+            'answers.*.question_id' => 'required|integer|exists:template_questions,id',
+            'answers.*.answer' => 'nullable|string'
         ]);
 
         $template = $enrollment->scheduledClass->template;
-        $answers = $request->answers;
+        $submittedAnswers = $request->answers;
         
-        // Get the questions used in this exam
-        // For now, we'll get random questions again and match by order
-        // In production, you might want to store the question IDs in the session
-        $questions = TemplateQuestion::where('class_template_id', $template->id)
-            ->where('is_active', true)
-            ->inRandomOrder()
-            ->limit($template->exam_questions_count)
-            ->get();
+        // Extract question IDs from submitted answers
+        $questionIds = collect($submittedAnswers)->pluck('question_id')->toArray();
+        
+        // Get the actual questions by their IDs (preserving the order they were shown)
+        $questions = TemplateQuestion::whereIn('id', $questionIds)
+            ->where('class_template_id', $template->id)
+            ->get()
+            ->keyBy('id');
 
         $totalPoints = 0;
         $earnedPoints = 0;
         $results = [];
 
-        foreach ($questions as $index => $question) {
+        foreach ($submittedAnswers as $submittedAnswer) {
+            $questionId = $submittedAnswer['question_id'];
+            $userAnswer = $submittedAnswer['answer'] ?? null;
+            $question = $questions->get($questionId);
+            
+            if (!$question) continue;
+            
             $totalPoints += $question->points;
-            $userAnswer = $answers[$index] ?? null;
             
             // Find if the answer is correct
             $isCorrect = false;
@@ -176,11 +183,14 @@ class StudentClassController extends Controller
 
         // Create exam attempt
         $attempt = StudentExamAttempt::create([
+            'student_id' => $student->id,
+            'class_template_id' => $template->id,
             'student_class_enrollment_id' => $enrollment->id,
-            'questions' => $questions->pluck('id')->toArray(),
+            'questions' => $questionIds,
             'answers' => $results,
             'score' => $earnedPoints,
             'total_points' => $totalPoints,
+            'percentage' => $percentage,
             'passed' => $passed,
             'started_at' => now(),
             'completed_at' => now()
@@ -194,8 +204,151 @@ class StudentClassController extends Controller
             ]);
         }
 
+        // Count total attempts for this enrollment
+        $totalAttempts = StudentExamAttempt::where('student_class_enrollment_id', $enrollment->id)->count();
+
+        // Return JSON response for AJAX requests
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'score' => $earnedPoints,
+                'total_points' => $totalPoints,
+                'percentage' => $percentage,
+                'passed' => $passed,
+                'passing_score' => $template->exam_passing_score,
+                'attempts' => $totalAttempts,
+                'message' => $passed 
+                    ? '¡Felicitaciones! Has aprobado la evaluación.' 
+                    : 'No alcanzaste el puntaje mínimo. Puedes intentar de nuevo.'
+            ]);
+        }
+
         return back()->with('success', $passed 
             ? '¡Felicitaciones! Has aprobado la evaluación.' 
             : 'No alcanzaste el puntaje mínimo. Puedes intentar de nuevo.');
+    }
+
+    /**
+     * Get exam questions for an enrollment (API).
+     */
+    public function getExamQuestions(StudentClassEnrollment $enrollment)
+    {
+        $user = Auth::user();
+        $student = $user->student;
+        
+        // Verify ownership
+        if (!$student || $enrollment->student_id !== $student->id) {
+            return response()->json(['error' => 'No tienes acceso a esta clase.'], 403);
+        }
+
+        $template = $enrollment->scheduledClass->template;
+
+        // Check if template has exam
+        if (!$template->has_exam) {
+            return response()->json(['error' => 'Esta clase no tiene examen.'], 400);
+        }
+
+        // Check if exam already completed
+        if ($enrollment->exam_completed) {
+            return response()->json(['error' => 'Ya completaste este examen.'], 400);
+        }
+
+        // Get random questions from the question bank
+        $examQuestions = TemplateQuestion::where('class_template_id', $template->id)
+            ->where('is_active', true)
+            ->inRandomOrder()
+            ->limit($template->exam_questions_count)
+            ->get()
+            ->map(function ($question) {
+                // Shuffle options to randomize answer order
+                $options = collect($question->options)->shuffle()->values()->toArray();
+                return [
+                    'id' => $question->id,
+                    'question' => $question->question,
+                    'type' => $question->type,
+                    'options' => array_map(function ($opt) {
+                        return ['text' => $opt['text']]; // Remove is_correct from client
+                    }, $options),
+                    'points' => $question->points
+                ];
+            });
+
+        return response()->json([
+            'questions' => $examQuestions,
+            'passing_score' => $template->exam_passing_score
+        ]);
+    }
+
+    /**
+     * Get exam results for review (API).
+     */
+    public function getExamResults(StudentClassEnrollment $enrollment)
+    {
+        $user = Auth::user();
+        $student = $user->student;
+        
+        // Verify ownership
+        if (!$student || $enrollment->student_id !== $student->id) {
+            return response()->json(['error' => 'No tienes acceso a esta clase.'], 403);
+        }
+
+        $template = $enrollment->scheduledClass->template;
+
+        // Get the latest exam attempt
+        $latestAttempt = StudentExamAttempt::where('student_class_enrollment_id', $enrollment->id)
+            ->latest()
+            ->first();
+
+        if (!$latestAttempt) {
+            return response()->json(['error' => 'No has realizado ningún intento de examen.'], 404);
+        }
+
+        // Count total attempts
+        $totalAttempts = StudentExamAttempt::where('student_class_enrollment_id', $enrollment->id)->count();
+        $maxAttempts = $template->exam_max_attempts ?? 3;
+        $attemptsExhausted = $totalAttempts >= $maxAttempts;
+
+        // Get the questions that were in this attempt
+        $questionIds = $latestAttempt->questions;
+        $questions = TemplateQuestion::whereIn('id', $questionIds)->get()->keyBy('id');
+
+        // Build the review data
+        $reviewData = [];
+        foreach ($latestAttempt->answers as $answer) {
+            $question = $questions->get($answer['question_id']);
+            if (!$question) continue;
+
+            $reviewItem = [
+                'question' => $question->question,
+                'student_answer' => $answer['answer'],
+                'is_correct' => $answer['is_correct'],
+                'points_earned' => $answer['points_earned'],
+                'points_possible' => $question->points,
+            ];
+
+            // Only show correct answer if attempts are exhausted or exam is passed
+            if ($attemptsExhausted || $enrollment->exam_completed) {
+                $correctOption = collect($question->options)->firstWhere('is_correct', true);
+                $reviewItem['correct_answer'] = $correctOption ? $correctOption['text'] : null;
+            }
+
+            $reviewData[] = $reviewItem;
+        }
+
+        return response()->json([
+            'attempt' => [
+                'score' => $latestAttempt->score,
+                'total_points' => $latestAttempt->total_points,
+                'percentage' => $latestAttempt->percentage ?? round(($latestAttempt->score / $latestAttempt->total_points) * 100),
+                'passed' => $latestAttempt->passed,
+                'completed_at' => $latestAttempt->completed_at,
+            ],
+            'questions' => $reviewData,
+            'attempts_used' => $totalAttempts,
+            'max_attempts' => $maxAttempts,
+            'attempts_exhausted' => $attemptsExhausted,
+            'show_correct_answers' => $attemptsExhausted || $enrollment->exam_completed,
+            'passing_score' => $template->exam_passing_score,
+        ]);
     }
 }

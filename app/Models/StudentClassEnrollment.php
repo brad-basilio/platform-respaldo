@@ -19,6 +19,7 @@ class StudentClassEnrollment extends Model
         'left_at',
         'attendance_minutes',
         'exam_completed',
+        'exam_score',
     ];
 
     protected $casts = [

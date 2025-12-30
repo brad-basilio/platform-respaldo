@@ -27,6 +27,7 @@ class ClassTemplate extends Model
         'has_exam',
         'exam_questions_count',
         'exam_passing_score',
+        'exam_max_attempts',
         'is_active',
     ];
 
@@ -37,6 +38,7 @@ class ClassTemplate extends Model
         'order' => 'integer',
         'exam_questions_count' => 'integer',
         'exam_passing_score' => 'integer',
+        'exam_max_attempts' => 'integer',
     ];
 
     /**

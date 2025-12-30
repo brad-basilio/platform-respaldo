@@ -130,8 +130,27 @@ class ClassRequestController extends Controller
         // Verificar si ya tiene una inscripción o solicitud
         $enrollment = StudentClassEnrollment::where('student_id', $student->id)
             ->whereHas('scheduledClass', fn($q) => $q->where('class_template_id', $template->id))
-            ->with(['scheduledClass.teacher'])
+            ->with(['scheduledClass.teacher', 'latestExamAttempt'])
+            ->withCount('examAttempts')
             ->first();
+
+        // Add latest exam attempt info to enrollment if exists
+        if ($enrollment) {
+            // Always include attempt count
+            $enrollment->exam_attempts_count = $enrollment->exam_attempts_count ?? 0;
+            
+            if ($enrollment->latestExamAttempt) {
+                $attempt = $enrollment->latestExamAttempt;
+                $enrollment->latest_exam_score = $attempt->score;
+                $enrollment->latest_exam_total_points = $attempt->total_points;
+                $enrollment->latest_exam_percentage = $attempt->percentage ?? (
+                    $attempt->total_points > 0 
+                        ? round(($attempt->score / $attempt->total_points) * 100) 
+                        : 0
+                );
+                $enrollment->latest_exam_passed = $attempt->passed;
+            }
+        }
 
         $existingRequest = ClassRequest::where('student_id', $user->id)
             ->where('class_template_id', $template->id)
