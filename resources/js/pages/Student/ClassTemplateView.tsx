@@ -80,6 +80,7 @@ interface ScheduledClass {
   scheduled_at: string;
   status: string;
   meet_url?: string;
+  recording_url?: string;
   teacher?: { id: number; name: string };
 }
 
@@ -127,6 +128,10 @@ interface Props {
 const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollment, studentInfo }) => {
   const enrolledClass = enrollment?.scheduled_class || null;
   const isEnrolled = !!enrolledClass;
+  
+  // Determinar si la clase está completada (misma lógica que MyClasses.tsx)
+  const isClassCompleted = enrolledClass?.status === 'completed';
+  
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -509,7 +514,12 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
     return url;
   };
 
-  const videoEmbedUrl = template.intro_video_url ? getYouTubeEmbedUrl(template.intro_video_url) : null;
+  // Usar recording_url si la clase está completada y existe, sino usar intro_video_url
+  const videoUrl = (isClassCompleted && enrolledClass?.recording_url) 
+    ? enrolledClass.recording_url 
+    : template.intro_video_url;
+  const videoEmbedUrl = videoUrl ? getYouTubeEmbedUrl(videoUrl) : null;
+  const isShowingRecording = isClassCompleted && !!enrolledClass?.recording_url;
 
   return (
     <AuthenticatedLayout>
@@ -560,6 +570,16 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
                       <Video className="w-16 h-16 mb-3 opacity-50" />
                       <span className="text-sm">Video de introducción no disponible</span>
+                    </div>
+                  )}
+                  
+                  {/* Badge de Grabación */}
+                  {isShowingRecording && (
+                    <div className="absolute top-4 left-4">
+                      <Badge className="bg-red-600 text-white border-0">
+                        <Film className="w-3 h-3 mr-1" />
+                        Grabación de la clase
+                      </Badge>
                     </div>
                   )}
                 </div>
@@ -634,7 +654,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                     </Button>
                   )}
 
-                  {status.type === 'enrolled' && enrolledClass?.meet_url && (
+                  {status.type === 'enrolled' && enrolledClass?.meet_url && !isClassCompleted && (
                     <a 
                       href={enrolledClass.meet_url}
                       target="_blank"
@@ -1097,7 +1117,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                 <div className="bg-gradient-to-br from-[#17BC91]/10 to-[#17BC91]/5 rounded-xl border border-[#17BC91]/20 p-6">
                   <h3 className="font-semibold text-[#17BC91] mb-3 flex items-center gap-2">
                     <Calendar className="w-5 h-5" />
-                    Clase Programada
+                    {isClassCompleted ? 'Clase Completada' : 'Clase Programada'}
                   </h3>
                   <p className="text-gray-800 font-medium">
                     {new Date(enrolledClass.scheduled_at).toLocaleDateString('es-PE', {
@@ -1109,7 +1129,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                       minute: '2-digit'
                     })}
                   </p>
-                  {enrolledClass.meet_url && (
+                  {enrolledClass.meet_url && !isClassCompleted && (
                     <a 
                       href={enrolledClass.meet_url}
                       target="_blank"

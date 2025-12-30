@@ -130,7 +130,9 @@ class ClassRequestController extends Controller
         // Verificar si ya tiene una inscripción o solicitud
         $enrollment = StudentClassEnrollment::where('student_id', $student->id)
             ->whereHas('scheduledClass', fn($q) => $q->where('class_template_id', $template->id))
-            ->with(['scheduledClass.teacher', 'latestExamAttempt'])
+            ->with(['scheduledClass' => function($q) {
+                $q->select('id', 'class_template_id', 'teacher_id', 'status', 'scheduled_at', 'meet_url', 'recording_url', 'max_students');
+            }, 'scheduledClass.teacher:id,name', 'latestExamAttempt'])
             ->withCount('examAttempts')
             ->first();
 

@@ -466,7 +466,7 @@ const StudentMyClasses: React.FC<Props> = ({
                           )}
 
                           {status.type === 'completed' && enrollment && (
-                            <Link href={`/student/class-enrollments/${enrollment.id}`}>
+                            <Link href={`/student/class-templates/${template.id}`}>
                               <Button variant="outline" size="sm" className="border-emerald-300 text-emerald-600 hover:bg-emerald-50">
                                 <Eye className="w-4 h-4 mr-2" />
                                 Ver contenido
@@ -475,7 +475,7 @@ const StudentMyClasses: React.FC<Props> = ({
                           )}
 
                           {(status.type === 'in_progress' || status.type === 'scheduled' || status.type === 'pending_exam') && enrollment && (
-                            <Link href={`/student/class-enrollments/${enrollment.id}`}>
+                            <Link href={`/student/class-templates/${template.id}`}>
                               <Button size="sm" className="bg-[#073372] hover:bg-[#052555]">
                                 <PlayCircle className="w-4 h-4 mr-2" />
                                 {status.type === 'pending_exam' ? 'Completar examen' : 'Ver clase'}
