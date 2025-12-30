@@ -79,6 +79,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
     if (currentUrl.startsWith('/student/my-classes')) return 'my-classes';
     if (currentUrl.startsWith('/student/class-templates')) return 'my-classes';
     if (currentUrl.startsWith('/student/class-enrollments')) return 'my-classes';
+    // Teacher routes
+    if (currentUrl.startsWith('/teacher/my-classes')) return 'teacher-my-classes';
+    if (currentUrl.startsWith('/teacher/my-students')) return 'teacher-my-students';
+    if (currentUrl.startsWith('/teacher/class-templates')) return 'teacher-class-templates';
     if (currentUrl.startsWith('/admin/payment-control')) return 'admin-payment-control';
     if (currentUrl.startsWith('/cashier/payment-control')) return 'cashier-payment-control';
     if (currentUrl.startsWith('/cashier/payment-reports')) return 'payment-reports';
@@ -117,6 +121,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
       'my-plan': '/student/my-plan',
       'payment-methods': '/student/payment-methods',
       'my-classes': '/student/my-classes',
+      
+      // Rutas de Teacher
+      'teacher-my-classes': '/teacher/my-classes',
+      'teacher-my-students': '/teacher/my-students',
+      'teacher-class-templates': '/teacher/class-templates',
       
       'admin-payment-control': '/admin/payment-control',
       'cashier-payment-control': '/cashier/payment-control',
@@ -198,9 +207,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
           {
             section: 'ACADÉMICO',
             items: [
-              { id: 'class-templates', label: 'Plantillas de Clases', icon: RiBookOpenLine },
-              { id: 'scheduled-classes', label: 'Mis Clases', icon: RiVideoLine },
-              { id: 'students', label: 'Mis Participantes', icon: RiTeamLine },
+            //  { id: 'teacher-class-templates', label: 'Plantillas de Clases', icon: RiBookOpenLine },
+              { id: 'teacher-my-classes', label: 'Mis Clases', icon: RiVideoLine },
+              { id: 'teacher-my-students', label: 'Mis Participantes', icon: RiTeamLine },
             ]
           },
         ];

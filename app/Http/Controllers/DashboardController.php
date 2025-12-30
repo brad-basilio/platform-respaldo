@@ -226,6 +226,89 @@ class DashboardController extends Controller
     {
         $teacher = $user->teacher->load(['groups']);
 
+        // Obtener estadísticas reales de clases del profesor
+        $stats = [
+            'totalClasses' => \App\Models\ScheduledClass::where('teacher_id', $user->id)->count(),
+            'scheduledClasses' => \App\Models\ScheduledClass::where('teacher_id', $user->id)->where('status', 'scheduled')->count(),
+            'inProgressClasses' => \App\Models\ScheduledClass::where('teacher_id', $user->id)->where('status', 'in_progress')->count(),
+            'completedClasses' => \App\Models\ScheduledClass::where('teacher_id', $user->id)->where('status', 'completed')->count(),
+            'totalStudents' => \App\Models\StudentClassEnrollment::whereHas('scheduledClass', function ($q) use ($user) {
+                $q->where('teacher_id', $user->id);
+            })->distinct('student_id')->count('student_id'),
+            'todayClasses' => \App\Models\ScheduledClass::where('teacher_id', $user->id)
+                ->whereDate('scheduled_at', today())
+                ->whereIn('status', ['scheduled', 'in_progress'])
+                ->count(),
+            'pendingEvaluations' => \App\Models\StudentClassEnrollment::whereHas('scheduledClass', function ($q) use ($user) {
+                $q->where('teacher_id', $user->id)->where('status', 'completed');
+            })->where('attended', true)->where('exam_completed', false)->count(),
+        ];
+
+        // Clases de hoy
+        $todayClasses = \App\Models\ScheduledClass::with(['template.academicLevel', 'enrollments'])
+            ->where('teacher_id', $user->id)
+            ->whereDate('scheduled_at', today())
+            ->whereIn('status', ['scheduled', 'in_progress'])
+            ->orderBy('scheduled_at')
+            ->get()
+            ->map(function ($class) {
+                return [
+                    'id' => $class->id,
+                    'title' => $class->template->title,
+                    'session_number' => $class->template->session_number,
+                    'level' => $class->template->academicLevel->name ?? 'Sin nivel',
+                    'level_color' => $class->template->academicLevel->color ?? '#3B82F6',
+                    'time' => $class->scheduled_at->format('h:i A'),
+                    'students' => $class->enrollments->count(),
+                    'status' => $class->status,
+                    'meet_url' => $class->meet_url,
+                ];
+            });
+
+        // Próximas clases (siguientes 7 días)
+        $upcomingClasses = \App\Models\ScheduledClass::with(['template.academicLevel', 'enrollments'])
+            ->where('teacher_id', $user->id)
+            ->where('scheduled_at', '>', now())
+            ->where('scheduled_at', '<=', now()->addDays(7))
+            ->where('status', 'scheduled')
+            ->orderBy('scheduled_at')
+            ->limit(5)
+            ->get()
+            ->map(function ($class) {
+                return [
+                    'id' => $class->id,
+                    'title' => $class->template->title,
+                    'session_number' => $class->template->session_number,
+                    'level' => $class->template->academicLevel->name ?? 'Sin nivel',
+                    'level_color' => $class->template->academicLevel->color ?? '#3B82F6',
+                    'date' => $class->scheduled_at->format('d M'),
+                    'time' => $class->scheduled_at->format('h:i A'),
+                    'students' => $class->enrollments->count(),
+                ];
+            });
+
+        // Clases recientes completadas
+        $recentClasses = \App\Models\ScheduledClass::with(['template.academicLevel', 'enrollments'])
+            ->where('teacher_id', $user->id)
+            ->where('status', 'completed')
+            ->orderBy('ended_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($class) {
+                $attendedCount = $class->enrollments->where('attended', true)->count();
+                return [
+                    'id' => $class->id,
+                    'title' => $class->template->title,
+                    'session_number' => $class->template->session_number,
+                    'level' => $class->template->academicLevel->name ?? 'Sin nivel',
+                    'level_color' => $class->template->academicLevel->color ?? '#3B82F6',
+                    'date' => $class->ended_at ? $class->ended_at->format('d M') : $class->scheduled_at->format('d M'),
+                    'total_students' => $class->enrollments->count(),
+                    'attended_students' => $attendedCount,
+                    'has_recording' => !empty($class->recording_url),
+                ];
+            });
+
         $teacherData = array_merge($teacher->toArray(), [
             'name' => $user->name,
             'email' => $user->email,
@@ -242,6 +325,10 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard/Teacher', [
             'teacher' => $teacherData,
+            'stats' => $stats,
+            'todayClasses' => $todayClasses,
+            'upcomingClasses' => $upcomingClasses,
+            'recentClasses' => $recentClasses,
         ]);
     }
 

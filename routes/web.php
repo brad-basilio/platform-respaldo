@@ -252,6 +252,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/admin/scheduled-classes/{scheduledClass}/unenroll/{student}', [ScheduledClassController::class, 'unenrollStudent'])->name('admin.scheduled-classes.unenroll');
         Route::put('/admin/scheduled-classes/{scheduledClass}/status', [ScheduledClassController::class, 'updateStatus'])->name('admin.scheduled-classes.status');
         Route::post('/admin/scheduled-classes/{scheduledClass}/recording', [ScheduledClassController::class, 'addRecording'])->name('admin.scheduled-classes.recording');
+        Route::post('/admin/scheduled-classes/{scheduledClass}/mark-attendance/{enrollment}', [ScheduledClassController::class, 'markAttendance'])->name('admin.scheduled-classes.mark-attendance');
         Route::get('/api/admin/scheduled-classes/{scheduledClass}/available-students', [ScheduledClassController::class, 'getAvailableStudents'])->name('api.admin.scheduled-classes.available-students');
         
         // ========================================
@@ -279,6 +280,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('can:sales_advisor')->group(function () {
         Route::get('/sales-advisor/enrolled-students', [StudentController::class, 'salesAdvisorEnrolledStudents'])->name('sales-advisor.enrolled-students');
         Route::get('/sales-advisor/archived-students', [StudentController::class, 'salesAdvisorArchivedStudents'])->name('sales-advisor.archived-students');
+    });
+    
+    // Teacher routes
+    Route::middleware('can:teacher')->group(function () {
+        // Mis Clases (Clases asignadas al profesor)
+        Route::get('/teacher/my-classes', [\App\Http\Controllers\Teacher\TeacherClassController::class, 'index'])->name('teacher.my-classes');
+        Route::get('/teacher/my-classes/{scheduledClass}', [\App\Http\Controllers\Teacher\TeacherClassController::class, 'show'])->name('teacher.my-classes.show');
+        Route::put('/teacher/my-classes/{scheduledClass}/status', [\App\Http\Controllers\Teacher\TeacherClassController::class, 'updateStatus'])->name('teacher.my-classes.status');
+        Route::post('/teacher/my-classes/{scheduledClass}/recording', [\App\Http\Controllers\Teacher\TeacherClassController::class, 'addRecording'])->name('teacher.my-classes.recording');
+        Route::post('/teacher/my-classes/{scheduledClass}/mark-attendance/{enrollment}', [\App\Http\Controllers\Teacher\TeacherClassController::class, 'markAttendance'])->name('teacher.my-classes.mark-attendance');
+        
+        // Mis Participantes (Estudiantes de las clases del profesor)
+        Route::get('/teacher/my-students', [\App\Http\Controllers\Teacher\TeacherClassController::class, 'myStudents'])->name('teacher.my-students');
+        
+        // Plantillas de clases (solo lectura)
+        Route::get('/teacher/class-templates', [\App\Http\Controllers\Teacher\TeacherClassController::class, 'classTemplates'])->name('teacher.class-templates');
+        Route::get('/teacher/class-templates/{template}', [\App\Http\Controllers\Teacher\TeacherClassController::class, 'showTemplate'])->name('teacher.class-templates.show');
     });
     
     // Settings

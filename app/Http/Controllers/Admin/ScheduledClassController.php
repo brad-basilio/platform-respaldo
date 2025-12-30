@@ -88,6 +88,7 @@ class ScheduledClassController extends Controller
         $scheduledClass->load([
             'template.academicLevel',
             'template.resources',
+            'template.questions',
             'teacher',
             'group',
             'enrollments.student',
@@ -214,6 +215,31 @@ class ScheduledClassController extends Controller
         $scheduledClass->update($validated);
 
         return redirect()->back()->with('success', 'Grabación agregada exitosamente');
+    }
+
+    /**
+     * Mark attendance for a student enrollment
+     */
+    public function markAttendance(Request $request, ScheduledClass $scheduledClass, StudentClassEnrollment $enrollment)
+    {
+        // Verificar que el enrollment pertenece a la clase
+        if ($enrollment->scheduled_class_id !== $scheduledClass->id) {
+            return redirect()->back()->withErrors([
+                'attendance' => 'La inscripción no pertenece a esta clase'
+            ]);
+        }
+
+        $validated = $request->validate([
+            'attended' => 'required|boolean',
+        ]);
+
+        $enrollment->update([
+            'attended' => $validated['attended'],
+            'joined_at' => $validated['attended'] ? ($enrollment->joined_at ?? now()) : null,
+        ]);
+
+        $status = $validated['attended'] ? 'marcada como presente' : 'marcada como ausente';
+        return redirect()->back()->with('success', "Asistencia {$status}");
     }
 
     /**

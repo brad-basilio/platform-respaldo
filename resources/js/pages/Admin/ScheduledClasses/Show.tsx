@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { 
   ArrowLeft, Calendar, Clock, Users, Video, Film, 
-  Play, CheckCircle, UserPlus, UserMinus, ExternalLink,
-  BookOpen, Target, MessageCircle, FileText, GraduationCap
+  Play, CheckCircle, UserPlus, UserMinus, ExternalLink, Download, Eye,
+  BookOpen, Target, MessageCircle, FileText, GraduationCap,
+  HelpCircle, Lightbulb, CircleCheck, Circle
 } from 'lucide-react';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { toast } from 'sonner';
@@ -19,18 +20,28 @@ interface AcademicLevel {
   color?: string;
 }
 
+interface QuestionOption {
+  text: string;
+  is_correct: boolean;
+}
+
 interface Question {
   id: number;
   question: string;
-  order: number;
+  type: 'multiple_choice' | 'true_false' | 'open';
+  options?: QuestionOption[];
+  explanation?: string;
+  points: number;
+  order?: number;
 }
 
 interface Resource {
   id: number;
-  title: string;
-  type: 'video' | 'pdf' | 'image' | 'link' | 'document';
+  name: string;
+  file_type: 'video' | 'pdf' | 'image' | 'link' | 'document';
   description?: string;
   file_path?: string;
+  download_url?: string;
 }
 
 interface ClassTemplate {
@@ -93,8 +104,30 @@ const Show: React.FC<Props> = ({ scheduledClass }) => {
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [recordingUrl, setRecordingUrl] = useState(scheduledClass.recording_url || '');
   const [studentId, setStudentId] = useState('');
+  const [loadingAttendance, setLoadingAttendance] = useState<number | null>(null);
+  const [expandedQuestion, setExpandedQuestion] = useState<number | null>(null);
 
   const template = scheduledClass.template;
+
+  const getResourceIcon = (fileType: string) => {
+    switch (fileType) {
+      case 'video': return <Video className="w-5 h-5" />;
+      case 'pdf': return <FileText className="w-5 h-5" />;
+      case 'image': return <Eye className="w-5 h-5" />;
+      case 'link': return <ExternalLink className="w-5 h-5" />;
+      default: return <FileText className="w-5 h-5" />;
+    }
+  };
+
+  const getResourceColor = (fileType: string) => {
+    switch (fileType) {
+      case 'video': return 'bg-red-500';
+      case 'pdf': return 'bg-red-600';
+      case 'image': return 'bg-blue-500';
+      case 'link': return 'bg-green-500';
+      default: return 'bg-gray-500';
+    }
+  };
 
   const getStatusConfig = (status: string) => {
     const configs: Record<string, { 
@@ -201,6 +234,23 @@ const Show: React.FC<Props> = ({ scheduledClass }) => {
         onError: () => toast.error('Error al remover estudiante')
       });
     }
+  };
+
+  const handleToggleAttendance = (enrollment: Enrollment) => {
+    setLoadingAttendance(enrollment.id);
+    router.post(`/admin/scheduled-classes/${scheduledClass.id}/mark-attendance/${enrollment.id}`, {
+      attended: !enrollment.attended
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        toast.success(enrollment.attended ? 'Asistencia removida' : 'Asistencia marcada');
+        setLoadingAttendance(null);
+      },
+      onError: () => {
+        toast.error('Error al actualizar asistencia');
+        setLoadingAttendance(null);
+      }
+    });
   };
 
   // Extraer video ID de YouTube
@@ -422,48 +472,116 @@ const Show: React.FC<Props> = ({ scheduledClass }) => {
                 </div>
               )}
 
-              {/* Preguntas de Discusión */}
+              {/* Preguntas de Evaluación - Mejorado */}
               {template.questions && template.questions.length > 0 && (
                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                  <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                        <MessageCircle className="w-5 h-5 text-amber-600" />
+                  <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-amber-50 to-orange-50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                          <HelpCircle className="w-5 h-5 text-amber-600" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-semibold text-gray-900">Preguntas de Evaluación</h2>
+                          <p className="text-sm text-gray-500">
+                            {template.questions.length} preguntas · {template.questions.reduce((acc, q) => acc + (q.points || 1), 0)} puntos totales
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h2 className="text-lg font-semibold text-gray-900">Preguntas de Discusión</h2>
-                        <p className="text-sm text-gray-500">{template.questions.length} preguntas preparadas</p>
-                      </div>
+                      <Badge className="bg-amber-100 text-amber-700 border-amber-200">
+                        Vista Admin
+                      </Badge>
                     </div>
                   </div>
-                  <div className="px-6 py-4">
-                    <div className="space-y-3">
-                      {template.questions.sort((a, b) => a.order - b.order).map((q, idx) => (
-                        <div 
-                          key={q.id} 
-                          className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg"
-                        >
+                  <div className="divide-y divide-gray-100">
+                    {template.questions.sort((a, b) => (a.order || 0) - (b.order || 0)).map((question, idx) => (
+                      <div key={question.id} className="p-6">
+                        {/* Question Header */}
+                        <div className="flex items-start gap-4 mb-4">
                           <div 
-                            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-white"
+                            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-bold text-white shadow-sm"
                             style={{ backgroundColor: template.academic_level?.color || '#073372' }}
                           >
                             {idx + 1}
                           </div>
-                          <p className="text-gray-700 leading-relaxed pt-1">{q.question}</p>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant="outline" className="text-xs border-gray-300 text-gray-600">
+                                {question.type === 'multiple_choice' ? 'Opción Múltiple' : 
+                                 question.type === 'true_false' ? 'Verdadero/Falso' : 'Respuesta Abierta'}
+                              </Badge>
+                              <Badge className="text-xs bg-blue-100 text-blue-700 border-0">
+                                {question.points || 1} {(question.points || 1) === 1 ? 'punto' : 'puntos'}
+                              </Badge>
+                            </div>
+                            <p className="text-gray-900 font-medium leading-relaxed text-base">
+                              {question.question}
+                            </p>
+                          </div>
                         </div>
-                      ))}
-                    </div>
+
+                        {/* Options */}
+                        {question.options && question.options.length > 0 && (
+                          <div className="ml-14 space-y-2">
+                            {question.options.map((option, optIdx) => (
+                              <div 
+                                key={optIdx}
+                                className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+                                  option.is_correct 
+                                    ? 'bg-green-50 border-green-300 shadow-sm' 
+                                    : 'bg-gray-50 border-gray-200'
+                                }`}
+                              >
+                                {option.is_correct ? (
+                                  <CircleCheck className="w-5 h-5 text-green-600 flex-shrink-0" />
+                                ) : (
+                                  <Circle className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                                )}
+                                <span className={`flex-1 ${option.is_correct ? 'text-green-800 font-medium' : 'text-gray-700'}`}>
+                                  {option.text}
+                                </span>
+                                {option.is_correct && (
+                                  <Badge className="bg-green-600 text-white border-0 text-xs">
+                                    Correcta
+                                  </Badge>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Explanation */}
+                        {question.explanation && (
+                          <div className="ml-14 mt-4">
+                            <button
+                              onClick={() => setExpandedQuestion(expandedQuestion === question.id ? null : question.id)}
+                              className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700 font-medium"
+                            >
+                              <Lightbulb className="w-4 h-4" />
+                              {expandedQuestion === question.id ? 'Ocultar explicación' : 'Ver explicación'}
+                            </button>
+                            {expandedQuestion === question.id && (
+                              <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                                <p className="text-sm text-amber-800 leading-relaxed">
+                                  {question.explanation}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
 
-              {/* Recursos */}
+              {/* Recursos de la Clase */}
               {template.resources && template.resources.length > 0 && (
                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                  <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                  <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-green-50 to-transparent">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                        <FileText className="w-5 h-5 text-green-600" />
+                      <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                        <FileText className="w-5 h-5 text-white" />
                       </div>
                       <div>
                         <h2 className="text-lg font-semibold text-gray-900">Recursos de la Clase</h2>
@@ -471,22 +589,38 @@ const Show: React.FC<Props> = ({ scheduledClass }) => {
                       </div>
                     </div>
                   </div>
-                  <div className="px-6 py-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-6">
+                    <div className="space-y-3">
                       {template.resources.map((res) => (
                         <a
                           key={res.id}
-                          href={res.file_path ? `/storage/${res.file_path}` : '#'}
+                          href={res.download_url || (res.file_path ? `/storage/${res.file_path}` : '#')}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+                          className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-green-400 hover:shadow-md transition-all duration-200 group"
                         >
-                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <FileText className="w-5 h-5 text-gray-600" />
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 text-white ${getResourceColor(res.file_type)}`}>
+                            {getResourceIcon(res.file_type)}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{res.title}</p>
-                            <p className="text-xs text-gray-500 capitalize">{res.type}</p>
+                            <p className="font-medium text-gray-900 group-hover:text-green-700 transition-colors">{res.name}</p>
+                            {res.description && (
+                              <p className="text-sm text-gray-500 line-clamp-1">{res.description}</p>
+                            )}
+                            <p className="text-xs text-gray-400 capitalize mt-1">{res.file_type}</p>
+                          </div>
+                          <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {res.file_type === 'link' ? (
+                              <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
+                                <ExternalLink className="w-4 h-4" />
+                                Abrir
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
+                                <Download className="w-4 h-4" />
+                                Descargar
+                              </span>
+                            )}
                           </div>
                         </a>
                       ))}
@@ -613,11 +747,18 @@ const Show: React.FC<Props> = ({ scheduledClass }) => {
                                 {enrollment.student.first_name} {enrollment.student.last_name}
                               </p>
                               <div className="flex items-center gap-2 mt-0.5">
-                                {enrollment.attended && (
-                                  <Badge variant="outline" className="text-xs text-green-600 border-green-300">
-                                    Asistió
-                                  </Badge>
-                                )}
+                                <button
+                                  onClick={() => handleToggleAttendance(enrollment)}
+                                  disabled={loadingAttendance === enrollment.id}
+                                  className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                                    enrollment.attended 
+                                      ? 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100' 
+                                      : 'bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200'
+                                  } ${loadingAttendance === enrollment.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                >
+                                  <CheckCircle className={`w-3 h-3 ${enrollment.attended ? 'fill-green-500' : ''}`} />
+                                  {enrollment.attended ? 'Asistió' : 'Sin asistencia'}
+                                </button>
                                 {enrollment.exam_completed && (
                                   <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
                                     Examen ✓

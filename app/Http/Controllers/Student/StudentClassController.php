@@ -68,6 +68,16 @@ class StudentClassController extends Controller
             'scheduledClass.template.resources'
         ]);
 
+        // Auto-mark attendance when student accesses a class that is in_progress or completed
+        $classStatus = $enrollment->scheduledClass->status;
+        if (!$enrollment->attended && in_array($classStatus, ['in_progress', 'completed'])) {
+            $enrollment->update([
+                'attended' => true,
+                'joined_at' => $enrollment->joined_at ?? now(),
+            ]);
+            $enrollment->refresh();
+        }
+
         // Get exam questions if template has exam and exam not completed
         $examQuestions = null;
         if ($enrollment->scheduledClass->template->has_exam && !$enrollment->exam_completed) {
@@ -127,6 +137,17 @@ class StudentClassController extends Controller
         // Verify ownership
         if (!$student || $enrollment->student_id !== $student->id) {
             abort(403, 'No tienes acceso a esta clase.');
+        }
+
+        // Verify attendance before allowing exam submission
+        if (!$enrollment->attended) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Debes asistir a la clase antes de poder rendir el examen.'
+                ], 422);
+            }
+            return back()->withErrors(['exam' => 'Debes asistir a la clase antes de poder rendir el examen.']);
         }
 
         $request->validate([
