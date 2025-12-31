@@ -868,7 +868,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
 
                 <div className="grid grid-cols-2 gap-4">
                   <Select2
-                    label="Profesor"
+                    label="Instructor"
                     value={scheduleForm.teacher_id}
                     onChange={(value) => setScheduleForm(prev => ({ ...prev, teacher_id: value as string }))}
                     options={teachers.map(t => ({
@@ -1045,7 +1045,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
                                 {formatDate(sc.scheduled_at)}
                               </div>
                               <div className="text-xs text-gray-500">
-                                {sc.teacher?.name || 'Sin profesor'} • {sc.enrollments_count}/{sc.max_students} alumnos
+                                {sc.teacher?.name || 'Sin instructor'} • {sc.enrollments_count}/{sc.max_students} alumnos
                               </div>
                             </div>
                             <Badge variant="outline" className={

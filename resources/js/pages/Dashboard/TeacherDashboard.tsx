@@ -108,7 +108,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
       <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-1">Panel del Profesor</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">Panel del Instructor</h1>
             <p className="text-gray-500">
               Bienvenido, <span className="font-semibold text-gray-700">{teacher.name}</span>
               {teacher.specialization && (

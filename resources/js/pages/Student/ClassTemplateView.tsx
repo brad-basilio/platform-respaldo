@@ -1129,7 +1129,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                 <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
                   <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <Users className="w-5 h-5 text-[#073372]" />
-                    Tu Profesor
+                    Tu Instructor
                   </h3>
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#073372] to-[#17BC91] flex items-center justify-center text-white font-bold">
@@ -1359,7 +1359,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                               </div>
                               <div>
                                 <p className="font-medium text-gray-900">
-                                  {cls.teacher?.name || 'Profesor por asignar'}
+                                  {cls.teacher?.name || 'Instructor por asignar'}
                                 </p>
                                 <p className="text-sm text-gray-500">
                                   {new Date(cls.scheduled_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}

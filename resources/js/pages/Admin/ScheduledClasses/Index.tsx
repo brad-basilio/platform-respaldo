@@ -252,7 +252,7 @@ const ScheduledClassesIndex: React.FC<Props> = ({
       )
     },
     {
-      headerName: 'Profesor',
+      headerName: 'Instructor',
       width: 150,
       cellRenderer: (params: any) => {
         const sc = params.data;
@@ -494,7 +494,7 @@ const ScheduledClassesIndex: React.FC<Props> = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <Select2
-                  label="Profesor"
+                  label="Instructor"
                   value={formData.teacher_id}
                   onChange={(value) => setFormData(prev => ({ ...prev, teacher_id: value as string }))}
                   options={teachers.map(teacher => ({

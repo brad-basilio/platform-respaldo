@@ -109,11 +109,11 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
   const handleDeleteTeacher = (teacherId: number) => {
     const teacher = teachers.find(t => t.id === teacherId);
     if (teacher && teacher.assignedGroups && teacher.assignedGroups.length > 0) {
-      alert('No se puede eliminar un profesor con grupos asignados. Por favor reasigna los grupos primero.');
+      alert('No se puede eliminar un instructor con grupos asignados. Por favor reasigna los grupos primero.');
       return;
     }
 
-    if (confirm('¿Estás seguro de que quieres eliminar este profesor?')) {
+    if (confirm('¿Estás seguro de que quieres eliminar este instructor?')) {
       router.delete(`/admin/teachers/${teacherId}`);
     }
   };
@@ -235,12 +235,12 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-2xl font-bold text-white mb-1">
-                  {teacher ? 'Editar Profesor' : 'Nuevo Profesor'}
+                  {teacher ? 'Editar Instructor' : 'Nuevo Instructor'}
                 </h3>
                 <p className="text-green-100">
                   {teacher
-                    ? 'Actualiza la información del profesor'
-                    : 'Completa la información para registrar un nuevo profesor'}
+                    ? 'Actualiza la información del instructor'
+                    : 'Completa la información para registrar un nuevo instructor'}
                 </p>
               </div>
 
@@ -266,7 +266,7 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
                   <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
                     1
                   </div>
-                  <h4 className="text-lg font-semibold text-gray-900">Datos Personales del Profesor</h4>
+                  <h4 className="text-lg font-semibold text-gray-900">Datos Personales del Instructor</h4>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -747,7 +747,7 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
                   type="submit"
                   className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm flex items-center gap-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white"
                 >
-                  {teacher ? 'Actualizar' : 'Crear'} Profesor
+                  {teacher ? 'Actualizar' : 'Crear'} Instructor
                 </button>
               </div>
             </div>
@@ -769,7 +769,7 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
   // Definición de columnas para AG Grid
   const columnDefs = useMemo<ColDef<Teacher>[]>(() => [
     {
-      headerName: 'Profesor',
+      headerName: 'Instructor',
       field: 'name',
       minWidth: 250,
       filter: 'agTextColumnFilter',
@@ -919,14 +919,14 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
             <button
               onClick={() => setEditingTeacher(teacher)}
               className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
-              title="Editar profesor"
+              title="Editar instructor"
             >
               <Edit className="h-4 w-4" />
             </button>
             <button
               onClick={() => handleDeleteTeacher(teacher.id)}
               className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
-              title="Eliminar profesor"
+              title="Eliminar instructor"
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -953,8 +953,8 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
 
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Gestión de Profesores</h1>
-            <p className="text-gray-600">Gestiona perfiles de profesores y asignaciones de horarios</p>
+            <h1 className="text-2xl font-bold text-gray-900">Gestión de Instructores</h1>
+            <p className="text-gray-600">Gestiona perfiles de instructores y asignaciones de horarios</p>
           </div>
           <div className="flex items-center space-x-4">
             {/* Botón de Forzar Recarga */}
@@ -974,7 +974,7 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
               className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
             >
               <Plus className="h-5 w-5" />
-              <span>Agregar Profesor</span>
+              <span>Agregar Instructor</span>
             </button>
           </div>
         </div>

@@ -450,7 +450,7 @@ const ClassDetail: React.FC<Props> = ({ scheduledClass }) => {
                         </div>
                       </div>
                       <Badge className="bg-amber-100 text-amber-700 border-amber-200">
-                        Vista del Profesor
+                        Vista del Instructor
                       </Badge>
                     </div>
                   </div>

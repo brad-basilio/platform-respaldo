@@ -335,7 +335,7 @@ const GroupManagement: React.FC = () => {
       }
       
       if (formData.teacherId && !checkTeacherAvailability(formData.teacherId, formData.schedule, group?.id)) {
-        alert('El profesor seleccionado no está disponible en este horario');
+        alert('El instructor seleccionado no está disponible en este horario');
         return;
       }
       
@@ -478,14 +478,14 @@ const GroupManagement: React.FC = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Asignar Profesor
+              Asignar Instructor
             </label>
             <select
               value={formData.teacherId}
               onChange={(e) => setFormData({...formData, teacherId: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Sin profesor asignado</option>
+              <option value="">Sin instructor asignado</option>
               {availableTeachers.map(teacher => (
                 <option key={teacher.id} value={teacher.id}>
                   {teacher.name} ({teacher.specialization === 'theoretical' ? 'teórico' : teacher.specialization === 'practical' ? 'práctico' : 'ambos'})
@@ -494,7 +494,7 @@ const GroupManagement: React.FC = () => {
             </select>
             {availableTeachers.length === 0 && (
               <p className="text-sm text-orange-600 mt-1">
-                No hay profesores disponibles para clases {formData.type === 'theoretical' ? 'teóricas' : 'prácticas'} en este horario
+                No hay instructores disponibles para clases {formData.type === 'theoretical' ? 'teóricas' : 'prácticas'} en este horario
               </p>
             )}
           </div>
@@ -632,7 +632,7 @@ const GroupManagement: React.FC = () => {
                   Tipo y Nivel
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Profesor
+                  Instructor
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Estudiantes
@@ -678,7 +678,7 @@ const GroupManagement: React.FC = () => {
                     ) : (
                       <span className="text-sm text-red-600 flex items-center">
                         <AlertTriangle className="w-4 h-4 mr-1" />
-                        Sin profesor asignado
+                        Sin instructor asignado
                       </span>
                     )}
                   </td>

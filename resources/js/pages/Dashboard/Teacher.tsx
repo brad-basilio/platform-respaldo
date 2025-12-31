@@ -53,7 +53,7 @@ interface Props {
 export default function TeacherPage({ teacher, stats, todayClasses, upcomingClasses, recentClasses }: Props) {
     return (
         <AuthenticatedLayout>
-            <Head title="Dashboard - Profesor" />
+            <Head title="Dashboard - Instructor" />
             <TeacherDashboard 
                 teacher={teacher} 
                 stats={stats}
