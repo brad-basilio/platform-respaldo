@@ -323,7 +323,7 @@ const StudentMyClasses: React.FC<Props> = ({
                             Ver contenido
                           </Button>
                         </Link>
-                        {!myRequests[nextSession.id] && !enrollments[nextSession.id] && (
+                        {/*!myRequests[nextSession.id] && !enrollments[nextSession.id] && (
                           <Button 
                             variant="outline"
                             className="border-[#17BC91] text-[#17BC91] hover:bg-[#17BC91] hover:text-white"
@@ -332,7 +332,7 @@ const StudentMyClasses: React.FC<Props> = ({
                             <Send className="w-4 h-4 mr-2" />
                             Solicitar clase
                           </Button>
-                        )}
+                        )**/}
                       </div>
                     </div>
                     <div className="hidden md:flex items-center justify-center w-48 bg-gradient-to-br from-[#17BC91] to-[#14a77f] text-white">
@@ -516,7 +516,7 @@ const StudentMyClasses: React.FC<Props> = ({
                             </div>
                           )}
 
-                          {status.type === 'available' && (
+                          {/*status.type === 'available' && (
                             <div className="flex items-center gap-2">
                               <Link href={`/student/class-templates/${template.id}`}>
                                 <Button variant="outline" size="sm">
@@ -533,7 +533,7 @@ const StudentMyClasses: React.FC<Props> = ({
                                 Solicitar
                               </Button>
                             </div>
-                          )}
+                          )*/}
                         </div>
                       </div>
 

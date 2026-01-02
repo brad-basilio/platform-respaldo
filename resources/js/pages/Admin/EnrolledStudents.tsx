@@ -1,6 +1,6 @@
 ﻿import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { Users, Eye, UserCheck, UserX, BookOpen, GraduationCap, Calendar, XCircle, CheckCircle, AlertCircle, Search, Clock, Phone, MapPin, Mail, FileText, CreditCard, User, ChevronDown } from 'lucide-react';
+import { Users, Eye, UserCheck, UserX, BookOpen, GraduationCap, Calendar, XCircle, CheckCircle, AlertCircle, Search, Clock, Phone, MapPin, Mail, FileText, CreditCard, User, ChevronDown, Trash2 } from 'lucide-react';
 import { Student, Group } from '../../types/models';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import { AgGridReact } from 'ag-grid-react';
@@ -918,6 +918,11 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [verifyingStudent, setVerifyingStudent] = useState<Student | null>(null);
   const [isSendingDocuments, setIsSendingDocuments] = useState(false);
+  
+  // Estados para eliminar estudiante
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingStudent, setDeletingStudent] = useState<Student | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [documentTypes, setDocumentTypes] = useState<Array<{
     id: number;
     name: string;
@@ -1437,6 +1442,63 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     }
   };
 
+  // Funciones para eliminar estudiante
+  const handleOpenDeleteModal = (student: Student) => {
+    setDeletingStudent(student);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingStudent || isDeleting) return;
+
+    setIsDeleting(true);
+
+    try {
+      await axios.delete(`/admin/students/${deletingStudent.id}`);
+
+      // Eliminar el estudiante del estado local
+      setStudents(prevStudents => prevStudents.filter(s => s.id !== deletingStudent.id));
+
+      // Cerrar modal
+      setShowDeleteModal(false);
+      setDeletingStudent(null);
+
+      await Swal.fire({
+        title: '¡Estudiante Eliminado!',
+        html: `
+          <p class="text-gray-700">El estudiante <strong>${deletingStudent.name}</strong> ha sido eliminado exitosamente.</p>
+          <p class="text-sm text-gray-500 mt-2">Todos los datos asociados han sido removidos del sistema.</p>
+        `,
+        icon: 'success',
+        confirmButtonColor: '#10b981',
+        confirmButtonText: 'Entendido',
+        timer: 3000,
+        timerProgressBar: true,
+        customClass: {
+          confirmButton: 'px-6 py-2.5 rounded-xl font-medium'
+        }
+      });
+    } catch (error: unknown) {
+      console.error('Error al eliminar estudiante:', error);
+      const errorMessage = axios.isAxiosError(error)
+        ? error.response?.data?.message || 'Error al eliminar el estudiante'
+        : 'Error al eliminar el estudiante';
+
+      await Swal.fire({
+        title: 'Error',
+        text: errorMessage,
+        icon: 'error',
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Cerrar',
+        customClass: {
+          confirmButton: 'px-6 py-2.5 rounded-xl font-medium'
+        }
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const getGroupName = useCallback((groupId?: string) => {
     if (!groupId) return 'Sin asignar';
     const group = groups.find(g => g.id === groupId);
@@ -1646,7 +1708,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     },
     {
       headerName: 'Acciones',
-      width: 100,
+      width: 140,
       cellRenderer: (params: ICellRendererParams<Student>) => {
         const student = params.data!;
         return (
@@ -1657,6 +1719,13 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
               title="Ver detalles"
             >
               <Eye className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => handleOpenDeleteModal(student)}
+              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="Eliminar estudiante"
+            >
+              <Trash2 className="h-4 w-4" />
             </button>
           </div>
         );
@@ -2086,6 +2155,162 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación de Eliminación */}
+      {showDeleteModal && deletingStudent && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-fade-in"
+          onClick={() => {
+            if (!isDeleting) {
+              setShowDeleteModal(false);
+              setDeletingStudent(null);
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-8 py-6 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent"></div>
+              <div className="relative z-10 flex items-center gap-4">
+                <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
+                  <Trash2 className="h-7 w-7 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Eliminar Estudiante</h2>
+                  <p className="text-white/90 text-sm mt-1">Esta acción no se puede deshacer</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-8">
+              {/* Info del estudiante */}
+              <div className="bg-gray-50 rounded-2xl p-5 mb-6 border border-gray-200">
+                <div className="flex items-center gap-4">
+                  {deletingStudent.avatar ? (
+                    <img
+                      src={`/storage/${deletingStudent.avatar}`}
+                      alt={deletingStudent.name}
+                      className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 bg-gradient-to-r from-[#073372] to-[#17BC91] rounded-full flex items-center justify-center shadow-lg">
+                      <span className="text-white text-xl font-bold">
+                        {deletingStudent.name.split(' ').map((n: string) => n[0]).join('')}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900">{deletingStudent.name}</h3>
+                    <p className="text-sm text-gray-600">{deletingStudent.email}</p>
+                    {deletingStudent.enrollmentCode && (
+                      <p className="text-xs text-gray-500 mt-1 font-mono">
+                        Código: {deletingStudent.enrollmentCode}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Advertencia */}
+              <div className="bg-red-50 border-l-4 border-red-500 rounded-xl p-5 mb-6">
+                <div className="flex gap-3">
+                  <AlertCircle className="h-6 w-6 text-red-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-900 mb-2">
+                      ⚠️ Advertencia: Eliminación Permanente
+                    </p>
+                    <ul className="text-sm text-red-800 space-y-1.5 list-disc list-inside">
+                      <li>Se eliminará la cuenta del usuario</li>
+                      <li>Se eliminarán todos los documentos de matrícula</li>
+                      <li>Se eliminarán las solicitudes de clases</li>
+                      <li>Se eliminarán los registros de clases y asistencia</li>
+                      <li>Se eliminará el contrato si existe</li>
+                      <li><strong>Esta acción NO se puede deshacer</strong></li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-center text-gray-700 mb-2">
+                ¿Estás seguro de que deseas eliminar a este estudiante?
+              </p>
+              <p className="text-center text-sm text-gray-500">
+                Escribe el nombre del estudiante para confirmar:
+              </p>
+              
+              {/* Input de confirmación */}
+              <div className="mt-4">
+                <input
+                  type="text"
+                  id="deleteConfirmationInput"
+                  placeholder={deletingStudent.name}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all text-center font-medium"
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-gray-50 px-8 py-5 border-t border-gray-200 flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletingStudent(null);
+                }}
+                disabled={isDeleting}
+                className={`px-6 py-2.5 rounded-xl font-medium transition-all duration-200 border-2 ${
+                  isDeleting
+                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                    : 'text-gray-700 bg-white hover:bg-gray-100 border-gray-300 hover:shadow-md'
+                }`}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  const input = document.getElementById('deleteConfirmationInput') as HTMLInputElement;
+                  if (input && input.value.trim().toLowerCase() === deletingStudent.name.toLowerCase()) {
+                    handleConfirmDelete();
+                  } else {
+                    Swal.fire({
+                      title: 'Nombre incorrecto',
+                      text: 'Por favor, escribe el nombre exacto del estudiante para confirmar la eliminación.',
+                      icon: 'warning',
+                      confirmButtonColor: '#f59e0b',
+                      confirmButtonText: 'Entendido',
+                      customClass: {
+                        confirmButton: 'px-6 py-2.5 rounded-xl font-medium'
+                      }
+                    });
+                  }
+                }}
+                disabled={isDeleting}
+                className={`group relative inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                  isDeleting
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                }`}
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Eliminando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-5 w-5" />
+                    Eliminar Estudiante
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

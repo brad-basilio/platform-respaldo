@@ -176,6 +176,16 @@ const ClassRequestsIndex: React.FC<Props> = ({
     });
   };
 
+  // Función para formatear fecha para input datetime-local (mantiene hora local)
+  const formatDateTimeLocal = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   const openScheduleModal = (request: ClassRequest) => {
     setSelectedRequest(request);
     
@@ -183,8 +193,8 @@ const ClassRequestsIndex: React.FC<Props> = ({
     let scheduledAt = '';
     if (request.requested_datetime) {
       const date = new Date(request.requested_datetime);
-      // Format for datetime-local input: YYYY-MM-DDTHH:MM
-      scheduledAt = date.toISOString().slice(0, 16);
+      // Usar formato local, NO toISOString() que convierte a UTC
+      scheduledAt = formatDateTimeLocal(date);
     }
     
     setScheduleForm({

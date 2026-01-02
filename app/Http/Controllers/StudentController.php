@@ -1004,14 +1004,67 @@ class StudentController extends Controller
         // Sales advisor solo puede eliminar sus propios prospectos
         $user = auth()->user();
         if ($user->role === 'cashier') {
+            if (request()->wantsJson()) {
+                return response()->json(['message' => 'No tienes permiso para eliminar prospectos.'], 403);
+            }
             abort(403, 'No tienes permiso para eliminar prospectos.');
         }
         if ($user->role === 'sales_advisor' && (int)$student->registered_by !== $user->id) {
+            if (request()->wantsJson()) {
+                return response()->json(['message' => 'Solo puedes eliminar tus propios prospectos.'], 403);
+            }
             abort(403, 'Solo puedes eliminar tus propios prospectos.');
         }
 
-        $student->user->delete(); // This will cascade delete the student
-        return redirect()->back()->with('success', 'Prospecto eliminado exitosamente');
+        // Usar transacción para asegurar integridad
+        DB::transaction(function () use ($student) {
+            $userId = $student->user_id;
+            $studentId = $student->id;
+            
+            // 1. ClassRequests donde el estudiante es el solicitante
+            DB::table('class_requests')->where('student_id', $userId)->delete();
+            
+            // 2. ClassRequests donde el usuario fue quien procesó (nullificar)
+            DB::table('class_requests')->where('processed_by', $userId)->update(['processed_by' => null]);
+            
+            // 3. Student class enrollments (tabla pivote entre estudiantes y clases programadas)
+            DB::table('student_class_enrollments')->where('student_id', $studentId)->delete();
+            
+            // 4. Enrollment documents
+            DB::table('enrollment_documents')->where('student_id', $userId)->delete();
+            DB::table('enrollment_documents')->where('uploaded_by', $userId)->delete();
+            
+            // 5. Contract acceptances
+            DB::table('contract_acceptances')->where('student_id', $userId)->delete();
+            
+            // 6. Installment vouchers
+            DB::table('installment_vouchers')->where('uploaded_by', $userId)->delete();
+            DB::table('installment_vouchers')->where('reviewed_by', $userId)->update(['reviewed_by' => null]);
+            
+            // 7. Nullificar referencias en otras tablas
+            DB::table('enrollments')->where('verified_by', $userId)->update(['verified_by' => null]);
+            DB::table('installments')->where('verified_by', $userId)->update(['verified_by' => null]);
+            DB::table('plan_changes')->where('changed_by', $userId)->update(['changed_by' => null]);
+            DB::table('students')->where('verified_payment_by', $userId)->update(['verified_payment_by' => null]);
+            DB::table('students')->where('verified_enrollment_by', $userId)->update(['verified_enrollment_by' => null]);
+            DB::table('students')->where('registered_by', $userId)->update(['registered_by' => null]);
+            
+            // 8. Eliminar el student record primero (si existe)
+            DB::table('students')->where('id', $studentId)->delete();
+            
+            // 9. Ahora eliminar el usuario
+            DB::table('users')->where('id', $userId)->delete();
+        });
+
+        // Respuesta JSON para peticiones AJAX
+        if (request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Estudiante eliminado exitosamente'
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Estudiante eliminado exitosamente');
     }
 
     public function updateProspectStatus(Request $request, Student $student)
