@@ -2252,7 +2252,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                   type="text"
                   id="deleteConfirmationInput"
                   placeholder={deletingStudent.name}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all text-center font-medium"
+                  className="w-full px-4 py-3 border-2 text-gray-900 border-gray-300 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all text-center font-medium"
                   autoComplete="off"
                 />
               </div>
