@@ -21,6 +21,7 @@ interface TransferPaymentModalProps {
   onSuccess: () => void;
   installmentId: string;
   amount: number;
+  isPartialPayment?: boolean;
 }
 
 const TransferPaymentModal: React.FC<TransferPaymentModalProps> = ({
@@ -29,6 +30,7 @@ const TransferPaymentModal: React.FC<TransferPaymentModalProps> = ({
   onSuccess,
   installmentId,
   amount,
+  isPartialPayment = false,
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [transferMethods, setTransferMethods] = useState<TransferMethod[]>([]);
@@ -116,10 +118,15 @@ const TransferPaymentModal: React.FC<TransferPaymentModalProps> = ({
 
       const formData = new FormData();
       formData.append('voucher_file', voucherFile);
-      formData.append('installment_id', installmentId);
+      if (!isPartialPayment) {
+        formData.append('installment_id', installmentId);
+      }
       formData.append('declared_amount', amount.toString());
       formData.append('payment_date', new Date().toISOString().split('T')[0]);
       formData.append('payment_method', 'transfer');
+      if (isPartialPayment) {
+        formData.append('is_partial_payment', '1');
+      }
 
       await axios.post('/api/student/upload-voucher', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }

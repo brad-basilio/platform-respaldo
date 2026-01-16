@@ -93,10 +93,44 @@ class PaymentReceiptService
     {
         $receiptNumber = $this->generateReceiptNumber($voucher);
         
-        // Concepto de la cuota
-        $concepto = $installment->installment_number == 1 
+        // Concepto de la cuota - determinar tipo de pago
+        $cuotaTexto = $installment->installment_number == 1 
             ? 'Matrícula + Primera Cuota' 
             : 'Cuota ' . $this->numberToText($installment->installment_number);
+        
+        // Calcular el contexto del pago
+        $montoVoucher = $voucher->declared_amount;
+        $totalCuota = $installment->total_due;
+        
+        // Obtener el monto pagado ANTES de este voucher (sumando otros vouchers aprobados de la misma cuota)
+        $otrosVouchersAprobados = InstallmentVoucher::where('installment_id', $installment->id)
+            ->where('id', '!=', $voucher->id)
+            ->where('status', 'approved')
+            ->sum('declared_amount');
+        
+        $pagadoAntesDeEsteVoucher = $otrosVouchersAprobados;
+        $pagadoDespuesDeEsteVoucher = $pagadoAntesDeEsteVoucher + $montoVoucher;
+        
+        // Determinar el concepto según el contexto
+        if ($pagadoAntesDeEsteVoucher > 0) {
+            // Ya había pagos previos en esta cuota
+            if ($pagadoDespuesDeEsteVoucher >= $totalCuota) {
+                // Este pago COMPLETA la cuota
+                $concepto = "Saldo {$cuotaTexto}";
+            } else {
+                // Este es otro abono parcial
+                $concepto = "Abono a {$cuotaTexto}";
+            }
+        } else {
+            // No había pagos previos
+            if ($montoVoucher >= $totalCuota) {
+                // Pago completo de una vez
+                $concepto = $cuotaTexto;
+            } else {
+                // Primer abono parcial
+                $concepto = "Abono a {$cuotaTexto}";
+            }
+        }
         
         // Descripción del servicio para la boleta
         $descripcionServicio = "Servicio Educativo - {$concepto} - " . ($enrollment->paymentPlan->name ?? 'Plan de Pago');
@@ -169,9 +203,40 @@ class PaymentReceiptService
     private function getDefaultTemplate(InstallmentVoucher $voucher, Student $student, $installment, $enrollment): string
     {
         $receiptNumber = $this->generateReceiptNumber($voucher);
-        $concepto = $installment->installment_number == 1 
+        
+        // Concepto de la cuota - determinar tipo de pago
+        $cuotaTexto = $installment->installment_number == 1 
             ? 'Matrícula + Primera Cuota' 
             : 'Cuota ' . $this->numberToText($installment->installment_number);
+        
+        // Calcular el contexto del pago
+        $montoVoucher = $voucher->declared_amount;
+        $totalCuota = $installment->total_due;
+        
+        // Obtener el monto pagado ANTES de este voucher
+        $otrosVouchersAprobados = InstallmentVoucher::where('installment_id', $installment->id)
+            ->where('id', '!=', $voucher->id)
+            ->where('status', 'approved')
+            ->sum('declared_amount');
+        
+        $pagadoAntesDeEsteVoucher = $otrosVouchersAprobados;
+        $pagadoDespuesDeEsteVoucher = $pagadoAntesDeEsteVoucher + $montoVoucher;
+        
+        // Determinar el concepto según el contexto
+        if ($pagadoAntesDeEsteVoucher > 0) {
+            if ($pagadoDespuesDeEsteVoucher >= $totalCuota) {
+                $concepto = "Saldo {$cuotaTexto}";
+            } else {
+                $concepto = "Abono a {$cuotaTexto}";
+            }
+        } else {
+            if ($montoVoucher >= $totalCuota) {
+                $concepto = $cuotaTexto;
+            } else {
+                $concepto = "Abono a {$cuotaTexto}";
+            }
+        }
+            
         $paymentMethodLabel = $this->getPaymentMethodLabel($voucher->payment_method);
         
         // Cashier name - Si es pago automático (Culqi), mostrar "Pago Automático"

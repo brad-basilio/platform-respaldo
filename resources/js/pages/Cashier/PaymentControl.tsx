@@ -38,34 +38,7 @@ const VoucherDetailModal: React.FC<{
   const handleApprove = async () => {
     if (!pendingVoucher) return;
 
-    const result = await Swal.fire({
-      title: '¿Aprobar este voucher?',
-      html: `
-        <div class="text-left">
-          <p class="text-gray-700 mb-3">¿Confirmas que el voucher de pago es válido?</p>
-          <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-            <p class="text-sm text-blue-800">
-              <strong>Importante:</strong> Al aprobar este voucher:
-            </p>
-            <ul class="text-sm text-blue-700 mt-2 space-y-1 list-disc list-inside">
-              <li>Se marcará el voucher como aprobado</li>
-              <li>Se actualizará la cuota correspondiente</li>
-              <li>Se registrará tu nombre como revisor</li>
-            </ul>
-          </div>
-        </div>
-      `,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#10b981',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Sí, Aprobar',
-      cancelButtonText: 'Cancelar',
-      reverseButtons: true
-    });
-
-    if (!result.isConfirmed) return;
-
+    // La confirmación se maneja en handleVerifyVoucher para evitar duplicados
     setVerifying(true);
     try {
       await onVerifyVoucher(pendingVoucher.id, 'approve');

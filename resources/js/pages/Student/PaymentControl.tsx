@@ -92,7 +92,10 @@ const PaymentControl: React.FC = () => {
   // Estados para pago parcial
   const [showPartialPaymentModal, setShowPartialPaymentModal] = useState(false);
   const [partialAmount, setPartialAmount] = useState('');
-  const [uploadingPartialPayment, setUploadingPartialPayment] = useState(false);
+  const [showPartialPaymentMethodModal, setShowPartialPaymentMethodModal] = useState(false);
+  const [showPartialCulqiModal, setShowPartialCulqiModal] = useState(false);
+  const [showPartialYapeModal, setShowPartialYapeModal] = useState(false);
+  const [showPartialTransferModal, setShowPartialTransferModal] = useState(false);
 
   // ✨ NUEVOS ESTADOS para modal de método de pago y Culqi
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
@@ -208,58 +211,6 @@ const PaymentControl: React.FC = () => {
       });
     } finally {
       setChangingPlan(false);
-    }
-  };
-
-  const handleUploadPartialPayment = async (file: File) => {
-    if (!partialAmount || parseFloat(partialAmount) <= 0) {
-      toast.error('Ingresa un monto válido');
-      return;
-    }
-
-    // Validar que el monto no sea mayor al pendiente
-    const amount = parseFloat(partialAmount);
-    if (amount > (enrollment?.totalPending || 0)) {
-      toast.error('Monto inválido', {
-        description: `El monto no puede ser mayor a tu deuda pendiente (${formatCurrency(enrollment?.totalPending || 0)})`
-      });
-      return;
-    }
-
-    try {
-      setUploadingPartialPayment(true);
-      
-      const formData = new FormData();
-      formData.append('voucher_file', file);
-      formData.append('declared_amount', partialAmount);
-      formData.append('payment_date', new Date().toISOString().split('T')[0]);
-      formData.append('payment_method', 'transfer');
-      // Enviar bandera como '1' para que Laravel la considere boolean
-      formData.append('is_partial_payment', '1');
-
-      // Debug: log keys (no mostrar contenido binario)
-      for (const key of Array.from(formData.keys())) {
-        console.log('formData key:', key, formData.get(key));
-      }
-
-      const response = await axios.post('/api/student/upload-voucher', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      toast.success('Pago parcial procesado exitosamente', {
-        description: `S/ ${response.data.amount_distributed} distribuido a ${response.data.affected_installments} cuota(s)`
-      });
-      
-      setShowPartialPaymentModal(false);
-      setPartialAmount('');
-      await fetchEnrollment();
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      toast.error('Error al procesar pago parcial', {
-        description: err.response?.data?.message || 'No se pudo procesar el pago'
-      });
-    } finally {
-      setUploadingPartialPayment(false);
     }
   };
 
@@ -747,9 +698,18 @@ const PaymentControl: React.FC = () => {
                   </div>
                 )}
 
-                {/* ✨ NUEVO: Botón "Pagar" - Permitir si está pendiente, vencida con mora, o voucher rechazado */}
-                {(installment.status === 'pending' || installment.status === 'late' || installment.isOverdue) && 
-                 (!installment.vouchers.length || installment.vouchers.every(v => v.status === 'rejected')) && (
+                {/* ✨ Botón "Pagar" - Mostrar si:
+                    1. Está pendiente/vencida sin vouchers o con vouchers rechazados
+                    2. O tiene pago parcial con saldo restante (remainingAmount > 0) */}
+                {(
+                  // Cuota pendiente sin voucher aprobado
+                  ((installment.status === 'pending' || installment.status === 'late' || installment.isOverdue) && 
+                   (!installment.vouchers.length || installment.vouchers.every(v => v.status === 'rejected'))) ||
+                  // O tiene pago parcial con saldo restante
+                  (installment.status === 'paid' && 
+                   (installment.paymentType === 'partial' || installment.paymentType === 'combined') && 
+                   installment.remainingAmount && installment.remainingAmount > 0)
+                ) && (
                   <div className="mt-4">
                     {installment.vouchers.some(v => v.status === 'rejected') && (
                       <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -759,8 +719,22 @@ const PaymentControl: React.FC = () => {
                         </p>
                       </div>
                     )}
+                    
+                    {/* Alerta para pago parcial con saldo restante */}
+                    {installment.status === 'paid' && installment.remainingAmount && installment.remainingAmount > 0 && (
+                      <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800 font-bold flex items-center">
+                          <AlertCircle className="w-4 h-4 mr-2" />
+                          Tienes un saldo pendiente de {formatCurrency(installment.remainingAmount)} en esta cuota
+                        </p>
+                        <p className="text-xs text-blue-700 mt-1">
+                          Ya pagaste: {formatCurrency(installment.paidAmount)} de {formatCurrency(installment.totalDue)}
+                        </p>
+                      </div>
+                    )}
+                    
                     {/* Alerta cuando la cuota tiene mora */}
-                    {installment.lateFee > 0 && (
+                    {installment.lateFee > 0 && installment.status !== 'paid' && (
                       <div className="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                         <p className="text-sm text-orange-800 font-bold flex items-center">
                           <AlertCircle className="w-4 h-4 mr-2" />
@@ -772,7 +746,7 @@ const PaymentControl: React.FC = () => {
                       </div>
                     )}
                     
-                    {/* Botón principal "Pagar" */}
+                    {/* Botón principal "Pagar" - Mostrar monto restante si hay pago parcial */}
                     <button
                       onClick={() => {
                         setSelectedInstallmentForPayment(installment);
@@ -789,7 +763,12 @@ const PaymentControl: React.FC = () => {
                       ) : (
                         <div className="flex items-center space-x-2">
                           <CreditCard className="w-5 h-5" />
-                          <span>Pagar {formatCurrency(installment.totalDue)}</span>
+                          <span>
+                            {installment.remainingAmount && installment.remainingAmount > 0 && installment.remainingAmount < installment.totalDue
+                              ? `Pagar Restante ${formatCurrency(installment.remainingAmount)}`
+                              : `Pagar ${formatCurrency(installment.totalDue)}`
+                            }
+                          </span>
                         </div>
                       )}
                     </button>
@@ -801,7 +780,7 @@ const PaymentControl: React.FC = () => {
         </div>
 
         {/* ✨ NUEVO: Modal de Selección de Método de Pago */}
-        {showPaymentMethodModal && selectedInstallmentForPayment && (
+        {showPaymentMethodModal && selectedInstallmentForPayment && ((
           <PaymentMethodSelectionModal
             isOpen={showPaymentMethodModal}
             onClose={() => {
@@ -822,12 +801,16 @@ const PaymentControl: React.FC = () => {
                 setShowTransferModal(true);
               }
             }}
-            installmentAmount={selectedInstallmentForPayment.totalDue}
+            installmentAmount={
+              selectedInstallmentForPayment.remainingAmount && selectedInstallmentForPayment.remainingAmount > 0 && selectedInstallmentForPayment.remainingAmount < selectedInstallmentForPayment.totalDue
+                ? selectedInstallmentForPayment.remainingAmount
+                : selectedInstallmentForPayment.totalDue
+            }
           />
-        )}
+        ))}
 
         {/* ✨ NUEVO: Modal de Pago con Culqi */}
-        {showCulqiModal && selectedInstallmentForPayment && (
+        {showCulqiModal && selectedInstallmentForPayment && ((
           <CulqiPaymentModal
             isOpen={showCulqiModal}
             onClose={() => {
@@ -839,14 +822,16 @@ const PaymentControl: React.FC = () => {
             }}
             installment={{
               id: Number(selectedInstallmentForPayment.id),
-              amount: selectedInstallmentForPayment.totalDue,
+              amount: selectedInstallmentForPayment.remainingAmount && selectedInstallmentForPayment.remainingAmount > 0 && selectedInstallmentForPayment.remainingAmount < selectedInstallmentForPayment.totalDue
+                ? selectedInstallmentForPayment.remainingAmount
+                : selectedInstallmentForPayment.totalDue,
               installment_number: selectedInstallmentForPayment.installmentNumber,
             }}
           />
-        )}
+        ))}
 
         {/* ✨ NUEVO: Modal de Pago con Yape */}
-        {showYapeModal && selectedInstallmentForPayment && (
+        {showYapeModal && selectedInstallmentForPayment && ((
           <YapePaymentModal
             isOpen={showYapeModal}
             onClose={() => {
@@ -857,12 +842,16 @@ const PaymentControl: React.FC = () => {
               fetchEnrollment(); // Recargar datos después del pago exitoso
             }}
             installmentId={selectedInstallmentForPayment.id}
-            amount={selectedInstallmentForPayment.totalDue}
+            amount={
+              selectedInstallmentForPayment.remainingAmount && selectedInstallmentForPayment.remainingAmount > 0 && selectedInstallmentForPayment.remainingAmount < selectedInstallmentForPayment.totalDue
+                ? selectedInstallmentForPayment.remainingAmount
+                : selectedInstallmentForPayment.totalDue
+            }
           />
-        )}
+        ))}
 
         {/* ✨ NUEVO: Modal de Pago con Transferencia Bancaria */}
-        {showTransferModal && selectedInstallmentForPayment && (
+        {showTransferModal && selectedInstallmentForPayment && ((
           <TransferPaymentModal
             isOpen={showTransferModal}
             onClose={() => {
@@ -873,9 +862,13 @@ const PaymentControl: React.FC = () => {
               fetchEnrollment(); // Recargar datos después del pago exitoso
             }}
             installmentId={selectedInstallmentForPayment.id}
-            amount={selectedInstallmentForPayment.totalDue}
+            amount={
+              selectedInstallmentForPayment.remainingAmount && selectedInstallmentForPayment.remainingAmount > 0 && selectedInstallmentForPayment.remainingAmount < selectedInstallmentForPayment.totalDue
+                ? selectedInstallmentForPayment.remainingAmount
+                : selectedInstallmentForPayment.totalDue
+            }
           />
-        )}
+        ))}
 
         {/* Modal: Cambiar Plan de Pago */}
         {showPlanChangeModal && (
@@ -1034,7 +1027,6 @@ const PaymentControl: React.FC = () => {
 
                 {/* Input de monto */}
                 <div>
-                 
                   <div className="relative">
                     <Input
                       label="Monto a pagar"
@@ -1074,48 +1066,109 @@ const PaymentControl: React.FC = () => {
                   </div>
                 )}
 
-                {/* Subir comprobante */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Comprobante de pago:
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        handleUploadPartialPayment(file);
-                      }
-                    }}
-                    disabled={uploadingPartialPayment || !partialAmount || parseFloat(partialAmount) <= 0 || parseFloat(partialAmount) > enrollment.totalPending}
-                    className="hidden"
-                    id="partial-payment-file"
-                  />
-                  <label
-                    htmlFor="partial-payment-file"
-                    className={`block w-full px-4 py-3 border-2 border-dashed rounded-lg text-center cursor-pointer transition-all ${
-                      uploadingPartialPayment || !partialAmount || parseFloat(partialAmount) <= 0 || parseFloat(partialAmount) > enrollment.totalPending
-                        ? 'border-slate-200 bg-slate-50 cursor-not-allowed'
-                        : 'border-[#17BC91] hover:bg-[#17BC91]/5'
-                    }`}
-                  >
-                    {uploadingPartialPayment ? (
-                      <div className="flex items-center justify-center space-x-2 text-[#17BC91]">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#17BC91]"></div>
-                        <span className="font-medium">Procesando...</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center space-x-2 text-slate-700">
-                        <Upload className="w-5 h-5" />
-                        <span className="font-medium">Seleccionar comprobante</span>
-                      </div>
-                    )}
-                  </label>
-                </div>
+                {/* Botón Pagar */}
+                <button
+                  onClick={() => {
+                    if (!partialAmount || parseFloat(partialAmount) <= 0) {
+                      toast.error('Ingresa un monto válido');
+                      return;
+                    }
+                    if (parseFloat(partialAmount) > enrollment.totalPending) {
+                      toast.error('El monto excede tu deuda pendiente');
+                      return;
+                    }
+                    setShowPartialPaymentModal(false);
+                    setShowPartialPaymentMethodModal(true);
+                  }}
+                  disabled={!partialAmount || parseFloat(partialAmount) <= 0 || parseFloat(partialAmount) > enrollment.totalPending}
+                  className="w-full flex items-center justify-center px-6 py-4 bg-gradient-to-r from-[#073372] to-[#17BC91] hover:from-[#073372]/90 hover:to-[#17BC91]/90 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <CreditCard className="w-5 h-5 mr-2" />
+                  <span>Pagar {partialAmount && parseFloat(partialAmount) > 0 ? formatCurrency(parseFloat(partialAmount)) : ''}</span>
+                </button>
               </div>
             </div>
           </div>
+        )}
+
+        {/* Modal de Selección de Método de Pago para Pago Parcial */}
+        {showPartialPaymentMethodModal && partialAmount && (
+          <PaymentMethodSelectionModal
+            isOpen={showPartialPaymentMethodModal}
+            onClose={() => {
+              setShowPartialPaymentMethodModal(false);
+              setPartialAmount('');
+            }}
+            onSelectMethod={(method) => {
+              setShowPartialPaymentMethodModal(false);
+              
+              if (method === 'card') {
+                setShowPartialCulqiModal(true);
+              } else if (method === 'yape') {
+                setShowPartialYapeModal(true);
+              } else if (method === 'transfer') {
+                setShowPartialTransferModal(true);
+              }
+            }}
+            installmentAmount={parseFloat(partialAmount)}
+          />
+        )}
+
+        {/* Modal de Culqi para Pago Parcial */}
+        {showPartialCulqiModal && partialAmount && (
+          <CulqiPaymentModal
+            isOpen={showPartialCulqiModal}
+            onClose={() => {
+              setShowPartialCulqiModal(false);
+              setPartialAmount('');
+            }}
+            onSuccess={() => {
+              setPartialAmount('');
+              fetchEnrollment();
+            }}
+            installment={{
+              id: 0, // Pago parcial no tiene ID de cuota específica
+              amount: parseFloat(partialAmount),
+              installment_number: 0, // Se distribuirá automáticamente
+            }}
+            isPartialPayment={true}
+          />
+        )}
+
+        {/* Modal de Yape para Pago Parcial */}
+        {showPartialYapeModal && partialAmount && (
+          <YapePaymentModal
+            isOpen={showPartialYapeModal}
+            onClose={() => {
+              setShowPartialYapeModal(false);
+              setPartialAmount('');
+            }}
+            onSuccess={() => {
+              setPartialAmount('');
+              fetchEnrollment();
+            }}
+            installmentId=""
+            amount={parseFloat(partialAmount)}
+            isPartialPayment={true}
+          />
+        )}
+
+        {/* Modal de Transferencia para Pago Parcial */}
+        {showPartialTransferModal && partialAmount && (
+          <TransferPaymentModal
+            isOpen={showPartialTransferModal}
+            onClose={() => {
+              setShowPartialTransferModal(false);
+              setPartialAmount('');
+            }}
+            onSuccess={() => {
+              setPartialAmount('');
+              fetchEnrollment();
+            }}
+            installmentId=""
+            amount={parseFloat(partialAmount)}
+            isPartialPayment={true}
+          />
         )}
       </div>
     </AuthenticatedLayout>

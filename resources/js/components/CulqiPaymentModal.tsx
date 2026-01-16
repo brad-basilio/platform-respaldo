@@ -29,6 +29,7 @@ interface CulqiPaymentModalProps {
     installment_number: number;
   };
   onSuccess: () => void;
+  isPartialPayment?: boolean;
 }
 
 // Declarar el tipo global de Culqi y Culqi3DS
@@ -53,6 +54,7 @@ const CulqiPaymentModal: React.FC<CulqiPaymentModalProps> = ({
   onClose,
   installment,
   onSuccess,
+  isPartialPayment = false,
 }) => {
   const [loading, setLoading] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
@@ -283,8 +285,9 @@ const CulqiPaymentModal: React.FC<CulqiPaymentModalProps> = ({
 
       const response = await axios.post('/api/student/culqi/process-payment-saved-card', {
         payment_method_id: selectedCard.id,
-        installment_id: installment.id,
+        installment_id: isPartialPayment ? null : installment.id,
         amount: installment.amount,
+        is_partial_payment: isPartialPayment,
       });
 
       // Si requiere 3DS, debemos usar el checkout de Culqi para obtener un nuevo token
@@ -309,7 +312,9 @@ const CulqiPaymentModal: React.FC<CulqiPaymentModalProps> = ({
       if (response.data.success) {
         setPaymentSuccess(true);
         toast.success('¡Pago procesado exitosamente!', {
-          description: `La cuota #${installment.installment_number} ha sido pagada con tu tarjeta guardada`,
+          description: isPartialPayment 
+            ? `Pago parcial de S/ ${installment.amount.toFixed(2)} procesado. Se distribuirá a tus cuotas pendientes.`
+            : `La cuota #${installment.installment_number} ha sido pagada con tu tarjeta guardada`,
           duration: 5000,
         });
 
@@ -353,10 +358,11 @@ const CulqiPaymentModal: React.FC<CulqiPaymentModalProps> = ({
 
       const response = await axios.post('/api/student/culqi/process-payment', {
         token_id: tokenId,
-        installment_id: installment.id,
+        installment_id: isPartialPayment ? null : installment.id,
         amount: installment.amount,
         save_card: false,
         auto_payment: false,
+        is_partial_payment: isPartialPayment,
       });
 
       if (response.data.requires_3ds) {
@@ -377,7 +383,9 @@ const CulqiPaymentModal: React.FC<CulqiPaymentModalProps> = ({
       if (response.data.success) {
         setPaymentSuccess(true);
         toast.success('¡Pago procesado exitosamente!', {
-          description: `La cuota #${installment.installment_number} ha sido pagada`,
+          description: isPartialPayment 
+            ? `Pago parcial de S/ ${installment.amount.toFixed(2)} procesado. Se distribuirá a tus cuotas pendientes.`
+            : `La cuota #${installment.installment_number} ha sido pagada`,
           duration: 5000,
         });
 
@@ -503,17 +511,20 @@ const CulqiPaymentModal: React.FC<CulqiPaymentModalProps> = ({
       // Usar el endpoint normal de 3DS (siempre usamos token)
       const response = await axios.post('/api/student/culqi/process-payment-3ds', {
         token_id: threeDSData.tokenId,
-        installment_id: installment.id,
+        installment_id: isPartialPayment ? null : installment.id,
         amount: installment.amount,
         parameters_3ds: parameters3DS,
         save_card: false,
         auto_payment: false,
+        is_partial_payment: isPartialPayment,
       });
 
       if (response.data.success) {
         setPaymentSuccess(true);
         toast.success('¡Pago procesado exitosamente!', {
-          description: `La cuota #${installment.installment_number} ha sido pagada con verificación 3D Secure`,
+          description: isPartialPayment 
+            ? `Pago parcial de S/ ${installment.amount.toFixed(2)} procesado con verificación 3D Secure.`
+            : `La cuota #${installment.installment_number} ha sido pagada con verificación 3D Secure`,
           duration: 5000,
         });
 
@@ -601,7 +612,12 @@ const CulqiPaymentModal: React.FC<CulqiPaymentModalProps> = ({
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">Pagar con Tarjeta</h2>
-                <p className="text-sm text-white/90">Cuota #{installment.installment_number} - {formatCurrency(installment.amount)}</p>
+                <p className="text-sm text-white/90">
+                  {isPartialPayment 
+                    ? `Pago Parcial - ${formatCurrency(installment.amount)}`
+                    : `Cuota #${installment.installment_number} - ${formatCurrency(installment.amount)}`
+                  }
+                </p>
               </div>
             </div>
           </div>
@@ -738,9 +754,16 @@ const CulqiPaymentModal: React.FC<CulqiPaymentModalProps> = ({
                 {/* Payment Summary */}
                 <div className="p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
                   <div className="flex justify-between items-center text-sm mb-2">
-                    <span className="text-gray-600">Cuota #{installment.installment_number}</span>
+                    <span className="text-gray-600">
+                      {isPartialPayment ? 'Pago Parcial' : `Cuota #${installment.installment_number}`}
+                    </span>
                     <span className="font-medium text-gray-900">{formatCurrency(installment.amount)}</span>
                   </div>
+                  {isPartialPayment && (
+                    <p className="text-xs text-blue-600 mb-2">
+                      Se distribuirá automáticamente a tus cuotas más antiguas
+                    </p>
+                  )}
                   <div className="border-t border-gray-300 pt-2 mt-2">
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-gray-900">Total a Pagar</span>

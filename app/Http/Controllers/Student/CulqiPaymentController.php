@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\CulqiTransaction;
+use App\Models\Enrollment;
 use App\Models\Installment;
 use App\Models\InstallmentVoucher;
 use App\Models\PaymentMethod;
+use App\Models\Setting;
 use App\Services\CulqiService;
 use App\Services\PaymentReceiptService;
 use App\Mail\PaymentReceiptMail;
@@ -51,13 +53,26 @@ class CulqiPaymentController extends Controller
     {
         $request->validate([
             'token_id' => 'required|string', // Token ID de Culqi (tkn_xxx)
-            'installment_id' => 'required|exists:installments,id',
+            'installment_id' => 'nullable|exists:installments,id',
             'amount' => 'required|numeric|min:0.01',
             'save_card' => 'sometimes|boolean',
             'auto_payment' => 'sometimes|boolean',
+            'is_partial_payment' => 'sometimes|boolean',
         ]);
 
         $student = Auth::user()->student;
+        $isPartialPayment = $request->boolean('is_partial_payment');
+
+        // Si es pago parcial, usar flujo especial
+        if ($isPartialPayment) {
+            return $this->processPartialPayment($request, $student);
+        }
+
+        // Flujo normal: pago de cuota específica
+        if (!$request->installment_id) {
+            return response()->json(['error' => 'Debes especificar una cuota'], 400);
+        }
+
         $installment = Installment::findOrFail($request->installment_id);
 
         // Verificar que el installment pertenece al estudiante
@@ -226,14 +241,27 @@ class CulqiPaymentController extends Controller
     {
         $request->validate([
             'token_id' => 'required|string',
-            'installment_id' => 'required|exists:installments,id',
+            'installment_id' => 'nullable|exists:installments,id',
             'amount' => 'required|numeric|min:0.01',
             'parameters_3ds' => 'required|array', // Parámetros 3DS del frontend
             'save_card' => 'sometimes|boolean',
             'auto_payment' => 'sometimes|boolean',
+            'is_partial_payment' => 'sometimes|boolean',
         ]);
 
         $student = Auth::user()->student;
+        $isPartialPayment = $request->boolean('is_partial_payment');
+
+        // Si es pago parcial, usar flujo especial
+        if ($isPartialPayment) {
+            return $this->processPartialPaymentWith3DS($request, $student);
+        }
+
+        // Flujo normal: pago de cuota específica
+        if (!$request->installment_id) {
+            return response()->json(['error' => 'Debes especificar una cuota'], 400);
+        }
+
         $installment = Installment::findOrFail($request->installment_id);
 
         // Verificar que el installment pertenece al estudiante
@@ -386,18 +414,34 @@ class CulqiPaymentController extends Controller
     {
         $request->validate([
             'payment_method_id' => 'required|exists:payment_methods,id',
-            'installment_id' => 'required|exists:installments,id',
+            'installment_id' => 'nullable|exists:installments,id',
             'amount' => 'required|numeric|min:0.01',
+            'is_partial_payment' => 'sometimes|boolean',
         ]);
 
         $user = Auth::user();
         $student = $user->student;
         $paymentMethod = PaymentMethod::findOrFail($request->payment_method_id);
+        $isPartialPayment = $request->boolean('is_partial_payment');
+
+        // Si es pago parcial, usar flujo especial
+        if ($isPartialPayment) {
+            return $this->processPartialPaymentWithSavedCard($request, $student, $paymentMethod, $user);
+        }
+
+        // Flujo normal: pago de cuota específica
+        if (!$request->installment_id) {
+            return response()->json(['error' => 'Debes especificar una cuota'], 400);
+        }
+
         $installment = Installment::findOrFail($request->installment_id);
 
         // Verificar ownership
-        if ($paymentMethod->student_id !== $student->id || $installment->enrollment->student_id !== $student->id) {
-            return response()->json(['error' => 'No autorizado'], 403);
+        if ($paymentMethod->student_id !== $student->id) {
+            return response()->json(['error' => 'No autorizado - tarjeta no pertenece al estudiante'], 403);
+        }
+        if ($installment->enrollment->student_id !== $student->id) {
+            return response()->json(['error' => 'No autorizado - cuota no pertenece al estudiante'], 403);
         }
 
         // Verificar que la tarjeta tenga un ID de Culqi válido
@@ -751,6 +795,744 @@ class CulqiPaymentController extends Controller
         } catch (\Exception $e) {
             Log::error('Error saving card', ['message' => $e->getMessage()]);
             return null;
+        }
+    }
+
+    /**
+     * Procesar un pago parcial con Culqi
+     * El pago se distribuye automáticamente a las cuotas más antiguas
+     */
+    private function processPartialPayment(Request $request, $student)
+    {
+        // Verificar si los pagos parciales están habilitados
+        $allowPartialPayments = Setting::where('key', 'allow_partial_payments')
+            ->where('type', 'payment')
+            ->value('content') === 'true';
+
+        if (!$allowPartialPayments) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Los pagos parciales no están habilitados en el sistema'
+            ], 400);
+        }
+
+        // Obtener enrollment del estudiante
+        $enrollment = Enrollment::with(['installments' => function($query) {
+            $query->whereIn('status', ['pending', 'paid'])
+                  ->orderBy('due_date', 'asc')
+                  ->orderBy('installment_number', 'asc');
+        }])->where('student_id', $student->id)
+          ->where('status', 'active')
+          ->first();
+
+        if (!$enrollment) {
+            return response()->json([
+                'success' => false,
+                'error' => 'No tienes una matrícula activa'
+            ], 404);
+        }
+
+        // Validar que el monto no exceda el total pendiente
+        $totalPending = $enrollment->total_pending;
+        $amount = (float) $request->amount;
+        
+        if ($amount > $totalPending) {
+            return response()->json([
+                'success' => false,
+                'error' => "El monto (S/ {$amount}) excede tu deuda pendiente (S/ {$totalPending})",
+            ], 422);
+        }
+
+        $email = $student->user->email;
+        if (!$email) {
+            return response()->json([
+                'success' => false,
+                'error' => 'No se encontró email del estudiante',
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // 1. Crear cargo en Culqi
+            $chargeResult = $this->culqiService->createCharge(
+                $request->token_id,
+                $amount,
+                'PEN',
+                $email,
+                [
+                    'student_id' => $student->id,
+                    'description' => "Pago parcial - {$student->first_name} {$student->last_name}",
+                ]
+            );
+
+            // Verificar si requiere 3DS
+            if (!$chargeResult['success'] && isset($chargeResult['requires_3ds']) && $chargeResult['requires_3ds']) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'requires_3ds' => true,
+                    'charge_data' => $chargeResult['data'] ?? null,
+                    'token_id' => $request->token_id,
+                    'amount' => $amount,
+                    'email' => $email,
+                    'is_partial_payment' => true,
+                    'message' => 'Se requiere verificación 3D Secure',
+                ], 200);
+            }
+
+            if (!$chargeResult['success']) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'error' => $chargeResult['error'],
+                ], 400);
+            }
+
+            $chargeData = $chargeResult['data'];
+
+            if (!isset($chargeData['id'])) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Respuesta inesperada de Culqi. Por favor intenta de nuevo.',
+                ], 400);
+            }
+
+            // 2. Guardar transacción en BD
+            $transaction = CulqiTransaction::create([
+                'student_id' => $student->id,
+                'installment_id' => null, // Pago parcial no tiene cuota específica
+                'charge_id' => $chargeData['id'],
+                'amount' => $amount / 100,
+                'currency' => 'PEN',
+                'status' => 'successful',
+                'card_brand' => $chargeData['source']['iin']['card_brand'] ?? null,
+                'card_last4' => substr($chargeData['source']['card_number'] ?? '', -4),
+                'response_data' => $chargeData,
+            ]);
+
+            // 3. Distribuir el pago a las cuotas más antiguas
+            $amountRemaining = $amount / 100; // Convertir de centavos a soles
+            $distributionDetails = [];
+            $affectedInstallments = [];
+            $vouchersCreated = [];
+
+            foreach ($enrollment->installments as $installment) {
+                if ($amountRemaining <= 0) {
+                    break;
+                }
+
+                // Calcular mora actualizada
+                $installment->calculateLateFee();
+                $installment->refresh();
+
+                $totalDue = $installment->total_due;
+                $alreadyPaid = $installment->paid_amount;
+                $pending = $totalDue - $alreadyPaid;
+
+                if ($pending <= 0) {
+                    continue;
+                }
+
+                $amountToApply = min($amountRemaining, $pending);
+
+                // Crear voucher para esta cuota (pago Culqi = verificado automáticamente)
+                $voucher = InstallmentVoucher::create([
+                    'installment_id' => $installment->id,
+                    'uploaded_by' => $student->user->id,
+                    'voucher_path' => null,
+                    'declared_amount' => $amountToApply,
+                    'verified_amount' => $amountToApply,
+                    'payment_date' => now(),
+                    'payment_method' => 'tarjeta',
+                    'status' => 'approved',
+                    'payment_type' => ($amountToApply >= $pending) ? 'full' : 'partial',
+                    'applied_to_total' => true,
+                    'transaction_reference' => $chargeData['id'],
+                    'culqi_transaction_id' => $transaction->id,
+                    'payment_source' => 'culqi_card',
+                    'notes' => 'Pago parcial con tarjeta (Culqi) - Distribuido automáticamente',
+                    'reviewed_by' => null,
+                    'reviewed_at' => now(),
+                ]);
+
+                $vouchersCreated[] = $voucher;
+
+                // Actualizar la cuota
+                $newPaidAmount = $alreadyPaid + $amountToApply;
+                $isComplete = $newPaidAmount >= $totalDue;
+                $remainingAmount = max(0, $totalDue - $newPaidAmount);
+                
+                // Determinar payment_type
+                $currentPaymentType = $installment->payment_type;
+                if ($isComplete) {
+                    $paymentType = ($currentPaymentType === 'partial' || $alreadyPaid > 0) ? 'combined' : 'full';
+                } else {
+                    $paymentType = ($currentPaymentType === 'partial' || $alreadyPaid > 0) ? 'combined' : 'partial';
+                }
+                
+                $installment->update([
+                    'paid_amount' => $newPaidAmount,
+                    'remaining_amount' => $remainingAmount,
+                    'payment_type' => $paymentType,
+                    'status' => $isComplete ? 'verified' : 'paid',
+                    'paid_date' => now(),
+                    'verified_by' => null, // Pago automático
+                    'verified_at' => $isComplete ? now() : null,
+                ]);
+
+                $distributionDetails[] = [
+                    'installment_number' => $installment->installment_number,
+                    'amount_applied' => $amountToApply,
+                    'was_completed' => $isComplete,
+                ];
+
+                $affectedInstallments[] = $installment->id;
+                $amountRemaining -= $amountToApply;
+
+                Log::info('Pago parcial Culqi aplicado a cuota:', [
+                    'installment_id' => $installment->id,
+                    'installment_number' => $installment->installment_number,
+                    'amount_applied' => $amountToApply,
+                ]);
+            }
+
+            // 4. Generar boletas para los vouchers creados (una por cada cuota afectada)
+            foreach ($vouchersCreated as $index => $voucher) {
+                try {
+                    $receiptService = new PaymentReceiptService();
+                    $receiptPath = $receiptService->generate($voucher);
+                    
+                    $voucher->receipt_path = $receiptPath;
+                    $voucher->save();
+
+                    // Enviar boleta por email para cada voucher
+                    if ($email) {
+                        Mail::to($email)->queue(new PaymentReceiptMail($voucher, $receiptPath));
+                        Log::info("Boleta Culqi (pago parcial #{$index}) enviada a {$email} - Cuota #{$voucher->installment->installment_number}");
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Error generando boleta para pago parcial Culqi: ' . $e->getMessage());
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => '¡Pago parcial procesado exitosamente!',
+                'transaction' => $transaction,
+                'total_amount' => $amount / 100,
+                'distribution_details' => $distributionDetails,
+                'affected_installments' => count($affectedInstallments),
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error processing partial payment with Culqi', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al procesar el pago: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Procesar un pago parcial con 3DS
+     * El pago se distribuye automáticamente a las cuotas más antiguas
+     */
+    private function processPartialPaymentWith3DS(Request $request, $student)
+    {
+        // Verificar si los pagos parciales están habilitados
+        $allowPartialPayments = Setting::where('key', 'allow_partial_payments')
+            ->where('type', 'payment')
+            ->value('content') === 'true';
+
+        if (!$allowPartialPayments) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Los pagos parciales no están habilitados en el sistema'
+            ], 400);
+        }
+
+        // Obtener enrollment del estudiante
+        $enrollment = Enrollment::with(['installments' => function($query) {
+            $query->whereIn('status', ['pending', 'paid'])
+                  ->orderBy('due_date', 'asc')
+                  ->orderBy('installment_number', 'asc');
+        }])->where('student_id', $student->id)
+          ->where('status', 'active')
+          ->first();
+
+        if (!$enrollment) {
+            return response()->json([
+                'success' => false,
+                'error' => 'No tienes una matrícula activa'
+            ], 404);
+        }
+
+        // Validar que el monto no exceda el total pendiente
+        $totalPending = $enrollment->total_pending;
+        $amount = (float) $request->amount;
+        
+        if ($amount > $totalPending) {
+            return response()->json([
+                'success' => false,
+                'error' => "El monto (S/ {$amount}) excede tu deuda pendiente (S/ {$totalPending})",
+            ], 422);
+        }
+
+        $email = $student->user->email;
+        if (!$email) {
+            return response()->json([
+                'success' => false,
+                'error' => 'No se encontró email del estudiante',
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Crear cargo con parámetros 3DS
+            $chargeResult = $this->culqiService->createChargeWith3DS(
+                $request->token_id,
+                $amount,
+                'PEN',
+                $email,
+                $request->parameters_3ds,
+                [
+                    'student_id' => $student->id,
+                    'description' => "Pago parcial 3DS - {$student->first_name} {$student->last_name}",
+                    '3ds_authenticated' => true,
+                ]
+            );
+
+            if (!$chargeResult['success']) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'error' => $chargeResult['error'],
+                ], 400);
+            }
+
+            $chargeData = $chargeResult['data'];
+
+            if (!isset($chargeData['id'])) {
+                DB::rollBack();
+                Log::error('Culqi 3DS charge response missing ID (partial)', ['data' => $chargeData]);
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Respuesta inesperada de Culqi. Por favor intenta de nuevo.',
+                ], 400);
+            }
+
+            // Guardar transacción en BD
+            $transaction = CulqiTransaction::create([
+                'student_id' => $student->id,
+                'installment_id' => null,
+                'culqi_charge_id' => $chargeData['id'],
+                'culqi_token_id' => $request->token_id,
+                'amount' => $amount,
+                'currency' => 'PEN',
+                'status' => 'succeeded',
+                'culqi_response' => $chargeData,
+                'card_brand' => $chargeData['source']['iin']['card_brand'] ?? null,
+                'card_last4' => $chargeData['source']['card_number'] ?? null,
+                'customer_email' => $email,
+            ]);
+
+            // Distribuir el pago a las cuotas más antiguas
+            $amountRemaining = $amount;
+            $distributionDetails = [];
+            $affectedInstallments = [];
+            $vouchersCreated = [];
+
+            foreach ($enrollment->installments as $installment) {
+                if ($amountRemaining <= 0) {
+                    break;
+                }
+
+                // Calcular mora actualizada
+                $installment->calculateLateFee();
+                $installment->refresh();
+
+                $totalDue = $installment->total_due;
+                $alreadyPaid = $installment->paid_amount;
+                $pending = $totalDue - $alreadyPaid;
+
+                if ($pending <= 0) {
+                    continue;
+                }
+
+                $amountToApply = min($amountRemaining, $pending);
+
+                // Crear voucher para esta cuota
+                $voucher = InstallmentVoucher::create([
+                    'installment_id' => $installment->id,
+                    'uploaded_by' => $student->user->id,
+                    'voucher_path' => 'culqi_payment_3ds',
+                    'declared_amount' => $amountToApply,
+                    'verified_amount' => $amountToApply,
+                    'payment_date' => now(),
+                    'payment_method' => 'tarjeta',
+                    'status' => 'approved',
+                    'payment_type' => ($amountToApply >= $pending) ? 'full' : 'partial',
+                    'applied_to_total' => true,
+                    'transaction_reference' => $chargeData['id'],
+                    'culqi_transaction_id' => $transaction->id,
+                    'payment_source' => 'culqi_card',
+                    'notes' => 'Pago parcial 3DS con tarjeta (Culqi) - Distribuido automáticamente',
+                    'reviewed_by' => null,
+                    'reviewed_at' => now(),
+                ]);
+
+                $vouchersCreated[] = $voucher;
+
+                // Actualizar la cuota
+                $newPaidAmount = $alreadyPaid + $amountToApply;
+                $isComplete = $newPaidAmount >= $totalDue;
+                $remainingAmount = max(0, $totalDue - $newPaidAmount);
+                
+                // Determinar payment_type
+                $currentPaymentType = $installment->payment_type;
+                if ($isComplete) {
+                    $paymentType = ($currentPaymentType === 'partial' || $alreadyPaid > 0) ? 'combined' : 'full';
+                } else {
+                    $paymentType = ($currentPaymentType === 'partial' || $alreadyPaid > 0) ? 'combined' : 'partial';
+                }
+                
+                $installment->update([
+                    'paid_amount' => $newPaidAmount,
+                    'remaining_amount' => $remainingAmount,
+                    'payment_type' => $paymentType,
+                    'status' => $isComplete ? 'verified' : 'paid',
+                    'paid_date' => now(),
+                    'verified_by' => null,
+                    'verified_at' => $isComplete ? now() : null,
+                ]);
+
+                $distributionDetails[] = [
+                    'installment_number' => $installment->installment_number,
+                    'amount_applied' => $amountToApply,
+                    'was_completed' => $isComplete,
+                ];
+
+                $affectedInstallments[] = $installment->id;
+                $amountRemaining -= $amountToApply;
+
+                Log::info('Pago parcial Culqi 3DS aplicado a cuota:', [
+                    'installment_id' => $installment->id,
+                    'installment_number' => $installment->installment_number,
+                    'amount_applied' => $amountToApply,
+                ]);
+            }
+
+            // Generar boletas para los vouchers creados (una por cada cuota afectada)
+            foreach ($vouchersCreated as $index => $voucher) {
+                try {
+                    $receiptService = new PaymentReceiptService();
+                    $receiptPath = $receiptService->generate($voucher);
+                    
+                    $voucher->receipt_path = $receiptPath;
+                    $voucher->save();
+
+                    // Enviar boleta por email para cada voucher
+                    if ($email) {
+                        Mail::to($email)->queue(new PaymentReceiptMail($voucher, $receiptPath));
+                        Log::info("Boleta Culqi 3DS (pago parcial #{$index}) enviada a {$email} - Cuota #{$voucher->installment->installment_number}");
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Error generando boleta para pago parcial Culqi 3DS: ' . $e->getMessage());
+                }
+            }
+
+            // Guardar tarjeta si lo solicita
+            $savedCard = null;
+            if ($request->save_card) {
+                $savedCard = $this->saveCard($student, $chargeData, $request->auto_payment ?? false);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => '¡Pago parcial procesado exitosamente con verificación 3D Secure!',
+                'transaction' => $transaction,
+                'total_amount' => $amount,
+                'distribution_details' => $distributionDetails,
+                'affected_installments' => count($affectedInstallments),
+                'saved_card' => $savedCard,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error processing partial payment with Culqi 3DS', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al procesar el pago: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Procesar un pago parcial con tarjeta guardada
+     * El pago se distribuye automáticamente a las cuotas más antiguas
+     */
+    private function processPartialPaymentWithSavedCard(Request $request, $student, $paymentMethod, $user)
+    {
+        // Verificar si los pagos parciales están habilitados
+        $allowPartialPayments = Setting::where('key', 'allow_partial_payments')
+            ->where('type', 'payment')
+            ->value('content') === 'true';
+
+        if (!$allowPartialPayments) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Los pagos parciales no están habilitados en el sistema'
+            ], 400);
+        }
+
+        // Verificar ownership de la tarjeta
+        if ($paymentMethod->student_id !== $student->id) {
+            return response()->json(['error' => 'No autorizado - tarjeta no pertenece al estudiante'], 403);
+        }
+
+        // Verificar que la tarjeta tenga un ID de Culqi válido
+        if (empty($paymentMethod->culqi_card_id)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Esta tarjeta no está habilitada para pagos automáticos. Por favor usa "Pagar con nueva tarjeta" y marca la opción de guardar la tarjeta.',
+            ], 400);
+        }
+
+        // Obtener enrollment del estudiante
+        $enrollment = Enrollment::with(['installments' => function($query) {
+            $query->whereIn('status', ['pending', 'paid'])
+                  ->orderBy('due_date', 'asc')
+                  ->orderBy('installment_number', 'asc');
+        }])->where('student_id', $student->id)
+          ->where('status', 'active')
+          ->first();
+
+        if (!$enrollment) {
+            return response()->json([
+                'success' => false,
+                'error' => 'No tienes una matrícula activa'
+            ], 404);
+        }
+
+        // Validar que el monto no exceda el total pendiente
+        $totalPending = $enrollment->total_pending;
+        $amount = (float) $request->amount;
+        
+        if ($amount > $totalPending) {
+            return response()->json([
+                'success' => false,
+                'error' => "El monto (S/ {$amount}) excede tu deuda pendiente (S/ {$totalPending})",
+            ], 422);
+        }
+
+        $email = $user->email;
+        $studentFullName = trim($student->first_name . ' ' . ($student->paternal_last_name ?? '') . ' ' . ($student->maternal_last_name ?? ''));
+
+        DB::beginTransaction();
+        try {
+            // 1. Crear cargo con tarjeta guardada
+            $chargeResult = $this->culqiService->createChargeWithCard(
+                $paymentMethod->culqi_card_id,
+                $amount,
+                'PEN',
+                $email,
+                [
+                    'student_id' => $student->id,
+                    'payment_method_id' => $paymentMethod->id,
+                    'description' => "Pago parcial - {$studentFullName}",
+                ]
+            );
+
+            // Verificar si requiere 3DS
+            if (!$chargeResult['success'] && !empty($chargeResult['requires_3ds'])) {
+                DB::rollBack();
+                
+                return response()->json([
+                    'success' => false,
+                    'requires_3ds' => true,
+                    'card_id' => $paymentMethod->culqi_card_id,
+                    'payment_method_id' => $paymentMethod->id,
+                    'email' => $email,
+                    'is_partial_payment' => true,
+                    'charge_data' => $chargeResult['data'] ?? null,
+                ], 200);
+            }
+
+            if (!$chargeResult['success']) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'error' => $chargeResult['error'] ?? 'Error al procesar el pago',
+                ], 400);
+            }
+
+            $chargeData = $chargeResult['data'];
+
+            if (empty($chargeData['id'])) {
+                DB::rollBack();
+                Log::error('Charge response missing ID (partial saved card)', ['chargeData' => $chargeData]);
+                return response()->json([
+                    'success' => false,
+                    'error' => 'La respuesta del procesador de pago no es válida',
+                ], 400);
+            }
+
+            // 2. Guardar transacción en BD
+            $transaction = CulqiTransaction::create([
+                'student_id' => $student->id,
+                'installment_id' => null, // Pago parcial no tiene cuota específica
+                'payment_method_id' => $paymentMethod->id,
+                'culqi_charge_id' => $chargeData['id'],
+                'amount' => $amount,
+                'currency' => 'PEN',
+                'status' => 'succeeded',
+                'culqi_response' => $chargeData,
+                'card_brand' => $paymentMethod->card_brand,
+                'card_last4' => $paymentMethod->card_last4,
+                'customer_email' => $email,
+            ]);
+
+            // 3. Distribuir el pago a las cuotas más antiguas
+            $amountRemaining = $amount;
+            $distributionDetails = [];
+            $affectedInstallments = [];
+            $vouchersCreated = [];
+
+            foreach ($enrollment->installments as $installment) {
+                if ($amountRemaining <= 0) {
+                    break;
+                }
+
+                // Calcular mora actualizada
+                $installment->calculateLateFee();
+                $installment->refresh();
+
+                $totalDue = $installment->total_due;
+                $alreadyPaid = $installment->paid_amount;
+                $pending = $totalDue - $alreadyPaid;
+
+                if ($pending <= 0) {
+                    continue;
+                }
+
+                $amountToApply = min($amountRemaining, $pending);
+
+                // Crear voucher para esta cuota (pago Culqi = verificado automáticamente)
+                $voucher = InstallmentVoucher::create([
+                    'installment_id' => $installment->id,
+                    'uploaded_by' => $user->id,
+                    'voucher_path' => 'culqi_saved_card',
+                    'declared_amount' => $amountToApply,
+                    'verified_amount' => $amountToApply,
+                    'payment_date' => now(),
+                    'payment_method' => 'tarjeta',
+                    'status' => 'approved',
+                    'payment_type' => ($amountToApply >= $pending) ? 'full' : 'partial',
+                    'applied_to_total' => true,
+                    'transaction_reference' => $chargeData['id'],
+                    'culqi_transaction_id' => $transaction->id,
+                    'payment_source' => 'culqi_card',
+                    'notes' => 'Pago parcial con tarjeta guardada (Culqi) - Distribuido automáticamente',
+                    'reviewed_by' => null,
+                    'reviewed_at' => now(),
+                ]);
+
+                $vouchersCreated[] = $voucher;
+
+                // Actualizar la cuota
+                $newPaidAmount = $alreadyPaid + $amountToApply;
+                $isComplete = $newPaidAmount >= $totalDue;
+                $remainingAmount = max(0, $totalDue - $newPaidAmount);
+                
+                // Determinar payment_type
+                $currentPaymentType = $installment->payment_type;
+                if ($isComplete) {
+                    $paymentType = ($currentPaymentType === 'partial' || $alreadyPaid > 0) ? 'combined' : 'full';
+                } else {
+                    $paymentType = ($currentPaymentType === 'partial' || $alreadyPaid > 0) ? 'combined' : 'partial';
+                }
+                
+                $installment->update([
+                    'paid_amount' => $newPaidAmount,
+                    'remaining_amount' => $remainingAmount,
+                    'payment_type' => $paymentType,
+                    'status' => $isComplete ? 'verified' : 'paid',
+                    'paid_date' => now(),
+                    'verified_by' => null,
+                    'verified_at' => $isComplete ? now() : null,
+                ]);
+
+                $distributionDetails[] = [
+                    'installment_number' => $installment->installment_number,
+                    'amount_applied' => $amountToApply,
+                    'was_completed' => $isComplete,
+                ];
+
+                $affectedInstallments[] = $installment->id;
+                $amountRemaining -= $amountToApply;
+
+                Log::info('Pago parcial Culqi (tarjeta guardada) aplicado a cuota:', [
+                    'installment_id' => $installment->id,
+                    'installment_number' => $installment->installment_number,
+                    'amount_applied' => $amountToApply,
+                ]);
+            }
+
+            // 4. Generar boletas para los vouchers creados (una por cada cuota afectada)
+            foreach ($vouchersCreated as $index => $voucher) {
+                try {
+                    $receiptService = new PaymentReceiptService();
+                    $receiptPath = $receiptService->generate($voucher);
+                    
+                    $voucher->receipt_path = $receiptPath;
+                    $voucher->save();
+
+                    // Enviar boleta por email para cada voucher
+                    if ($email) {
+                        Mail::to($email)->queue(new PaymentReceiptMail($voucher, $receiptPath));
+                        Log::info("Boleta Culqi (tarjeta guardada #{$index}) enviada a {$email} - Cuota #{$voucher->installment->installment_number}");
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Error generando boleta para pago parcial Culqi (tarjeta guardada): ' . $e->getMessage());
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => '¡Pago parcial procesado exitosamente con tarjeta guardada!',
+                'transaction' => $transaction,
+                'total_amount' => $amount,
+                'distribution_details' => $distributionDetails,
+                'affected_installments' => count($affectedInstallments),
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error processing partial payment with saved card', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al procesar el pago: ' . $e->getMessage(),
+            ], 500);
         }
     }
 }

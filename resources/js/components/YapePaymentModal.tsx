@@ -17,6 +17,7 @@ interface YapePaymentModalProps {
   onSuccess: () => void;
   installmentId: string;
   amount: number;
+  isPartialPayment?: boolean;
 }
 
 const YapePaymentModal: React.FC<YapePaymentModalProps> = ({
@@ -25,6 +26,7 @@ const YapePaymentModal: React.FC<YapePaymentModalProps> = ({
   onSuccess,
   installmentId,
   amount,
+  isPartialPayment = false,
 }) => {
   const [yapeMethods, setYapeMethods] = useState<YapeMethod[]>([]);
   const [selectedYape, setSelectedYape] = useState<YapeMethod | null>(null);
@@ -112,10 +114,15 @@ const YapePaymentModal: React.FC<YapePaymentModalProps> = ({
 
       const formData = new FormData();
       formData.append('voucher_file', voucherFile);
-      formData.append('installment_id', installmentId);
+      if (!isPartialPayment) {
+        formData.append('installment_id', installmentId);
+      }
       formData.append('declared_amount', amount.toString());
       formData.append('payment_date', new Date().toISOString().split('T')[0]);
       formData.append('payment_method', 'yape');
+      if (isPartialPayment) {
+        formData.append('is_partial_payment', '1');
+      }
 
       await axios.post('/api/student/upload-voucher', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
