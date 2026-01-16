@@ -8,10 +8,13 @@ use App\Models\Installment;
 use App\Models\InstallmentVoucher;
 use App\Models\PaymentMethod;
 use App\Services\CulqiService;
+use App\Services\PaymentReceiptService;
+use App\Mail\PaymentReceiptMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
 class CulqiPaymentController extends Controller
@@ -154,17 +157,37 @@ class CulqiPaymentController extends Controller
                 'culqi_transaction_id' => $transaction->id,
             ]);
 
-            // 4. Actualizar installment
+            // 4. Actualizar installment - Culqi es pago automático, va directo a 'verified'
             $installment->paid_amount += $request->amount;
             
             if ($installment->paid_amount >= $installment->amount) {
-                $installment->status = 'paid';
+                $installment->status = 'verified'; // ✅ Culqi NO requiere verificación manual
                 $installment->paid_date = now();
+                $installment->verified_at = now();
             }
             
             $installment->save();
 
-            // 5. Guardar tarjeta si lo solicita (para pagos futuros)
+            // 5. Generar boleta de pago automáticamente para Culqi
+            try {
+                $receiptService = new PaymentReceiptService();
+                $receiptPath = $receiptService->generate($voucher);
+                
+                $voucher->receipt_path = $receiptPath;
+                $voucher->save();
+
+                // Enviar boleta por email al estudiante
+                $studentEmail = $student->user->email;
+                if ($studentEmail) {
+                    Mail::to($studentEmail)->queue(new PaymentReceiptMail($voucher, $receiptPath));
+                    Log::info("Boleta Culqi enviada a {$studentEmail} para cuota #{$installment->installment_number}");
+                }
+            } catch (\Exception $e) {
+                Log::error('Error generando boleta para pago Culqi: ' . $e->getMessage());
+                // No fallar el pago si falla la boleta
+            }
+
+            // 6. Guardar tarjeta si lo solicita (para pagos futuros)
             $savedCard = null;
             if ($request->save_card) {
                 $savedCard = $this->saveCard($student, $chargeData, $request->auto_payment ?? false);
@@ -296,15 +319,34 @@ class CulqiPaymentController extends Controller
                 'culqi_transaction_id' => $transaction->id,
             ]);
 
-            // Actualizar installment
+            // Actualizar installment - Culqi es pago automático, va directo a 'verified'
             $installment->paid_amount += $request->amount;
             
             if ($installment->paid_amount >= $installment->amount) {
-                $installment->status = 'paid';
+                $installment->status = 'verified'; // ✅ Culqi NO requiere verificación manual
                 $installment->paid_date = now();
+                $installment->verified_at = now();
             }
             
             $installment->save();
+
+            // Generar boleta de pago automáticamente para Culqi 3DS
+            try {
+                $receiptService = new PaymentReceiptService();
+                $receiptPath = $receiptService->generate($voucher);
+                
+                $voucher->receipt_path = $receiptPath;
+                $voucher->save();
+
+                // Enviar boleta por email al estudiante
+                $studentEmail = $student->user->email;
+                if ($studentEmail) {
+                    Mail::to($studentEmail)->queue(new PaymentReceiptMail($voucher, $receiptPath));
+                    Log::info("Boleta Culqi 3DS enviada a {$studentEmail} para cuota #{$installment->installment_number}");
+                }
+            } catch (\Exception $e) {
+                Log::error('Error generando boleta para pago Culqi 3DS: ' . $e->getMessage());
+            }
 
             // Guardar tarjeta si lo solicita
             $savedCard = null;
@@ -459,13 +501,32 @@ class CulqiPaymentController extends Controller
                 'culqi_transaction_id' => $transaction->id,
             ]);
 
-            // Actualizar installment
+            // Actualizar installment - Culqi es pago automático, va directo a 'verified'
             $installment->paid_amount += $request->amount;
             if ($installment->paid_amount >= $installment->amount) {
-                $installment->status = 'paid';
+                $installment->status = 'verified'; // ✅ Culqi NO requiere verificación manual
                 $installment->paid_date = now();
+                $installment->verified_at = now();
             }
             $installment->save();
+
+            // Generar boleta de pago automáticamente para tarjeta guardada
+            try {
+                $receiptService = new PaymentReceiptService();
+                $receiptPath = $receiptService->generate($voucher);
+                
+                $voucher->receipt_path = $receiptPath;
+                $voucher->save();
+
+                // Enviar boleta por email al estudiante
+                $studentEmail = $user->email;
+                if ($studentEmail) {
+                    Mail::to($studentEmail)->queue(new PaymentReceiptMail($voucher, $receiptPath));
+                    Log::info("Boleta Culqi (tarjeta guardada) enviada a {$studentEmail} para cuota #{$installment->installment_number}");
+                }
+            } catch (\Exception $e) {
+                Log::error('Error generando boleta para pago Culqi (tarjeta guardada): ' . $e->getMessage());
+            }
 
             DB::commit();
 
@@ -596,10 +657,30 @@ class CulqiPaymentController extends Controller
             // Actualizar installment
             $installment->paid_amount += $request->amount;
             if ($installment->paid_amount >= $installment->amount) {
-                $installment->status = 'paid';
+                $installment->status = 'verified'; // Culqi = pago automático, no requiere verificación manual
                 $installment->paid_date = now();
+                $installment->verified_at = now();
             }
             $installment->save();
+
+            // Generar boleta de pago automáticamente para Culqi
+            try {
+                $receiptService = new PaymentReceiptService();
+                $receiptPath = $receiptService->generate($voucher);
+                
+                $voucher->receipt_path = $receiptPath;
+                $voucher->save();
+
+                // Enviar boleta por email al estudiante
+                $studentEmail = $student->user->email;
+                if ($studentEmail) {
+                    Mail::to($studentEmail)->queue(new PaymentReceiptMail($voucher, $receiptPath));
+                    Log::info("Boleta Culqi (3DS+SavedCard) enviada a {$studentEmail} para cuota #{$installment->installment_number}");
+                }
+            } catch (\Exception $e) {
+                Log::error('Error generando boleta para pago Culqi 3DS+SavedCard: ' . $e->getMessage());
+                // No fallar el pago si falla la boleta
+            }
 
             DB::commit();
 

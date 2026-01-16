@@ -41,6 +41,33 @@ class InstallmentVoucher extends Model
     ];
 
     /**
+     * Atributos a agregar automáticamente al array/JSON
+     */
+    protected $appends = ['voucher_url', 'receipt_url'];
+
+    /**
+     * Obtener la URL pública del voucher
+     */
+    public function getVoucherUrlAttribute(): ?string
+    {
+        if (!$this->voucher_path) {
+            return null;
+        }
+        return asset('storage/' . $this->voucher_path);
+    }
+
+    /**
+     * Obtener la URL pública de la boleta (receipt)
+     */
+    public function getReceiptUrlAttribute(): ?string
+    {
+        if (!$this->receipt_path) {
+            return null;
+        }
+        return asset('storage/' . $this->receipt_path);
+    }
+
+    /**
      * Relación con la cuota
      */
     public function installment(): BelongsTo

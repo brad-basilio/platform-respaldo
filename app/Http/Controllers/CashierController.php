@@ -358,14 +358,17 @@ class CashierController extends Controller
                 $studentEmail = $student->user->email ?? $student->email;
                 if ($studentEmail) {
                     Mail::to($studentEmail)->queue(new PaymentReceiptMail($voucher, $receiptPath));
-                    Log::info("Boleta enviada a {$studentEmail} para voucher #{$voucherId}");
+                    Log::info("Boleta (Yape/Transferencia) enviada a {$studentEmail} para voucher #{$voucherId}");
                 }
             } catch (\Exception $e) {
-                Log::error("Error generando/enviando boleta: " . $e->getMessage());
+                Log::error("Error generando/enviando boleta: " . $e->getMessage(), [
+                    'voucher_id' => $voucherId,
+                    'trace' => $e->getTraceAsString()
+                ]);
                 // No fallar la aprobación si falla la boleta
             }
 
-            $message = 'Voucher aprobado exitosamente';
+            $message = 'Voucher aprobado exitosamente. Boleta generada y enviada.';
         } else {
             // Rechazar voucher
             $voucher->status = 'rejected';

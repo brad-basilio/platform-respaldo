@@ -18,8 +18,12 @@ class PaymentReceiptService
     public function generate(InstallmentVoucher $voucher): ?string
     {
         try {
-            // Load relationships
-            $voucher->load(['installment.enrollment.student', 'installment.enrollment.paymentPlan', 'reviewedBy']);
+            // Load relationships - incluir student.user para obtener el email
+            $voucher->load([
+                'installment.enrollment.student.user', 
+                'installment.enrollment.paymentPlan.academicLevel', 
+                'reviewedBy'
+            ]);
             
             $installment = $voucher->installment;
             $enrollment = $installment->enrollment;
@@ -94,20 +98,51 @@ class PaymentReceiptService
             ? 'Matrícula + Primera Cuota' 
             : 'Cuota ' . $this->numberToText($installment->installment_number);
         
+        // Descripción del servicio para la boleta
+        $descripcionServicio = "Servicio Educativo - {$concepto} - " . ($enrollment->paymentPlan->name ?? 'Plan de Pago');
+        
         // Payment method label
         $paymentMethodLabel = $this->getPaymentMethodLabel($voucher->payment_method);
         
-        // Cashier name
-        $cashierName = $voucher->reviewedBy ? $voucher->reviewedBy->name : 'Sistema';
+        // Cashier name - Si es pago automático (Culqi), mostrar "Pago Automático"
+        $isAutomaticPayment = in_array($voucher->payment_source, ['culqi_card', 'culqi_3ds', 'culqi_saved_card']);
+        $cashierName = $isAutomaticPayment 
+            ? 'Pago Automático (Culqi)' 
+            : ($voucher->reviewedBy ? $voucher->reviewedBy->name : 'Sistema');
 
-        // Replace variables
+        // Cálculos de IGV (18%)
+        $montoTotal = $voucher->declared_amount;
+        $opGravada = round($montoTotal / 1.18, 2);
+        $igv = round($montoTotal - $opGravada, 2);
+        
+        // Generar hash simulado para el comprobante
+        $hashComprobante = strtoupper(substr(md5($receiptNumber . $voucher->id), 0, 20));
+
+        // Replace variables - usando campos correctos del modelo Student
+        // Incluye TODAS las variables del template de BD
         $variables = [
+            // Variables del template de BD (comprobante SUNAT)
+            '{{numero_comprobante}}' => $receiptNumber,
+            '{{tipo_documento}}' => $student->document_type ?? 'DNI',
+            '{{numero_documento}}' => $student->document_number ?? '-',
+            '{{direccion_cliente}}' => '-', // No tenemos dirección del estudiante
+            '{{descripcion_servicio}}' => $descripcionServicio,
+            '{{precio_unitario}}' => number_format($montoTotal, 2),
+            '{{valor_venta}}' => number_format($montoTotal, 2),
+            '{{codigo_operacion}}' => $voucher->transaction_reference ?? '-',
+            '{{op_gravada}}' => number_format($opGravada, 2),
+            '{{igv}}' => number_format($igv, 2),
+            '{{importe_total}}' => number_format($montoTotal, 2),
+            '{{fecha_autorizacion}}' => now()->format('d/m/Y'),
+            '{{hash_comprobante}}' => $hashComprobante,
+            
+            // Variables originales (template por defecto)
             '{{numero_boleta}}' => $receiptNumber,
             '{{fecha_emision}}' => now()->format('d/m/Y'),
             '{{hora_emision}}' => now()->format('H:i:s'),
-            '{{nombre_estudiante}}' => $student->full_name ?? $student->name,
-            '{{email_estudiante}}' => $student->email,
-            '{{telefono_estudiante}}' => $student->phone ?? '-',
+            '{{nombre_estudiante}}' => $student->full_name ?? ($student->first_name . ' ' . $student->paternal_last_name),
+            '{{email_estudiante}}' => $student->user->email ?? '-',
+            '{{telefono_estudiante}}' => $student->phone_number ?? '-',
             '{{dni_estudiante}}' => $student->document_number ?? '-',
             '{{codigo_matricula}}' => $this->getEnrollmentCode($enrollment, $student),
             '{{concepto}}' => $concepto,
@@ -138,8 +173,18 @@ class PaymentReceiptService
             ? 'Matrícula + Primera Cuota' 
             : 'Cuota ' . $this->numberToText($installment->installment_number);
         $paymentMethodLabel = $this->getPaymentMethodLabel($voucher->payment_method);
-        $cashierName = $voucher->reviewedBy ? $voucher->reviewedBy->name : 'Sistema';
+        
+        // Cashier name - Si es pago automático (Culqi), mostrar "Pago Automático"
+        $isAutomaticPayment = in_array($voucher->payment_source, ['culqi_card', 'culqi_3ds', 'culqi_saved_card']);
+        $cashierName = $isAutomaticPayment 
+            ? 'Pago Automático (Culqi)' 
+            : ($voucher->reviewedBy ? $voucher->reviewedBy->name : 'Sistema');
+        
         $enrollmentCode = $this->getEnrollmentCode($enrollment, $student);
+        
+        // Obtener email y teléfono de forma segura
+        $studentEmail = $student->user->email ?? '-';
+        $studentPhone = $student->phone_number ?? '-';
         
         return '
         <!DOCTYPE html>
@@ -185,11 +230,15 @@ class PaymentReceiptService
                     <div class="info-grid">
                         <div class="info-row">
                             <div class="info-label">Nombre Completo</div>
-                            <div class="info-value">' . ($student->full_name ?? $student->name) . '</div>
+                            <div class="info-value">' . ($student->full_name ?? ($student->first_name . ' ' . $student->paternal_last_name)) . '</div>
                         </div>
                         <div class="info-row">
                             <div class="info-label">Email</div>
-                            <div class="info-value">' . $student->email . '</div>
+                            <div class="info-value">' . $studentEmail . '</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Teléfono</div>
+                            <div class="info-value">' . $studentPhone . '</div>
                         </div>
                         <div class="info-row">
                             <div class="info-label">DNI</div>
@@ -274,10 +323,15 @@ class PaymentReceiptService
     /**
      * Get payment method label
      */
-    private function getPaymentMethodLabel(string $method): string
+    private function getPaymentMethodLabel(?string $method): string
     {
+        if (!$method) {
+            return 'No especificado';
+        }
+        
         $methods = [
             'card' => 'Tarjeta de Crédito/Débito',
+            'tarjeta' => 'Tarjeta de Crédito/Débito (Culqi)',
             'transfer' => 'Transferencia Bancaria',
             'cash' => 'Efectivo',
             'yape' => 'Yape',

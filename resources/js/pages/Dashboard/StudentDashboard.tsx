@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BookOpen, FileText,
   Award, Clock, Trophy, AlertTriangle, CheckCircle2,
-  CreditCard, TrendingUp, Calendar, AlertCircle, FileCheck
+  CreditCard, TrendingUp, Calendar, AlertCircle, FileCheck, X, AlertOctagon
 } from 'lucide-react';
 import { Student } from '@/types/models';
 
@@ -54,6 +54,29 @@ interface StudentDashboardProps {
 }
 
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
+  // Estado para controlar si el banner de verificación ya fue visto
+  const [showVerifiedBanner, setShowVerifiedBanner] = useState(false);
+
+  useEffect(() => {
+    // Solo mostrar el banner si está verificado Y no lo ha cerrado antes
+    if (student.enrollmentVerified && student.prospectStatus === 'matriculado') {
+      const bannerKey = `verified_banner_seen_${student.id || student.name}`;
+      const hasSeenBanner = localStorage.getItem(bannerKey);
+      if (!hasSeenBanner) {
+        setShowVerifiedBanner(true);
+      }
+    }
+  }, [student.enrollmentVerified, student.prospectStatus, student.id, student.name]);
+
+  const handleDismissVerifiedBanner = () => {
+    const bannerKey = `verified_banner_seen_${student.id || student.name}`;
+    localStorage.setItem(bannerKey, 'true');
+    setShowVerifiedBanner(false);
+  };
+
+  // Verificar si hay cuotas vencidas
+  const hasOverdueInstallments = student.paymentStats && student.paymentStats.overdueInstallments > 0;
+
   // KPI Cards para el dashboard
   const paymentKPIs = student.paymentStats ? [
     {
@@ -137,6 +160,75 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
         </div>
       )}
 
+      {/* 🚨 Banner URGENTE de Cuotas Vencidas */}
+      {hasOverdueInstallments && student.paymentStats && (
+        <div className="bg-gradient-to-r from-red-50 via-red-100 to-orange-50 border-2 border-red-500 rounded-2xl p-6 shadow-lg relative overflow-hidden">
+          {/* Efecto de urgencia */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full -mr-16 -mt-16" />
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-500/10 rounded-full -ml-12 -mb-12" />
+          
+          <div className="flex items-start space-x-4 relative z-10">
+            <div className="flex-shrink-0">
+              <div className="relative">
+                <AlertOctagon className="h-10 w-10 text-red-600" />
+                <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-white text-[10px] font-bold items-center justify-center">
+                    {student.paymentStats.overdueInstallments}
+                  </span>
+                </span>
+              </div>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-red-900 mb-2">
+                🚨 Tienes {student.paymentStats.overdueInstallments} Cuota{student.paymentStats.overdueInstallments > 1 ? 's' : ''} Vencida{student.paymentStats.overdueInstallments > 1 ? 's' : ''}
+              </h3>
+              <p className="text-red-800 mb-3">
+                {student.paymentStats.nextPayment?.is_in_grace_period 
+                  ? '¡Aún estás a tiempo! Tu cuota está en período de gracia. Paga ahora para evitar recargos por mora.'
+                  : 'Tu cuota ha superado el período de gracia y se han aplicado recargos por mora. Te recomendamos regularizar tu situación lo antes posible.'
+                }
+              </p>
+              
+              {student.paymentStats.nextPayment && (
+                <div className="bg-white/80 rounded-lg p-4 border border-red-200 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-red-700 font-medium">Cuota #{student.paymentStats.nextPayment.installment_number}</p>
+                      <p className="text-2xl font-black text-red-900">
+                        S/ {(student.paymentStats.nextPayment.amount || 0).toFixed(2)}
+                        {student.paymentStats.nextPayment.has_late_fee && student.paymentStats.nextPayment.late_fee && (
+                          <span className="text-sm font-normal text-red-600 ml-2">
+                            (incluye S/ {student.paymentStats.nextPayment.late_fee.toFixed(2)} de mora)
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-red-600">Venció el</p>
+                      <p className="text-lg font-bold text-red-800">
+                        {new Date(student.paymentStats.nextPayment.due_date).toLocaleDateString('es-PE', {
+                          day: '2-digit',
+                          month: 'short'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <a
+                href="/student/payment-control"
+                className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              >
+                <CreditCard className="h-5 w-5" />
+                Pagar Ahora
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Banner de Matrícula Pendiente de Verificación */}
       {!student.enrollmentVerified && student.prospectStatus === 'matriculado' && (
         <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-400 rounded-2xl p-6 shadow-lg">
@@ -180,19 +272,28 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
         </div>
       )}
 
-      {/* Banner de Matrícula Verificada */}
-      {student.enrollmentVerified && student.prospectStatus === 'matriculado' && (
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 rounded-2xl p-6 shadow-lg">
-          <div className="flex items-start space-x-4">
+      {/* Banner de Matrícula Verificada - Solo se muestra una vez */}
+      {showVerifiedBanner && (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 rounded-2xl p-6 shadow-lg relative">
+          {/* Botón para cerrar */}
+          <button
+            onClick={handleDismissVerifiedBanner}
+            className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-green-200/50 transition-colors text-green-600 hover:text-green-800"
+            title="Cerrar y no mostrar de nuevo"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          
+          <div className="flex items-start space-x-4 pr-8">
             <div className="flex-shrink-0">
               <CheckCircle2 className="h-8 w-8 text-green-600" />
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-bold text-slate-900 mb-2">
-                ✅ Matrícula Verificada
+                ✅ ¡Felicitaciones! Tu Matrícula ha sido Verificada
               </h3>
               <p className="text-slate-700">
-                ¡Felicitaciones! Tu matrícula ha sido verificada exitosamente. Ya puedes acceder a todas las funciones de la plataforma.
+                Ya puedes acceder a todas las funciones de la plataforma. ¡Bienvenido al programa!
               </p>
               {student.verifiedEnrollmentBy && (
                 <div className="mt-2 text-sm text-slate-600">
@@ -444,48 +545,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
         </div>
       )}
 
-      {/* Acciones Rápidas */}
-      <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl p-8 border border-slate-200">
-        <h2 className="text-xl font-bold text-slate-900 mb-6">Acciones Rápidas</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <a
-            href="/student/payment-control"
-            className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group"
-          >
-            <div
-              className="p-3 rounded-xl mb-3 group-hover:scale-110 transition-transform"
-              style={{ backgroundColor: `${COLORS.pradera}15` }}
-            >
-              <CreditCard className="h-7 w-7" style={{ color: COLORS.pradera }} />
-            </div>
-            <span className="text-sm font-semibold text-slate-900">Ver Pagos</span>
-          </a>
-          <button className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group">
-            <div
-              className="p-3 rounded-xl mb-3 group-hover:scale-110 transition-transform"
-              style={{ backgroundColor: `${COLORS.catalina}15` }}
-            >
-              <BookOpen className="h-7 w-7" style={{ color: COLORS.catalina }} />
-            </div>
-            <span className="text-sm font-semibold text-slate-900">Mis Clases</span>
-          </button>
-          <button className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group">
-            <div
-              className="p-3 rounded-xl mb-3 group-hover:scale-110 transition-transform"
-              style={{ backgroundColor: `${COLORS.beer}15` }}
-            >
-              <FileText className="h-7 w-7" style={{ color: COLORS.beer }} />
-            </div>
-            <span className="text-sm font-semibold text-slate-900">Mis Notas</span>
-          </button>
-          <button className="flex flex-col items-center p-6 bg-white rounded-xl hover:shadow-lg transition-all border border-slate-200 group">
-            <div className="p-3 bg-purple-50 rounded-xl mb-3 group-hover:bg-purple-100 group-hover:scale-110 transition-all">
-              <Award className="h-7 w-7 text-purple-600" />
-            </div>
-            <span className="text-sm font-semibold text-slate-900">Certificados</span>
-          </button>
-        </div>
-      </div>
+    
     </div>
   );
 };
