@@ -350,6 +350,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         // Culqi Payments
         Route::post('/api/student/culqi/process-payment', [\App\Http\Controllers\Student\CulqiPaymentController::class, 'processPayment'])->name('api.student.culqi.process-payment');
+        Route::post('/api/student/culqi/process-payment-3ds', [\App\Http\Controllers\Student\CulqiPaymentController::class, 'processPaymentWith3DS'])->name('api.student.culqi.process-payment-3ds');
         Route::post('/api/student/culqi/process-payment-saved-card', [\App\Http\Controllers\Student\CulqiPaymentController::class, 'processPaymentWithSavedCard'])->name('api.student.culqi.process-payment-saved-card');
         Route::get('/api/student/culqi/public-key', [\App\Http\Controllers\Student\CulqiPaymentController::class, 'getPublicKey'])->name('api.student.culqi.public-key');
         

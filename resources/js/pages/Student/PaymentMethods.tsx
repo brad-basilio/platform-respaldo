@@ -1,10 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { CreditCard, Plus, Trash2, Check, AlertCircle, Lock, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { CreditCard, Plus, Trash2, Check, AlertCircle, Lock, X, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
-import { Input } from '@/components/ui/input';
+
+// Declarar el tipo global de Culqi
+declare global {
+  interface Window {
+    Culqi: any;
+    culqi: () => void;
+  }
+}
 
 interface PaymentMethod {
   id: string;
@@ -20,26 +27,174 @@ interface PaymentMethod {
   isExpired: boolean;
   formattedCardName: string;
   createdAt: string;
+  canCharge: boolean;
 }
 
 const PaymentMethods: React.FC = () => {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddCardModal, setShowAddCardModal] = useState(false);
   const [processing, setProcessing] = useState(false);
-
-  // Estados del formulario de nueva tarjeta
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardholderName, setCardholderName] = useState('');
-  const [expirationMonth, setExpirationMonth] = useState('');
-  const [expirationYear, setExpirationYear] = useState('');
-  const [cvv, setCvv] = useState('');
+  
+  // Estados para Culqi
+  const [publicKey, setPublicKey] = useState('');
+  const [culqiLoaded, setCulqiLoaded] = useState(false);
+  const [culqiOpen, setCulqiOpen] = useState(false);
   const [saveAsDefault, setSaveAsDefault] = useState(false);
   const [enableAutoPayment, setEnableAutoPayment] = useState(false);
+  const [showOptionsModal, setShowOptionsModal] = useState(false);
+  
+  const pendingTokenRef = useRef<any>(null);
 
   useEffect(() => {
     fetchPaymentMethods();
+    fetchPublicKey();
   }, []);
+
+  const fetchPublicKey = async () => {
+    try {
+      const response = await axios.get('/api/student/culqi/public-key');
+      if (response.data.public_key) {
+        setPublicKey(response.data.public_key);
+      }
+    } catch (error) {
+      console.error('Error fetching Culqi public key:', error);
+    }
+  };
+
+  // Cargar script de Culqi Checkout
+  useEffect(() => {
+    if (!publicKey) return;
+
+    const existingScript = document.querySelector('script[src="https://checkout.culqi.com/js/v4"]');
+
+    if (existingScript && window.Culqi) {
+      setCulqiLoaded(true);
+      initializeCulqi();
+    } else if (!existingScript) {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.culqi.com/js/v4';
+      script.async = true;
+      script.onload = () => {
+        setCulqiLoaded(true);
+        initializeCulqi();
+      };
+      script.onerror = () => {
+        toast.error('Error al cargar el sistema de pagos');
+      };
+      document.head.appendChild(script);
+    }
+  }, [publicKey]);
+
+  const initializeCulqi = () => {
+    if (!window.Culqi || !publicKey) return;
+
+    window.Culqi.publicKey = publicKey;
+
+    window.Culqi.settings({
+      title: 'UNCED - Guardar Tarjeta',
+      currency: 'PEN',
+      amount: 0, // 0 porque solo guardamos la tarjeta
+    });
+
+    window.Culqi.options({
+      lang: 'es',
+      installments: false,
+      paymentMethods: {
+        tarjeta: true,
+        yape: false,
+        billetera: false,
+        bancaMovil: false,
+        agente: false,
+        cuotealo: false,
+      },
+      style: {
+        bannerColor: '#073372',
+        buttonBackground: '#17BC91',
+        menuColor: '#073372',
+        linksColor: '#17BC91',
+        buttonText: 'Guardar Tarjeta',
+        buttonTextColor: '#ffffff',
+        priceColor: '#073372',
+      },
+    });
+
+    window.culqi = () => {
+      try {
+        window.Culqi.close();
+      } catch (e) {
+        console.log('Error cerrando Culqi:', e);
+      }
+
+      setCulqiOpen(false);
+
+      if (window.Culqi.token) {
+        console.log('Token recibido:', window.Culqi.token);
+        pendingTokenRef.current = window.Culqi.token;
+        // Mostrar modal de opciones (default, autopago)
+        setShowOptionsModal(true);
+      } else if (window.Culqi.error) {
+        console.error('Culqi error:', window.Culqi.error);
+        toast.error(window.Culqi.error.user_message || 'Error al procesar la tarjeta');
+      }
+    };
+  };
+
+  const handleOpenCulqi = () => {
+    if (!window.Culqi || !culqiLoaded) {
+      toast.error('El sistema de pagos aún no está listo. Intenta de nuevo.');
+      return;
+    }
+
+    // Reset options
+    setSaveAsDefault(false);
+    setEnableAutoPayment(false);
+    pendingTokenRef.current = null;
+
+    setCulqiOpen(true);
+    window.Culqi.open();
+  };
+
+  const handleSaveCard = async () => {
+    const token = pendingTokenRef.current;
+    if (!token) {
+      toast.error('No se recibió información de la tarjeta');
+      setShowOptionsModal(false);
+      return;
+    }
+
+    setProcessing(true);
+
+    try {
+      // El token de Culqi Checkout v4 puede no tener todos los campos
+      // El backend obtendrá la información completa de la API de Culqi
+      const expMonth = token.expiration_month ? String(token.expiration_month).padStart(2, '0') : null;
+      const expYear = token.expiration_year ? String(token.expiration_year) : null;
+      
+      await axios.post('/api/student/payment-methods', {
+        token_id: token.id,
+        card_brand: token.iin?.card_brand || null,
+        card_last4: token.last_four || token.card_number?.slice(-4) || null,
+        card_exp_month: expMonth,
+        card_exp_year: expYear,
+        cardholder_name: token.email || null, // Usar email como referencia
+        is_default: saveAsDefault,
+        auto_payment_enabled: enableAutoPayment,
+      });
+
+      toast.success('Tarjeta guardada exitosamente', {
+        description: 'Ya puedes usarla para pagar tus cuotas',
+      });
+      setShowOptionsModal(false);
+      pendingTokenRef.current = null;
+      fetchPaymentMethods();
+    } catch (error: any) {
+      console.error('Error saving card:', error);
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Error al guardar la tarjeta';
+      toast.error(errorMessage);
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   const fetchPaymentMethods = async () => {
     try {
@@ -98,62 +253,6 @@ const PaymentMethods: React.FC = () => {
     }
   };
 
-  const handleAddCard = async () => {
-    // Validar campos
-    if (!cardNumber || !cardholderName || !expirationMonth || !expirationYear || !cvv) {
-      toast.error('Por favor, completa todos los campos');
-      return;
-    }
-
-    setProcessing(true);
-
-    try {
-      // Aquí deberías tokenizar la tarjeta con Culqi primero
-      // Por simplicidad, simularemos el token
-      const mockToken = `tok_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      await axios.post('/api/student/payment-methods', {
-        kulki_card_token: mockToken,
-        kulki_customer_id: `cus_${Date.now()}`,
-        card_brand: detectCardBrand(cardNumber),
-        card_last4: cardNumber.slice(-4),
-        card_exp_month: expirationMonth.padStart(2, '0'),
-        card_exp_year: expirationYear,
-        cardholder_name: cardholderName,
-        is_default: saveAsDefault,
-        auto_payment_enabled: enableAutoPayment,
-      });
-
-      toast.success('Tarjeta guardada exitosamente');
-      setShowAddCardModal(false);
-      resetForm();
-      fetchPaymentMethods();
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      toast.error(err.response?.data?.message || 'Error al guardar la tarjeta');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const detectCardBrand = (number: string): string => {
-    const cleaned = number.replace(/\s/g, '');
-    if (/^4/.test(cleaned)) return 'visa';
-    if (/^5[1-5]/.test(cleaned)) return 'mastercard';
-    if (/^3[47]/.test(cleaned)) return 'amex';
-    return 'unknown';
-  };
-
-  const resetForm = () => {
-    setCardNumber('');
-    setCardholderName('');
-    setExpirationMonth('');
-    setExpirationYear('');
-    setCvv('');
-    setSaveAsDefault(false);
-    setEnableAutoPayment(false);
-  };
-
   const getCardBrandLogo = (brand: string) => {
     const logos: Record<string, string> = {
       visa: '💳',
@@ -190,11 +289,21 @@ const PaymentMethods: React.FC = () => {
           </div>
           
           <button
-            onClick={() => setShowAddCardModal(true)}
-            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-[#073372] to-[#17BC91] text-white font-semibold rounded-xl hover:shadow-lg transition-all"
+            onClick={handleOpenCulqi}
+            disabled={!culqiLoaded || culqiOpen}
+            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-[#073372] to-[#17BC91] text-white font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Plus className="w-5 h-5 mr-2" />
-            Agregar Tarjeta
+            {!culqiLoaded ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Cargando...
+              </>
+            ) : (
+              <>
+                <Plus className="w-5 h-5 mr-2" />
+                Agregar Tarjeta
+              </>
+            )}
           </button>
         </div>
 
@@ -205,8 +314,9 @@ const PaymentMethods: React.FC = () => {
             <h3 className="text-lg font-semibold text-slate-900 mb-2">No tienes tarjetas guardadas</h3>
             <p className="text-slate-600 mb-6">Agrega una tarjeta para realizar pagos más rápidos</p>
             <button
-              onClick={() => setShowAddCardModal(true)}
-              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-[#073372] to-[#17BC91] text-white font-semibold rounded-xl hover:shadow-lg transition-all"
+              onClick={handleOpenCulqi}
+              disabled={!culqiLoaded}
+              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-[#073372] to-[#17BC91] text-white font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50"
             >
               <Plus className="w-5 h-5 mr-2" />
               Agregar Primera Tarjeta
@@ -341,146 +451,97 @@ const PaymentMethods: React.FC = () => {
           </div>
         </div>
 
-        {/* Add Card Modal */}
-        {showAddCardModal && (
+        {/* Modal de opciones después de tokenizar la tarjeta */}
+        {showOptionsModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
               {/* Header */}
-              <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] text-white px-6 py-5 flex items-center justify-between flex-shrink-0">
+              <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] text-white px-6 py-5 flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold">Agregar Nueva Tarjeta</h2>
-                  <p className="text-white/90 text-sm mt-1">Guarda tu tarjeta para pagos futuros</p>
+                  <h2 className="text-xl font-bold">Confirmar Tarjeta</h2>
+                  <p className="text-white/90 text-sm mt-1">
+                    {pendingTokenRef.current?.iin?.card_brand?.toUpperCase() || 'Tarjeta'} •••• {pendingTokenRef.current?.card_number?.slice(-4) || '****'}
+                  </p>
                 </div>
                 <button
                   onClick={() => {
-                    setShowAddCardModal(false);
-                    resetForm();
+                    setShowOptionsModal(false);
+                    pendingTokenRef.current = null;
                   }}
-                  className="text-white/80 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg"
+                  disabled={processing}
+                  className="text-white/80 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg disabled:opacity-50"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
 
-              {/* Scrollable Content */}
-              <div className="flex-1 overflow-y-auto p-6">
-                {/* Security Info */}
-                <div className="flex items-center space-x-2 text-sm text-slate-600 bg-slate-50 py-3 px-4 rounded-lg mb-6">
+              {/* Content */}
+              <div className="p-6 space-y-4">
+                {/* Security Badge */}
+                <div className="flex items-center space-x-2 text-sm text-green-700 bg-green-50 py-3 px-4 rounded-lg">
                   <Lock className="w-4 h-4 text-green-600" />
-                  <span>Conexión segura - Tus datos están protegidos</span>
+                  <span>Tu tarjeta ha sido verificada de forma segura</span>
                 </div>
 
-                {/* Form */}
-                <div className="space-y-4">
-                  <Input
-                    label="Número de Tarjeta"
-                    type="text"
-                    value={cardNumber}
-                    onChange={(e) => setCardNumber(e.target.value.replace(/\s/g, ''))}
-                    placeholder="4111 1111 1111 1111"
-                    maxLength={16}
-                    required
-                  />
-
-                  <Input
-                    label="Nombre del Titular"
-                    type="text"
-                    value={cardholderName}
-                    onChange={(e) => setCardholderName(e.target.value.toUpperCase())}
-                    placeholder="Como aparece en la tarjeta"
-                    required
-                  />
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <Input
-                      label="Mes"
-                      type="text"
-                      value={expirationMonth}
-                      onChange={(e) => setExpirationMonth(e.target.value)}
-                      placeholder="MM"
-                      maxLength={2}
-                      required
-                    />
-
-                    <Input
-                      label="Año"
-                      type="text"
-                      value={expirationYear}
-                      onChange={(e) => setExpirationYear(e.target.value)}
-                      placeholder="YYYY"
-                      maxLength={4}
-                      required
-                    />
-
-                    <Input
-                      label="CVV"
-                      type="text"
-                      value={cvv}
-                      onChange={(e) => setCvv(e.target.value)}
-                      placeholder="123"
-                      maxLength={4}
-                      required
-                    />
-                  </div>
-
-                  {/* Options */}
-                  <div className="space-y-3 pt-4 border-t border-slate-200">
-                    {paymentMethods.length > 0 && (
-                      <label className="flex items-start space-x-3 cursor-pointer group">
-                        <input
-                          type="checkbox"
-                          checked={saveAsDefault}
-                          onChange={(e) => setSaveAsDefault(e.target.checked)}
-                          className="mt-1 w-5 h-5 text-[#17BC91] border-slate-300 rounded focus:ring-[#17BC91] transition-all"
-                        />
-                        <div className="flex-1">
-                          <p className="font-medium text-slate-900 group-hover:text-[#073372] transition-colors">
-                            Marcar como predeterminada
-                          </p>
-                          <p className="text-xs text-slate-600">
-                            Esta será tu tarjeta principal para pagos
-                          </p>
-                        </div>
-                      </label>
-                    )}
-
-                    <label className="flex items-start space-x-3 cursor-pointer group">
+                {/* Options */}
+                <div className="space-y-3">
+                  {paymentMethods.length > 0 && (
+                    <label className="flex items-start space-x-3 cursor-pointer group p-3 rounded-lg hover:bg-slate-50 transition-colors">
                       <input
                         type="checkbox"
-                        checked={enableAutoPayment}
-                        onChange={(e) => setEnableAutoPayment(e.target.checked)}
-                        className="mt-1 w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500 transition-all"
+                        checked={saveAsDefault}
+                        onChange={(e) => setSaveAsDefault(e.target.checked)}
+                        disabled={processing}
+                        className="mt-1 w-5 h-5 text-[#17BC91] border-slate-300 rounded focus:ring-[#17BC91] transition-all"
                       />
                       <div className="flex-1">
                         <p className="font-medium text-slate-900 group-hover:text-[#073372] transition-colors">
-                          Habilitar Pagos Automáticos
+                          Marcar como predeterminada
                         </p>
                         <p className="text-xs text-slate-600">
-                          Tus cuotas se cobrarán automáticamente en la fecha de vencimiento
+                          Esta será tu tarjeta principal para pagos
                         </p>
                       </div>
                     </label>
-                  </div>
+                  )}
 
-                  {/* Warning */}
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                    <div className="flex items-start space-x-2">
-                      <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-amber-900">
-                        Al guardar tu tarjeta, aceptas que UNCED procese tus datos de forma segura 
-                        para facilitar futuros pagos. Puedes eliminar esta tarjeta en cualquier momento.
+                  <label className="flex items-start space-x-3 cursor-pointer group p-3 rounded-lg hover:bg-slate-50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={enableAutoPayment}
+                      onChange={(e) => setEnableAutoPayment(e.target.checked)}
+                      disabled={processing}
+                      className="mt-1 w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500 transition-all"
+                    />
+                    <div className="flex-1">
+                      <p className="font-medium text-slate-900 group-hover:text-[#073372] transition-colors">
+                        Habilitar Pagos Automáticos
+                      </p>
+                      <p className="text-xs text-slate-600">
+                        Tus cuotas se cobrarán automáticamente en la fecha de vencimiento
                       </p>
                     </div>
+                  </label>
+                </div>
+
+                {/* Warning */}
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                  <div className="flex items-start space-x-2">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-amber-900">
+                      Al guardar tu tarjeta, aceptas que UNCED procese tus datos de forma segura 
+                      para facilitar futuros pagos.
+                    </p>
                   </div>
                 </div>
               </div>
 
               {/* Footer */}
-              <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end space-x-3 flex-shrink-0">
+              <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end space-x-3">
                 <button
                   onClick={() => {
-                    setShowAddCardModal(false);
-                    resetForm();
+                    setShowOptionsModal(false);
+                    pendingTokenRef.current = null;
                   }}
                   disabled={processing}
                   className="px-6 py-2.5 border-2 border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50"
@@ -488,22 +549,18 @@ const PaymentMethods: React.FC = () => {
                   Cancelar
                 </button>
                 <button
-                  onClick={handleAddCard}
+                  onClick={handleSaveCard}
                   disabled={processing}
-                  className={`px-8 py-2.5 rounded-lg font-semibold transition-all flex items-center space-x-2 ${
-                    processing
-                      ? 'bg-slate-400 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-[#073372] to-[#17BC91] hover:shadow-lg'
-                  } text-white`}
+                  className="px-8 py-2.5 rounded-lg font-semibold transition-all flex items-center space-x-2 bg-gradient-to-r from-[#073372] to-[#17BC91] hover:shadow-lg text-white disabled:opacity-50"
                 >
                   {processing ? (
                     <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      <Loader2 className="w-5 h-5 animate-spin" />
                       <span>Guardando...</span>
                     </>
                   ) : (
                     <>
-                      <Lock className="w-5 h-5" />
+                      <CreditCard className="w-5 h-5" />
                       <span>Guardar Tarjeta</span>
                     </>
                   )}

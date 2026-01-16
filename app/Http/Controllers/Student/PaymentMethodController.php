@@ -5,12 +5,20 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\PaymentMethod;
 use App\Models\Student;
+use App\Services\CulqiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class PaymentMethodController extends Controller
 {
+    protected CulqiService $culqiService;
+
+    public function __construct(CulqiService $culqiService)
+    {
+        $this->culqiService = $culqiService;
+    }
+
     /**
      * Obtener todos los métodos de pago del estudiante
      */
@@ -44,6 +52,7 @@ class PaymentMethodController extends Controller
                     'isExpired' => $method->isExpired(),
                     'formattedCardName' => $method->formatted_card_name,
                     'createdAt' => $method->created_at->format('Y-m-d H:i:s'),
+                    'canCharge' => !empty($method->culqi_card_id), // Si tiene culqi_card_id, se puede cobrar
                 ];
             });
 
@@ -53,18 +62,23 @@ class PaymentMethodController extends Controller
     }
 
     /**
-     * Guardar un nuevo método de pago
+     * Guardar un nuevo método de pago con integración Culqi
+     * 
+     * Flujo:
+     * 1. Frontend usa Culqi Checkout para obtener token (tkn_xxx)
+     * 2. Backend crea Customer en Culqi (o usa existente)
+     * 3. Backend crea Card en Culqi asociada al customer
+     * 4. Se guarda en BD con culqi_card_id para cobros futuros
      */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'kulki_card_token' => 'required|string',
-            'kulki_customer_id' => 'required|string',
-            'card_brand' => 'required|string',
-            'card_last4' => 'required|string|size:4',
-            'card_exp_month' => 'required|string|size:2',
-            'card_exp_year' => 'required|string|size:4',
-            'cardholder_name' => 'required|string|max:255',
+            'token_id' => 'required|string', // Token de Culqi Checkout (tkn_xxx)
+            'card_brand' => 'nullable|string|max:50',
+            'card_last4' => 'nullable|string|max:4',
+            'card_exp_month' => 'nullable|string|max:2',
+            'card_exp_year' => 'nullable|string|max:4',
+            'cardholder_name' => 'nullable|string|max:255',
             'is_default' => 'boolean',
             'auto_payment_enabled' => 'boolean',
         ]);
@@ -79,20 +93,120 @@ class PaymentMethodController extends Controller
         }
 
         try {
+            // Obtener email del usuario (no del estudiante)
+            $userEmail = $user->email;
+            
+            // Buscar si el estudiante ya tiene un customer_id de Culqi
+            $existingMethod = PaymentMethod::where('student_id', $student->id)
+                ->whereNotNull('culqi_customer_id')
+                ->first();
+            
+            $customerId = $existingMethod?->culqi_customer_id;
+
+            // Si no tiene customer guardado, buscar en Culqi o crear uno nuevo
+            if (!$customerId) {
+                // Primero buscar si ya existe un customer con este email en Culqi
+                $searchResult = $this->culqiService->findCustomerByEmail($userEmail);
+                
+                if ($searchResult['success'] && $searchResult['found']) {
+                    // Ya existe un customer en Culqi, usar ese ID
+                    $customerId = $searchResult['data']['id'];
+                    Log::info('Culqi customer found by email', [
+                        'customer_id' => $customerId,
+                        'email' => $userEmail,
+                        'student_id' => $student->id,
+                    ]);
+                } else {
+                    // No existe, crear uno nuevo
+                    // Culqi requiere first_name y last_name no vacíos
+                    $firstName = $student->first_name ?? $user->name ?? 'Usuario';
+                    $lastName = trim(($student->paternal_last_name ?? '') . ' ' . ($student->maternal_last_name ?? ''));
+                    
+                    // Si no hay apellido, dividir el nombre del usuario o usar placeholder
+                    if (empty(trim($lastName))) {
+                        $nameParts = explode(' ', $user->name ?? 'Usuario');
+                        if (count($nameParts) > 1) {
+                            $firstName = $nameParts[0];
+                            $lastName = implode(' ', array_slice($nameParts, 1));
+                        } else {
+                            $lastName = 'Estudiante'; // Placeholder requerido por Culqi
+                        }
+                    }
+                    
+                    $customerResult = $this->culqiService->createCustomer(
+                        $userEmail,
+                        $firstName,
+                        $lastName,
+                        null, // address - usará valor por defecto
+                        $student->phone_number // teléfono del estudiante
+                    );
+
+                    if (!$customerResult['success']) {
+                        Log::error('Error creating Culqi customer', [
+                            'error' => $customerResult['error'],
+                            'student_id' => $student->id,
+                        ]);
+                        return response()->json([
+                            'message' => 'Error al registrar cliente en el sistema de pagos',
+                            'error' => is_array($customerResult['error']) 
+                                ? ($customerResult['error']['user_message'] ?? 'Error desconocido')
+                                : $customerResult['error'],
+                        ], 400);
+                    }
+
+                    $customerId = $customerResult['data']['id'];
+                    Log::info('Culqi customer created', [
+                        'customer_id' => $customerId,
+                        'student_id' => $student->id,
+                    ]);
+                }
+            }
+
+            // Crear la tarjeta en Culqi
+            $cardResult = $this->culqiService->createCard($customerId, $validated['token_id']);
+
+            if (!$cardResult['success']) {
+                Log::error('Error creating Culqi card', [
+                    'error' => $cardResult['error'],
+                    'customer_id' => $customerId,
+                ]);
+                return response()->json([
+                    'message' => 'Error al registrar la tarjeta',
+                    'error' => is_array($cardResult['error']) 
+                        ? ($cardResult['error']['user_message'] ?? 'Error al guardar tarjeta')
+                        : $cardResult['error'],
+                ], 400);
+            }
+
+            $cardData = $cardResult['data'];
+            $cardId = $cardData['id']; // crd_xxx
+
+            Log::info('Culqi card created', [
+                'card_id' => $cardId,
+                'customer_id' => $customerId,
+                'card_data' => $cardData, // Ver estructura completa
+            ]);
+
             // Si es el primer método de pago, marcarlo como predeterminado
             $isFirstMethod = !PaymentMethod::where('student_id', $student->id)->exists();
 
+            // Extraer información de la tarjeta desde la respuesta de Culqi (cardData)
+            $cardInfo = $cardData['source'] ?? $cardData;
+            
+            // Construir nombre completo del titular
+            $fullName = trim($student->first_name . ' ' . ($student->paternal_last_name ?? '') . ' ' . ($student->maternal_last_name ?? ''));
+            
             $paymentMethod = PaymentMethod::create([
                 'student_id' => $student->id,
                 'type' => 'card',
-                'provider' => 'kulki',
-                'card_brand' => $validated['card_brand'],
-                'card_last4' => $validated['card_last4'],
-                'card_exp_month' => $validated['card_exp_month'],
-                'card_exp_year' => $validated['card_exp_year'],
-                'cardholder_name' => $validated['cardholder_name'],
-                'kulki_card_token' => $validated['kulki_card_token'],
-                'kulki_customer_id' => $validated['kulki_customer_id'],
+                'provider' => 'culqi',
+                'card_brand' => $cardInfo['iin']['card_brand'] ?? $validated['card_brand'] ?? 'unknown',
+                'card_last4' => $cardInfo['last_four'] ?? $validated['card_last4'] ?? '****',
+                'card_exp_month' => isset($cardInfo['expiration_month']) ? str_pad($cardInfo['expiration_month'], 2, '0', STR_PAD_LEFT) : ($validated['card_exp_month'] ?? '**'),
+                'card_exp_year' => isset($cardInfo['expiration_year']) ? (string)$cardInfo['expiration_year'] : ($validated['card_exp_year'] ?? '****'),
+                'cardholder_name' => $validated['cardholder_name'] ?? $fullName,
+                'culqi_card_id' => $cardId, // ID de la tarjeta en Culqi (crd_xxx)
+                'culqi_customer_id' => $customerId, // ID del cliente en Culqi (cus_xxx)
                 'is_default' => $isFirstMethod ? true : ($validated['is_default'] ?? false),
                 'auto_payment_enabled' => $validated['auto_payment_enabled'] ?? false,
             ]);
@@ -103,7 +217,7 @@ class PaymentMethodController extends Controller
             }
 
             return response()->json([
-                'message' => 'Método de pago guardado exitosamente',
+                'message' => 'Tarjeta guardada exitosamente',
                 'payment_method' => [
                     'id' => $paymentMethod->id,
                     'type' => $paymentMethod->type,
@@ -115,6 +229,7 @@ class PaymentMethodController extends Controller
                     'isDefault' => $paymentMethod->is_default,
                     'autoPaymentEnabled' => $paymentMethod->auto_payment_enabled,
                     'formattedCardName' => $paymentMethod->formatted_card_name,
+                    'canCharge' => true,
                 ],
             ], 201);
         } catch (\Exception $e) {

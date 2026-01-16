@@ -40,7 +40,9 @@ class CulqiPaymentController extends Controller
      * 1. Frontend tokeniza tarjeta con Culqi Checkout → obtiene token ID
      * 2. Frontend envía token ID + datos al backend
      * 3. Backend crea cargo en Culqi
-     * 4. Si es exitoso, crea voucher y actualiza installment
+     * 4. Si requiere 3DS, devuelve requires_3ds=true con datos del cargo
+     * 5. Frontend maneja 3DS y llama a processPaymentWith3DS
+     * 6. Si es exitoso, crea voucher y actualiza installment
      */
     public function processPayment(Request $request)
     {
@@ -62,18 +64,43 @@ class CulqiPaymentController extends Controller
 
         DB::beginTransaction();
         try {
+            // Obtener email del usuario (el email está en User, no en Student)
+            $email = $student->user->email;
+            
+            if (!$email) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se encontró email del estudiante',
+                ], 400);
+            }
+
             // 1. Crear cargo en Culqi
             $chargeResult = $this->culqiService->createCharge(
                 $request->token_id,
                 $request->amount,
                 'PEN',
-                $student->email,
+                $email,
                 [
                     'student_id' => $student->id,
                     'installment_id' => $installment->id,
                     'description' => "Pago cuota #{$installment->installment_number} - {$student->first_name} {$student->last_name}",
                 ]
             );
+
+            // Verificar si requiere 3DS - devolver información para que frontend maneje
+            if (!$chargeResult['success'] && isset($chargeResult['requires_3ds']) && $chargeResult['requires_3ds']) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'requires_3ds' => true,
+                    'charge_data' => $chargeResult['data'] ?? null, // Datos del cargo para 3DS
+                    'token_id' => $request->token_id,
+                    'amount' => $request->amount,
+                    'email' => $email,
+                    'message' => 'Se requiere verificación 3D Secure',
+                ], 200); // 200 porque no es error, es flujo normal
+            }
 
             if (!$chargeResult['success']) {
                 DB::rollBack();
@@ -84,6 +111,16 @@ class CulqiPaymentController extends Controller
             }
 
             $chargeData = $chargeResult['data'];
+
+            // Verificar que el cargo tenga ID (indica que fue exitoso)
+            if (!isset($chargeData['id'])) {
+                DB::rollBack();
+                Log::error('Culqi charge response missing ID', ['data' => $chargeData]);
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Respuesta inesperada de Culqi. Por favor intenta de nuevo.',
+                ], 400);
+            }
 
             // 2. Guardar transacción en BD
             $transaction = CulqiTransaction::create([
@@ -97,20 +134,24 @@ class CulqiPaymentController extends Controller
                 'culqi_response' => $chargeData,
                 'card_brand' => $chargeData['source']['iin']['card_brand'] ?? null,
                 'card_last4' => $chargeData['source']['card_number'] ?? null,
-                'customer_email' => $student->email,
+                'customer_email' => $email,
             ]);
 
-            // 3. Crear voucher automático
+            // 3. Crear voucher automático para registro del pago
             $voucher = InstallmentVoucher::create([
                 'installment_id' => $installment->id,
-                'voucher_path' => null, // No hay archivo, es pago con tarjeta
+                'uploaded_by' => $student->user->id, // Usuario que pagó
+                'voucher_path' => 'culqi_payment', // Indicador de pago electrónico
+                'declared_amount' => $request->amount,
+                'payment_date' => now(),
+                'payment_method' => 'tarjeta',
+                'transaction_reference' => $chargeData['id'], // ID del cargo en Culqi
                 'status' => 'approved', // Aprobado automáticamente
-                'payment_method' => 'card',
-                'paid_amount' => $request->amount,
-                'paid_date' => now(),
+                'reviewed_by' => null, // Automático, no requiere verificación manual
+                'reviewed_at' => now(),
+                'notes' => 'Pago procesado automáticamente por Culqi',
                 'payment_source' => 'culqi_card',
                 'culqi_transaction_id' => $transaction->id,
-                'verified_by' => null, // Automático, no requiere verificación manual
             ]);
 
             // 4. Actualizar installment
@@ -123,10 +164,7 @@ class CulqiPaymentController extends Controller
             
             $installment->save();
 
-            // 5. Actualizar progreso del enrollment
-            $installment->enrollment->updatePaymentProgress();
-
-            // 6. Guardar tarjeta si lo solicita (para pagos futuros)
+            // 5. Guardar tarjeta si lo solicita (para pagos futuros)
             $savedCard = null;
             if ($request->save_card) {
                 $savedCard = $this->saveCard($student, $chargeData, $request->auto_payment ?? false);
@@ -158,38 +196,52 @@ class CulqiPaymentController extends Controller
     }
 
     /**
-     * Procesar pago con tarjeta guardada
+     * Procesar pago con autenticación 3D Secure
+     * Se llama después de que el usuario completa la verificación 3DS en el frontend
      */
-    public function processPaymentWithSavedCard(Request $request)
+    public function processPaymentWith3DS(Request $request)
     {
         $request->validate([
-            'payment_method_id' => 'required|exists:payment_methods,id',
+            'token_id' => 'required|string',
             'installment_id' => 'required|exists:installments,id',
             'amount' => 'required|numeric|min:0.01',
+            'parameters_3ds' => 'required|array', // Parámetros 3DS del frontend
+            'save_card' => 'sometimes|boolean',
+            'auto_payment' => 'sometimes|boolean',
         ]);
 
         $student = Auth::user()->student;
-        $paymentMethod = PaymentMethod::findOrFail($request->payment_method_id);
         $installment = Installment::findOrFail($request->installment_id);
 
-        // Verificar ownership
-        if ($paymentMethod->student_id !== $student->id || $installment->enrollment->student_id !== $student->id) {
+        // Verificar que el installment pertenece al estudiante
+        if ($installment->enrollment->student_id !== $student->id) {
             return response()->json(['error' => 'No autorizado'], 403);
         }
 
         DB::beginTransaction();
         try {
-            // Crear cargo con tarjeta guardada
-            $chargeResult = $this->culqiService->createChargeWithCard(
-                $paymentMethod->culqi_card_id,
+            $email = $student->user->email;
+            
+            if (!$email) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se encontró email del estudiante',
+                ], 400);
+            }
+
+            // Crear cargo con parámetros 3DS
+            $chargeResult = $this->culqiService->createChargeWith3DS(
+                $request->token_id,
                 $request->amount,
                 'PEN',
-                $student->email,
+                $email,
+                $request->parameters_3ds,
                 [
                     'student_id' => $student->id,
                     'installment_id' => $installment->id,
-                    'payment_method_id' => $paymentMethod->id,
                     'description' => "Pago cuota #{$installment->installment_number} - {$student->first_name} {$student->last_name}",
+                    '3ds_authenticated' => true,
                 ]
             );
 
@@ -203,6 +255,178 @@ class CulqiPaymentController extends Controller
 
             $chargeData = $chargeResult['data'];
 
+            if (!isset($chargeData['id'])) {
+                DB::rollBack();
+                Log::error('Culqi 3DS charge response missing ID', ['data' => $chargeData]);
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Respuesta inesperada de Culqi. Por favor intenta de nuevo.',
+                ], 400);
+            }
+
+            // Guardar transacción en BD
+            $transaction = CulqiTransaction::create([
+                'student_id' => $student->id,
+                'installment_id' => $installment->id,
+                'culqi_charge_id' => $chargeData['id'],
+                'culqi_token_id' => $request->token_id,
+                'amount' => $request->amount,
+                'currency' => 'PEN',
+                'status' => 'succeeded',
+                'culqi_response' => $chargeData,
+                'card_brand' => $chargeData['source']['iin']['card_brand'] ?? null,
+                'card_last4' => $chargeData['source']['card_number'] ?? null,
+                'customer_email' => $email,
+            ]);
+
+            // Crear voucher automático
+            $voucher = InstallmentVoucher::create([
+                'installment_id' => $installment->id,
+                'uploaded_by' => $student->user->id,
+                'voucher_path' => 'culqi_payment_3ds',
+                'declared_amount' => $request->amount,
+                'payment_date' => now(),
+                'payment_method' => 'tarjeta',
+                'transaction_reference' => $chargeData['id'],
+                'status' => 'approved',
+                'reviewed_by' => null,
+                'reviewed_at' => now(),
+                'notes' => 'Pago procesado con autenticación 3D Secure',
+                'payment_source' => 'culqi_card',
+                'culqi_transaction_id' => $transaction->id,
+            ]);
+
+            // Actualizar installment
+            $installment->paid_amount += $request->amount;
+            
+            if ($installment->paid_amount >= $installment->amount) {
+                $installment->status = 'paid';
+                $installment->paid_date = now();
+            }
+            
+            $installment->save();
+
+            // Guardar tarjeta si lo solicita
+            $savedCard = null;
+            if ($request->save_card) {
+                $savedCard = $this->saveCard($student, $chargeData, $request->auto_payment ?? false);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => '¡Pago procesado exitosamente con verificación 3D Secure!',
+                'transaction' => $transaction,
+                'voucher' => $voucher,
+                'installment' => $installment->fresh(),
+                'saved_card' => $savedCard,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error processing Culqi 3DS payment', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al procesar el pago con 3DS: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Procesar pago con tarjeta guardada
+     */
+    public function processPaymentWithSavedCard(Request $request)
+    {
+        $request->validate([
+            'payment_method_id' => 'required|exists:payment_methods,id',
+            'installment_id' => 'required|exists:installments,id',
+            'amount' => 'required|numeric|min:0.01',
+        ]);
+
+        $user = Auth::user();
+        $student = $user->student;
+        $paymentMethod = PaymentMethod::findOrFail($request->payment_method_id);
+        $installment = Installment::findOrFail($request->installment_id);
+
+        // Verificar ownership
+        if ($paymentMethod->student_id !== $student->id || $installment->enrollment->student_id !== $student->id) {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
+
+        // Verificar que la tarjeta tenga un ID de Culqi válido
+        if (empty($paymentMethod->culqi_card_id)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Esta tarjeta no está habilitada para pagos automáticos. Por favor usa "Pagar con nueva tarjeta" y marca la opción de guardar la tarjeta.',
+            ], 400);
+        }
+
+        // Obtener email del usuario (no del estudiante)
+        $userEmail = $user->email;
+        $studentFullName = trim($student->first_name . ' ' . ($student->paternal_last_name ?? '') . ' ' . ($student->maternal_last_name ?? ''));
+
+        DB::beginTransaction();
+        try {
+            // Crear cargo con tarjeta guardada
+            $chargeResult = $this->culqiService->createChargeWithCard(
+                $paymentMethod->culqi_card_id,
+                $request->amount,
+                'PEN',
+                $userEmail,
+                [
+                    'student_id' => $student->id,
+                    'installment_id' => $installment->id,
+                    'payment_method_id' => $paymentMethod->id,
+                    'description' => "Pago cuota #{$installment->installment_number} - {$studentFullName}",
+                ]
+            );
+
+            // Verificar si requiere 3DS
+            if (!$chargeResult['success'] && !empty($chargeResult['requires_3ds'])) {
+                DB::rollBack();
+                
+                // Para tarjetas guardadas con 3DS, enviamos el card_id para que el frontend
+                // pueda iniciar la autenticación 3DS directamente
+                Log::info('Saved card requires 3DS', [
+                    'payment_method_id' => $paymentMethod->id,
+                    'card_id' => $paymentMethod->culqi_card_id,
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'requires_3ds' => true,
+                    'card_id' => $paymentMethod->culqi_card_id, // El frontend usará esto para 3DS
+                    'payment_method_id' => $paymentMethod->id,
+                    'email' => $userEmail,
+                    'charge_data' => $chargeResult['data'] ?? null,
+                ], 200); // 200 para que el frontend lo maneje como caso especial
+            }
+
+            if (!$chargeResult['success']) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'error' => $chargeResult['error'] ?? 'Error al procesar el pago',
+                ], 400);
+            }
+
+            $chargeData = $chargeResult['data'];
+
+            // Verificar que el cargo fue exitoso y tiene ID
+            if (empty($chargeData['id'])) {
+                DB::rollBack();
+                Log::error('Charge response missing ID', ['chargeData' => $chargeData]);
+                return response()->json([
+                    'success' => false,
+                    'error' => 'La respuesta del procesador de pago no es válida',
+                ], 400);
+            }
+
             // Guardar transacción
             $transaction = CulqiTransaction::create([
                 'student_id' => $student->id,
@@ -215,16 +439,22 @@ class CulqiPaymentController extends Controller
                 'culqi_response' => $chargeData,
                 'card_brand' => $paymentMethod->card_brand,
                 'card_last4' => $paymentMethod->card_last4,
-                'customer_email' => $student->email,
+                'customer_email' => $userEmail,
             ]);
 
             // Crear voucher
             $voucher = InstallmentVoucher::create([
                 'installment_id' => $installment->id,
+                'uploaded_by' => $user->id,
+                'voucher_path' => 'culqi_saved_card',
+                'declared_amount' => $request->amount,
+                'payment_date' => now(),
+                'payment_method' => 'tarjeta',
+                'transaction_reference' => $chargeData['id'],
                 'status' => 'approved',
-                'payment_method' => 'card',
-                'paid_amount' => $request->amount,
-                'paid_date' => now(),
+                'reviewed_by' => null,
+                'reviewed_at' => now(),
+                'notes' => 'Pago procesado con tarjeta guardada',
                 'payment_source' => 'culqi_card',
                 'culqi_transaction_id' => $transaction->id,
             ]);
@@ -236,9 +466,6 @@ class CulqiPaymentController extends Controller
                 $installment->paid_date = now();
             }
             $installment->save();
-
-            // Actualizar progreso
-            $installment->enrollment->updatePaymentProgress();
 
             DB::commit();
 
@@ -253,6 +480,146 @@ class CulqiPaymentController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error processing payment with saved card', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al procesar el pago',
+            ], 500);
+        }
+    }
+
+    /**
+     * Procesar pago con tarjeta guardada + autenticación 3DS
+     */
+    public function processPaymentWithSavedCard3DS(Request $request)
+    {
+        $request->validate([
+            'payment_method_id' => 'required|exists:payment_methods,id',
+            'installment_id' => 'required|exists:installments,id',
+            'amount' => 'required|numeric|min:1',
+            'parameters_3ds' => 'required|array',
+        ]);
+
+        $user = Auth::user();
+        $student = $user->student;
+        $paymentMethod = PaymentMethod::findOrFail($request->payment_method_id);
+        $installment = Installment::findOrFail($request->installment_id);
+
+        // Verificar ownership
+        if ($paymentMethod->student_id !== $student->id || $installment->enrollment->student_id !== $student->id) {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
+
+        // Verificar que la tarjeta tenga un ID de Culqi válido
+        if (empty($paymentMethod->culqi_card_id)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Esta tarjeta no está habilitada para pagos.',
+            ], 400);
+        }
+
+        // Obtener email del usuario
+        $userEmail = $user->email;
+        $studentFullName = trim($student->first_name . ' ' . ($student->paternal_last_name ?? '') . ' ' . ($student->maternal_last_name ?? ''));
+
+        DB::beginTransaction();
+        try {
+            // Crear cargo con tarjeta guardada + parámetros 3DS
+            $chargeResult = $this->culqiService->createChargeWithCardAnd3DS(
+                $paymentMethod->culqi_card_id,
+                $request->amount,
+                'PEN',
+                $userEmail,
+                $request->parameters_3ds,
+                [
+                    'student_id' => $student->id,
+                    'installment_id' => $installment->id,
+                    'payment_method_id' => $paymentMethod->id,
+                    'description' => "Pago cuota #{$installment->installment_number} - {$studentFullName}",
+                ]
+            );
+
+            if (!$chargeResult['success']) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'error' => $chargeResult['error'] ?? 'Error al procesar el pago',
+                ], 400);
+            }
+
+            $chargeData = $chargeResult['data'];
+
+            // Verificar que el cargo fue exitoso y tiene ID
+            if (empty($chargeData['id'])) {
+                DB::rollBack();
+                Log::error('Charge response missing ID', ['chargeData' => $chargeData]);
+                return response()->json([
+                    'success' => false,
+                    'error' => 'La respuesta del procesador de pago no es válida',
+                ], 400);
+            }
+
+            // Guardar transacción
+            $transaction = CulqiTransaction::create([
+                'student_id' => $student->id,
+                'installment_id' => $installment->id,
+                'payment_method_id' => $paymentMethod->id,
+                'culqi_charge_id' => $chargeData['id'],
+                'amount' => $request->amount,
+                'currency' => 'PEN',
+                'status' => 'succeeded',
+                'culqi_response' => $chargeData,
+                'card_brand' => $paymentMethod->card_brand,
+                'card_last4' => $paymentMethod->card_last4,
+                'customer_email' => $userEmail,
+            ]);
+
+            // Crear voucher
+            $voucher = InstallmentVoucher::create([
+                'installment_id' => $installment->id,
+                'uploaded_by' => $user->id,
+                'voucher_path' => 'culqi_saved_card_3ds',
+                'declared_amount' => $request->amount,
+                'payment_date' => now(),
+                'payment_method' => 'tarjeta',
+                'transaction_reference' => $chargeData['id'],
+                'status' => 'approved',
+                'reviewed_by' => null,
+                'reviewed_at' => now(),
+                'notes' => 'Pago procesado con tarjeta guardada + 3D Secure',
+                'payment_source' => 'culqi_card',
+                'culqi_transaction_id' => $transaction->id,
+            ]);
+
+            // Actualizar installment
+            $installment->paid_amount += $request->amount;
+            if ($installment->paid_amount >= $installment->amount) {
+                $installment->status = 'paid';
+                $installment->paid_date = now();
+            }
+            $installment->save();
+
+            DB::commit();
+
+            Log::info('Payment with saved card + 3DS successful', [
+                'transaction_id' => $transaction->id,
+                'student_id' => $student->id,
+                'installment_id' => $installment->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => '¡Pago procesado exitosamente con verificación 3DS!',
+                'transaction' => $transaction,
+                'voucher' => $voucher,
+                'installment' => $installment->fresh(),
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error processing payment with saved card + 3DS', [
                 'message' => $e->getMessage(),
             ]);
 

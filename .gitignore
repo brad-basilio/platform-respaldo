@@ -28,3 +28,14 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+test_*.php
+fix_*.php
+*_test.php
+*_fix.php
+analyze_*.php
+*_analyze.php
+update_*.php
+*_update.php
+check_*.php
+*_check.php

@@ -27,6 +27,9 @@ class InstallmentVoucher extends Model
         'notes',
         'receipt_path',
         'verified_amount',
+        // Campos para pagos con Culqi
+        'culqi_transaction_id',
+        'payment_source',
     ];
 
     protected $casts = [

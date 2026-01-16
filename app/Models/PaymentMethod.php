@@ -71,12 +71,22 @@ class PaymentMethod extends Model
      */
     public function isExpired(): bool
     {
+        // Verificar que tengamos valores numéricos válidos
         if (!$this->card_exp_month || !$this->card_exp_year) {
             return false;
         }
 
-        $expDate = \Carbon\Carbon::createFromDate($this->card_exp_year, $this->card_exp_month, 1)->endOfMonth();
-        return $expDate->isPast();
+        // Verificar que sean valores numéricos (no placeholders como ** o ****)
+        if (!is_numeric($this->card_exp_month) || !is_numeric($this->card_exp_year)) {
+            return false;
+        }
+
+        try {
+            $expDate = \Carbon\Carbon::createFromDate((int) $this->card_exp_year, (int) $this->card_exp_month, 1)->endOfMonth();
+            return $expDate->isPast();
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     /**

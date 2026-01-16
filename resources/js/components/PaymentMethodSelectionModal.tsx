@@ -57,7 +57,7 @@ const PaymentMethodSelectionModal: React.FC<PaymentMethodSelectionModalProps> = 
       bgColor: 'bg-gradient-to-br from-[#073372]/5 to-[#17BC91]/5',
       borderColor: 'border-[#17BC91]',
       hoverColor: 'hover:border-[#073372]',
-      enabled: false,
+      enabled: true, // TODO: Habilitar cuando se configuren claves válidas de Culqi
     },
   ];
 
