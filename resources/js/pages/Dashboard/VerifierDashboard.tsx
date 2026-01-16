@@ -110,7 +110,7 @@ const VerifierDashboard: React.FC<VerifierDashboardProps> = ({
       value: stats.matriculados, 
       icon: Award, 
       color: COLORS.pradera,
-      description: 'Estudiantes matriculados',
+      description: 'Aprendices matriculados',
       percentage: stats.totalProspects > 0 
         ? Math.round((stats.matriculados / stats.totalProspects) * 100) 
         : 0
@@ -387,7 +387,7 @@ const VerifierDashboard: React.FC<VerifierDashboardProps> = ({
                 >
                   {verifierItem.total}
                 </div>
-                <p className="text-xs text-gray-500 font-semibold">estudiantes</p>
+                <p className="text-xs text-gray-500 font-semibold">aprendices</p>
               </div>
             </div>
           ))}

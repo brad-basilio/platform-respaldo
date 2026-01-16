@@ -37,7 +37,7 @@ interface PaymentPlan {
   grace_period_days: number;
   is_active: boolean;
   description?: string;
-  students_count?: number; // Cantidad de estudiantes matriculados
+  students_count?: number; // Cantidad de aprendices matriculados
 }
 
 interface Props {
@@ -229,7 +229,7 @@ const PaymentPlansIndex: React.FC<Props> = ({
       }
     },
     {
-      headerName: 'Estudiantes',
+      headerName: 'Aprendices',
       field: 'students_count',
       width: 130,
       cellRenderer: (params: any) => {
@@ -239,7 +239,7 @@ const PaymentPlansIndex: React.FC<Props> = ({
             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
               count > 0 ? 'bg-[#073372]/10 text-[#073372] border border-[#073372]/30' : 'bg-gray-100 text-gray-600'
             }`}>
-              {count} {count === 1 ? 'estudiante' : 'estudiantes'}
+              {count} {count === 1 ? 'aprendiz' : 'aprendices'}
             </span>
           </div>
         );

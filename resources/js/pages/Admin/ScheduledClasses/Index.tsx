@@ -173,7 +173,7 @@ const ScheduledClassesIndex: React.FC<Props> = ({
   const handleDelete = (scheduledClass: ScheduledClass) => {
     if (scheduledClass.enrollments_count > 0) {
       toast.error('No se puede eliminar', {
-        description: 'Esta clase tiene estudiantes inscritos'
+        description: 'Esta clase tiene aprendices inscritos'
       });
       return;
     }
@@ -506,7 +506,7 @@ const ScheduledClassesIndex: React.FC<Props> = ({
                 />
 
                 <Input
-                  label="Máx. Estudiantes"
+                  label="Máx. Aprendices"
                   type="number"
                   min={1}
                   max={20}
@@ -563,7 +563,7 @@ const ScheduledClassesIndex: React.FC<Props> = ({
                 value={recordingUrl}
                 onChange={(e) => setRecordingUrl(e.target.value)}
                 required
-                helperText="Esta grabación reemplazará el video de introducción para los estudiantes inscritos"
+                helperText="Esta grabación reemplazará el video de introducción para los aprendices inscritos"
                 icon={<Link2 className="w-5 h-5" />}
               />
             </div>

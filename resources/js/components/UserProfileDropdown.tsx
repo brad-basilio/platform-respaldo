@@ -75,7 +75,7 @@ const UserProfileDropdown: React.FC = () => {
     switch (role) {
       case 'admin': return 'Administrador';
       case 'teacher': return 'Instructor';
-      case 'student': return 'Estudiante';
+      case 'student': return 'Aprendiz';
       case 'sales_advisor': return 'Asesor de Ventas';
       case 'cashier': return 'Cajero';
       case 'verifier': return 'Verificador';

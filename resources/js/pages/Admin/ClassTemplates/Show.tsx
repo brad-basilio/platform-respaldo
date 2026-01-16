@@ -251,7 +251,7 @@ const Show: React.FC<Props> = ({ template }) => {
                   Video de Introducción
                 </CardTitle>
                 <CardDescription>
-                  Este video se muestra a los estudiantes antes de la grabación de su sesión
+                  Este video se muestra a los aprendices antes de la grabación de su sesión
                 </CardDescription>
               </CardHeader>
               <CardContent>

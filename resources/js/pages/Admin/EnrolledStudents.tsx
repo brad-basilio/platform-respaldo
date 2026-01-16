@@ -13,7 +13,7 @@ import '../../../css/ag-grid-custom.css';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-// Componente Dropdown para tipo de estudiante (usando Portal para sobresalir de AG Grid)
+// Componente Dropdown para tipo de aprendiz (usando Portal para sobresalir de AG Grid)
 const StudentTypeDropdown: React.FC<{
   studentType: 'regular' | 'daily' | 'weekly';
   isVerified: boolean;
@@ -112,7 +112,7 @@ const StudentTypeDropdown: React.FC<{
       }}
     >
       <div className="p-2">
-        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold px-2 py-1">Tipo de estudiante</p>
+        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold px-2 py-1">Tipo de aprendiz</p>
         {(Object.keys(typeConfig) as Array<'regular' | 'daily' | 'weekly'>).map((type) => {
           const opt = typeConfig[type];
           const isSelected = type === studentType;
@@ -236,8 +236,8 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
         {/* Header */}
         <div className="bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6 flex items-center justify-between rounded-t-3xl">
           <div>
-            <h2 className="text-2xl font-bold text-white">Información del Estudiante</h2>
-            <p className="text-blue-100 text-sm">Todos los datos del estudiante matriculado (Solo lectura)</p>
+            <h2 className="text-2xl font-bold text-white">Información del Aprendiz</h2>
+            <p className="text-blue-100 text-sm">Todos los datos del aprendiz matriculado (Solo lectura)</p>
           </div>
           <button
             onClick={onClose}
@@ -614,7 +614,7 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
                           )}
                           {!student.contract.accepted && (
                             <p className="text-xs text-orange-700 mt-1">
-                              El estudiante debe firmar el contrato para completar su matrícula
+                              El aprendiz debe firmar el contrato para completar su matrícula
                             </p>
                           )}
                         </div>
@@ -639,7 +639,7 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
                   {!student.contract.accepted && (
                     <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
                       <p className="text-sm text-blue-900">
-                        <strong>💡 Recordatorio:</strong> El estudiante recibió un correo con el enlace para firmar el contrato.
+                        <strong>💡 Recordatorio:</strong> El aprendiz recibió un correo con el enlace para firmar el contrato.
                         También puede acceder desde su dashboard cuando inicie sesión.
                       </p>
                     </div>
@@ -648,7 +648,7 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
               ) : (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
                   <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">No se ha generado contrato para este estudiante</p>
+                  <p className="text-sm text-gray-600">No se ha generado contrato para este aprendiz</p>
                 </div>
               )}
             </div>
@@ -670,7 +670,7 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
                   <div className="flex items-center">
                     <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
                     <p className="text-sm text-yellow-800">
-                      <strong>Atención:</strong> Hay documentos enviados al estudiante pendientes de confirmación.
+                      <strong>Atención:</strong> Hay documentos enviados al aprendiz pendientes de confirmación.
                       No se puede enviar más documentos hasta que confirme los actuales.
                     </p>
                   </div>
@@ -687,7 +687,7 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
                   <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-sm text-gray-500">No hay documentos de matrícula</p>
                   <p className="text-xs text-gray-400 mt-1">
-                    El estudiante debe subir su contrato y voucher de pago, o puedes enviarle documentos adicionales
+                    El aprendiz debe subir su contrato y voucher de pago, o puedes enviarle documentos adicionales
                   </p>
                 </div>
               ) : (
@@ -697,7 +697,7 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
                     <div className="mb-6">
                       <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
                         <Users className="h-4 w-4 mr-2 text-blue-600" />
-                        Documentos del Estudiante
+                        Documentos del Aprendiz
                       </h4>
                       <div className="space-y-3">
                         {enrollmentDocuments.filter((doc: any) => doc.is_student_upload).map((doc: any, index: number) => (
@@ -711,7 +711,7 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
                                   <div className="flex-1">
                                     <h4 className="font-medium text-gray-900">{doc.document_name}</h4>
                                     <p className="text-xs text-gray-500 mt-0.5">
-                                      Subido por el estudiante • {doc.document_type === 'contract' ? 'Contrato' :
+                                      Subido por el aprendiz • {doc.document_type === 'contract' ? 'Contrato' :
                                         doc.document_type === 'payment' ? 'Voucher de Pago' : 'Documento'}
                                     </p>
                                   </div>
@@ -812,7 +812,7 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
                     <div>
                       <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
                         <FileText className="h-4 w-4 mr-2 text-purple-600" />
-                        Documentos Enviados al Estudiante
+                        Documentos Enviados al Aprendiz
                       </h4>
                       <div className="space-y-3">
                         {enrollmentDocuments.filter((doc: any) => !doc.is_student_upload && !doc.is_payment_receipt).map((doc: any, index: number) => (
@@ -851,7 +851,7 @@ const ViewStudentModal: React.FC<{ student: Student; onClose: () => void; groups
                                       {doc.student_confirmed ? (
                                         <>
                                           <CheckCircle className="h-3 w-3" />
-                                          Confirmado por estudiante
+                                          Confirmado por aprendiz
                                         </>
                                       ) : (
                                         <>
@@ -919,7 +919,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
   const [verifyingStudent, setVerifyingStudent] = useState<Student | null>(null);
   const [isSendingDocuments, setIsSendingDocuments] = useState(false);
   
-  // Estados para eliminar estudiante
+  // Estados para eliminar aprendiz
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingStudent, setDeletingStudent] = useState<Student | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -937,7 +937,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     requires_signature: boolean;
   }>>([]);
 
-  // Cargar estado de documentos pendientes para cada estudiante
+  // Cargar estado de documentos pendientes para cada aprendiz
   React.useEffect(() => {
     const checkPendingDocuments = async () => {
       const pendingSet = new Set<string>();
@@ -1028,10 +1028,10 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
           <div class="text-left space-y-4">
             <div class="bg-orange-50 border-l-4 border-orange-500 p-4 rounded">
               <p class="text-sm text-orange-900 font-semibold mb-2">
-                El estudiante aún no ha firmado su contrato de matrícula
+                El aprendiz aún no ha firmado su contrato de matrícula
               </p>
               <p class="text-xs text-orange-700">
-                No se puede verificar la matrícula hasta que el estudiante firme el contrato.
+                No se puede verificar la matrícula hasta que el aprendiz firme el contrato.
               </p>
             </div>
 
@@ -1080,7 +1080,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                 html: `
                   <p class="text-gray-700">El correo con el enlace para firmar el contrato ha sido reenviado a:</p>
                   <p class="text-blue-600 font-semibold mt-2">${student.email}</p>
-                  <p class="text-sm text-gray-500 mt-3">El estudiante recibirá el enlace en su bandeja de entrada.</p>
+                  <p class="text-sm text-gray-500 mt-3">El aprendiz recibirá el enlace en su bandeja de entrada.</p>
                 `,
                 icon: 'success',
                 confirmButtonColor: '#10b981',
@@ -1115,7 +1115,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       await Swal.fire({
         title: 'Documentos Pendientes',
         html: `
-          <p class="text-gray-700">Este estudiante tiene documentos pendientes de confirmación.</p>
+          <p class="text-gray-700">Este aprendiz tiene documentos pendientes de confirmación.</p>
           <p class="text-sm text-yellow-600 mt-2">⏳ Debe confirmar los documentos actuales antes de poder enviar más.</p>
         `,
         icon: 'warning',
@@ -1170,7 +1170,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
 
         if (wasAutoVerified) {
           // ✅ Verificado automáticamente (sin documentos que requieran firma)
-          // Actualizar el estudiante en la lista
+          // Actualizar el aprendiz en la lista
           setStudents(prevStudents =>
             prevStudents.map(s =>
               s.id === verifyingStudent.id
@@ -1192,7 +1192,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
           });
         } else {
           // ⏳ Pendiente de confirmación (tiene documentos que requieren firma)
-          // Agregar estudiante a la lista de pendientes
+          // Agregar aprendiz a la lista de pendientes
           setStudentsPendingDocs(prev => new Set(prev).add(verifyingStudent.id));
         }
 
@@ -1206,13 +1206,13 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
           html: `
             <p>${wasAutoVerified
               ? 'La matrícula ha sido verificada exitosamente (sin documentos que requieran firma)'
-              : 'Los documentos han sido enviados al estudiante exitosamente'}</p>
+              : 'Los documentos han sido enviados al aprendiz exitosamente'}</p>
             ${response.data.documents_uploaded > 0
               ? `<p class="text-sm text-gray-600 mt-2">Se enviaron ${response.data.documents_uploaded} documento(s)</p>`
               : ''}
             ${!wasAutoVerified
-              ? '<p class="text-sm text-orange-600 mt-3">La matrícula se verificará cuando el estudiante confirme todos los documentos</p>'
-              : '<p class="text-sm text-green-600 mt-3">El estudiante ya puede acceder a todas las funcionalidades</p>'}
+              ? '<p class="text-sm text-orange-600 mt-3">La matrícula se verificará cuando el aprendiz confirme todos los documentos</p>'
+              : '<p class="text-sm text-green-600 mt-3">El aprendiz ya puede acceder a todas las funcionalidades</p>'}
           `,
           icon: 'success',
           confirmButtonColor: '#10b981',
@@ -1284,7 +1284,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       const response = await axios.post(`/admin/students/${studentId}/unverify-enrollment`);
 
       if (response.data.success) {
-        // Actualizar el estudiante en el estado
+        // Actualizar el aprendiz en el estado
         setStudents(prevStudents =>
           prevStudents.map(s =>
             s.id === studentId
@@ -1366,7 +1366,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       html: `
         <div class="text-left">
           <p class="text-gray-700 mb-3">
-            El estudiante <strong>${typeLabels[newType]}</strong> ${typeDescriptions[newType]}
+            El aprendiz <strong>${typeLabels[newType]}</strong> ${typeDescriptions[newType]}
           </p>
           <div class="${colors.bg} ${colors.border} border-l-4 p-4 rounded">
             <p class="text-sm ${colors.text}">
@@ -1398,7 +1398,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       });
 
       if (response.data.success) {
-        // Actualizar el estudiante en el estado
+        // Actualizar el aprendiz en el estado
         setStudents(prevStudents =>
           prevStudents.map(s =>
             s.id === student.id
@@ -1424,10 +1424,10 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
         });
       }
     } catch (error: unknown) {
-      console.error('Error al cambiar tipo de estudiante:', error);
+      console.error('Error al cambiar tipo de aprendiz:', error);
       const errorMessage = axios.isAxiosError(error)
-        ? error.response?.data?.message || 'Error al cambiar el tipo de estudiante'
-        : 'Error al cambiar el tipo de estudiante';
+        ? error.response?.data?.message || 'Error al cambiar el tipo de aprendiz'
+        : 'Error al cambiar el tipo de aprendiz';
 
       await Swal.fire({
         title: 'Error',
@@ -1442,7 +1442,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     }
   };
 
-  // Funciones para eliminar estudiante
+  // Funciones para eliminar aprendiz
   const handleOpenDeleteModal = (student: Student) => {
     setDeletingStudent(student);
     setShowDeleteModal(true);
@@ -1456,7 +1456,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     try {
       await axios.delete(`/admin/students/${deletingStudent.id}`);
 
-      // Eliminar el estudiante del estado local
+      // Eliminar el aprendiz del estado local
       setStudents(prevStudents => prevStudents.filter(s => s.id !== deletingStudent.id));
 
       // Cerrar modal
@@ -1466,7 +1466,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       await Swal.fire({
         title: '¡Estudiante Eliminado!',
         html: `
-          <p class="text-gray-700">El estudiante <strong>${deletingStudent.name}</strong> ha sido eliminado exitosamente.</p>
+          <p class="text-gray-700">El aprendiz <strong>${deletingStudent.name}</strong> ha sido eliminado exitosamente.</p>
           <p class="text-sm text-gray-500 mt-2">Todos los datos asociados han sido removidos del sistema.</p>
         `,
         icon: 'success',
@@ -1479,10 +1479,10 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
         }
       });
     } catch (error: unknown) {
-      console.error('Error al eliminar estudiante:', error);
+      console.error('Error al eliminar aprendiz:', error);
       const errorMessage = axios.isAxiosError(error)
-        ? error.response?.data?.message || 'Error al eliminar el estudiante'
-        : 'Error al eliminar el estudiante';
+        ? error.response?.data?.message || 'Error al eliminar el aprendiz'
+        : 'Error al eliminar el aprendiz';
 
       await Swal.fire({
         title: 'Error',
@@ -1505,7 +1505,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     return group ? group.name : 'Grupo desconocido';
   }, [groups]);
 
-  // Filtrar estudiantes según el tab activo
+  // Filtrar aprendices según el tab activo
   const filteredStudents = useMemo(() => {
     let filtered = students;
 
@@ -1723,7 +1723,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
             <button
               onClick={() => handleOpenDeleteModal(student)}
               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              title="Eliminar estudiante"
+              title="Eliminar aprendiz"
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -1741,7 +1741,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Alumnos Matriculados</h1>
-            <p className="text-gray-600">Gestiona los estudiantes que ya han completado su matrícula</p>
+            <p className="text-gray-600">Gestiona los aprendices que ya han completado su matrícula</p>
           </div>
 
         </div>
@@ -1929,7 +1929,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-blue-500 mt-0.5">•</span>
-                        <span>Los documentos adicionales requieren confirmación/firma del estudiante dependiendo de lo que se haya configurado</span>
+                        <span>Los documentos adicionales requieren confirmación/firma del aprendiz dependiendo de lo que se haya configurado</span>
                       </li>
                       {documents.length > 0 && (
                         <li className="flex items-start gap-2">
@@ -1949,7 +1949,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                     <FileText className="h-5 w-5 text-indigo-600" />
-                    Documentos para el Estudiante
+                    Documentos para el Aprendiz
                   </h3>
                   <button
                     onClick={handleAddDocument}
@@ -2057,7 +2057,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                                 setDocuments(newDocs);
                               }}
                               variant="filled"
-                              helperText="Agrega notas o instrucciones para el estudiante"
+                              helperText="Agrega notas o instrucciones para el aprendiz"
                               disabled={isSendingDocuments}
                             />
 
@@ -2076,7 +2076,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                               />
                               <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
                                 <CheckCircle className="h-4 w-4 text-[#17BC91]" />
-                                Requiere firma/confirmación del estudiante
+                                Requiere firma/confirmación del aprendiz
                               </span>
                             </label>
                           </div>
@@ -2183,7 +2183,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                   <Trash2 className="h-7 w-7 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white">Eliminar Estudiante</h2>
+                  <h2 className="text-2xl font-bold text-white">Eliminar Aprendiz</h2>
                   <p className="text-white/90 text-sm mt-1">Esta acción no se puede deshacer</p>
                 </div>
               </div>
@@ -2191,7 +2191,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
 
             {/* Content */}
             <div className="p-8">
-              {/* Info del estudiante */}
+              {/* Info del aprendiz */}
               <div className="bg-gray-50 rounded-2xl p-5 mb-6 border border-gray-200">
                 <div className="flex items-center gap-4">
                   {deletingStudent.avatar ? (
@@ -2240,10 +2240,10 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
               </div>
 
               <p className="text-center text-gray-700 mb-2">
-                ¿Estás seguro de que deseas eliminar a este estudiante?
+                ¿Estás seguro de que deseas eliminar a este aprendiz?
               </p>
               <p className="text-center text-sm text-gray-500">
-                Escribe el nombre del estudiante para confirmar:
+                Escribe el nombre del aprendiz para confirmar:
               </p>
               
               {/* Input de confirmación */}
@@ -2282,7 +2282,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                   } else {
                     Swal.fire({
                       title: 'Nombre incorrecto',
-                      text: 'Por favor, escribe el nombre exacto del estudiante para confirmar la eliminación.',
+                      text: 'Por favor, escribe el nombre exacto del aprendiz para confirmar la eliminación.',
                       icon: 'warning',
                       confirmButtonColor: '#f59e0b',
                       confirmButtonText: 'Entendido',
@@ -2307,7 +2307,7 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                 ) : (
                   <>
                     <Trash2 className="h-5 w-5" />
-                    Eliminar Estudiante
+                    Eliminar Aprendiz
                   </>
                 )}
               </button>

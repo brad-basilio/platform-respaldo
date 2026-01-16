@@ -59,7 +59,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
     },
     {
       key: 'contract_signed_student',
-      label: 'Email de Confirmación de Firma (Estudiante)',
+      label: 'Email de Confirmación de Firma (Aprendiz)',
       variables: ['nombre_estudiante', 'codigo_matricula', 'nivel_academico', 'plan_pago', 'fecha_actual']
     },
     {
@@ -74,7 +74,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
     },
     {
       key: 'student_enrolled',
-      label: 'Email de Credenciales para Estudiantes Matriculados',
+      label: 'Email de Credenciales para Aprendices Matriculados',
       variables: ['nombre_estudiante', 'codigo_matricula', 'email', 'contrasena', 'url_plataforma', 'nivel_academico', 'plan_pago']
     },
     {
@@ -255,7 +255,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
         key: 'support_email',
         content: contactForm.data.support_email,
         type: 'contact',
-        description: 'Email de soporte técnico para estudiantes',
+        description: 'Email de soporte técnico para aprendices',
       },
     ];
 
@@ -313,7 +313,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
         key: 'contract_template',
         content: contractForm.data.contract_template,
         type: 'general',
-        description: 'Plantilla de contrato digital para estudiantes',
+        description: 'Plantilla de contrato digital para aprendices',
       },
     ];
 
@@ -342,7 +342,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
         key: 'payment_schedule_template',
         content: scheduleForm.data.payment_schedule_template,
         type: 'general',
-        description: 'Plantilla de cronograma de pagos para estudiantes',
+        description: 'Plantilla de cronograma de pagos para aprendices',
       },
     ];
 
@@ -371,7 +371,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
         key: 'payment_receipt_template',
         content: receiptForm.data.payment_receipt_template,
         type: 'general',
-        description: 'Plantilla de comprobante de pago para estudiantes',
+        description: 'Plantilla de comprobante de pago para aprendices',
       },
     ];
 
@@ -737,7 +737,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                   </h3>
                   <p className="text-sm text-slate-700">
                     Esta plantilla se genera automáticamente cuando un prospecto pasa de <strong>"Reunión Realizada"</strong> a <strong>"Pago Por Verificar"</strong>.
-                    El estudiante recibirá un email con un enlace para revisar y aceptar el contrato digitalmente.
+                    El aprendiz recibirá un email con un enlace para revisar y aceptar el contrato digitalmente.
                   </p>
                 </div>
 
@@ -836,7 +836,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                       <code className="bg-white px-2 py-1 rounded border border-emerald-300">{'{{fecha_actual}}'}</code>
                     </div>
                     <p className="text-sm text-emerald-800 mt-3">
-                      <strong>Nota:</strong> Estas variables se reemplazarán automáticamente con los datos del estudiante al generar el contrato.
+                      <strong>Nota:</strong> Estas variables se reemplazarán automáticamente con los datos del aprendiz al generar el contrato.
                     </p>
                   </div>
                 </div>
@@ -865,7 +865,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                     📅 Plantilla de Cronograma de Pagos
                   </h3>
                   <p className="text-sm text-slate-700">
-                    Esta plantilla se genera automáticamente cuando se envían los documentos de verificación al estudiante.
+                    Esta plantilla se genera automáticamente cuando se envían los documentos de verificación al aprendiz.
                     El cronograma muestra todas las cuotas, fechas de vencimiento, estados de pago y montos.
                   </p>
                 </div>
@@ -976,7 +976,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                   </h3>
                   <p className="text-sm text-slate-700">
                     Esta plantilla se utiliza para generar el PDF del comprobante de pago cuando un cajero verifica un pago.
-                    El estudiante recibirá este comprobante por correo electrónico.
+                    El aprendiz recibirá este comprobante por correo electrónico.
                   </p>
                 </div>
 
@@ -1116,13 +1116,13 @@ const Settings: React.FC<Props> = ({ settings }) => {
                   type="email"
                   value={contactForm.data.support_email}
                   onChange={(e) => contactForm.setData('support_email', e.target.value)}
-                  helperText="Email que se mostrará a los estudiantes para soporte técnico"
+                  helperText="Email que se mostrará a los aprendices para soporte técnico"
                   variant="outlined"
                 />
 
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-900">
-                    <strong>Nota:</strong> Este email se muestra en las notificaciones y modales de confirmación de documentos para que los estudiantes puedan contactar con soporte.
+                    <strong>Nota:</strong> Este email se muestra en las notificaciones y modales de confirmación de documentos para que los aprendices puedan contactar con soporte.
                   </p>
                 </div>
 
@@ -1147,7 +1147,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                     ⚙️ Configuraciones de Sistema de Pagos
                   </h3>
                   <p className="text-sm text-slate-700">
-                    Estas configuraciones afectan el comportamiento del sistema de pagos y cambios de plan para todos los estudiantes.
+                    Estas configuraciones afectan el comportamiento del sistema de pagos y cambios de plan para todos los aprendices.
                   </p>
                 </div>
 
@@ -1160,12 +1160,12 @@ const Settings: React.FC<Props> = ({ settings }) => {
                     max="30"
                     value={paymentForm.data.plan_change_deadline_days}
                     onChange={(e) => paymentForm.setData('plan_change_deadline_days', e.target.value)}
-                    helperText="Número de días desde la matrícula en que el estudiante puede cambiar su plan de pago (ej: 7 días)"
+                    helperText="Número de días desde la matrícula en que el aprendiz puede cambiar su plan de pago (ej: 7 días)"
                     variant="outlined"
                   />
                   <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                     <p className="text-xs text-yellow-900">
-                      <strong>⚠️ Importante:</strong> Solo los estudiantes que no tengan cuotas pagadas o verificadas podrán cambiar de plan, incluso dentro de este período.
+                      <strong>⚠️ Importante:</strong> Solo los aprendices que no tengan cuotas pagadas o verificadas podrán cambiar de plan, incluso dentro de este período.
                     </p>
                   </div>
                 </div>
@@ -1200,7 +1200,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                     </label>
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    Si se habilita, los estudiantes podrán pagar cualquier monto que deseen aplicado al total de su plan de pagos.
+                    Si se habilita, los aprendices podrán pagar cualquier monto que deseen aplicado al total de su plan de pagos.
                   </p>
                 </div>
 
@@ -1242,7 +1242,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                     📅 Configuración de Solicitud de Clases
                   </h3>
                   <p className="text-sm text-slate-700">
-                    Configura las reglas de anticipación y horarios de operación para que los estudiantes regulares puedan solicitar clases.
+                    Configura las reglas de anticipación y horarios de operación para que los aprendices regulares puedan solicitar clases.
                   </p>
                 </div>
 
@@ -1252,9 +1252,9 @@ const Settings: React.FC<Props> = ({ settings }) => {
                     ⏱️ Reglas de Anticipación
                   </h4>
                   <p className="text-sm text-gray-600 mb-4">
-                    Define la ventana de tiempo en que un estudiante regular puede solicitar una clase. 
+                    Define la ventana de tiempo en que un aprendiz regular puede solicitar una clase. 
                     Por ejemplo, si configuras <strong>mínimo 1 hora</strong> y <strong>máximo 2 horas</strong>, 
-                    un estudiante que solicite entre las 2pm y 3pm podrá inscribirse para la clase de las 4pm.
+                    un aprendiz que solicite entre las 2pm y 3pm podrá inscribirse para la clase de las 4pm.
                   </p>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1345,7 +1345,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                 <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
                   <h4 className="text-sm font-semibold text-blue-900 mb-3">💡 Ejemplo de Funcionamiento:</h4>
                   <p className="text-sm text-blue-800">
-                    Con la configuración actual, si un estudiante regular solicita una clase a las <strong>2:30 PM</strong>:
+                    Con la configuración actual, si un aprendiz regular solicita una clase a las <strong>2:30 PM</strong>:
                   </p>
                   <ul className="text-sm text-blue-800 mt-2 space-y-1 list-disc list-inside">
                     <li>Se verifica que esté dentro del horario de operación ({classesForm.data.class_operation_start_hour}:00 - {classesForm.data.class_operation_end_hour}:00)</li>
@@ -1492,7 +1492,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 mb-6">
                   <h4 className="text-lg font-bold text-blue-900 mb-2">📱 Configuración de Métodos de Pago Tradicionales</h4>
                   <p className="text-sm text-blue-800">
-                    Configura los métodos de pago Yape y Transferencia Bancaria que estarán disponibles para los estudiantes. 
+                    Configura los métodos de pago Yape y Transferencia Bancaria que estarán disponibles para los aprendices. 
                     Puedes agregar múltiples cuentas de cada tipo.
                   </p>
                 </div>

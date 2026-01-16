@@ -198,7 +198,7 @@ export default function VoucherVerification() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Estudiante</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Aprendiz</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Cuota</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Fecha de Pago</th>
                     <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Monto Declarado</th>
@@ -305,7 +305,7 @@ export default function VoucherVerification() {
               <div className="bg-gray-50 p-4 rounded-lg space-y-2">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-gray-600">Estudiante:</p>
+                    <p className="text-gray-600">Aprendiz:</p>
                     <p className="font-semibold">
                       {selectedVoucher.installment?.enrollment?.student?.name || 'N/A'}
                     </p>

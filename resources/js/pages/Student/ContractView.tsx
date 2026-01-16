@@ -127,7 +127,7 @@ const ContractView: React.FC<ContractViewProps> = ({ contract, student }) => {
                         <div className="px-8 py-6 bg-gray-50 border-b border-gray-200">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <p className="text-sm text-gray-600">Estudiante</p>
+                                    <p className="text-sm text-gray-600">Aprendiz</p>
                                     <p className="text-lg font-semibold text-gray-900">{student.name}</p>
                                 </div>
                                 <div>

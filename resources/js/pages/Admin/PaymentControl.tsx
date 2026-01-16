@@ -320,7 +320,7 @@ const AdminPaymentControl: React.FC<Props> = ({ students: initialStudents = [] }
     }
   };
 
-  // Filtrar estudiantes según el tab activo
+  // Filtrar aprendices según el tab activo
   const filteredStudents = useMemo(() => {
     let filtered = students.filter(s => s.enrollmentVerified);
     
@@ -335,7 +335,7 @@ const AdminPaymentControl: React.FC<Props> = ({ students: initialStudents = [] }
 
   const columnDefs = useMemo<ColDef<Student>[]>(() => [
     {
-      headerName: 'Estudiante',
+      headerName: 'Aprendiz',
       field: 'name',
       minWidth: 300,
       filter: 'agTextColumnFilter',
@@ -482,7 +482,7 @@ const AdminPaymentControl: React.FC<Props> = ({ students: initialStudents = [] }
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Gestión de Pagos</h1>
-            <p className="text-gray-600">Visualiza el estado de pagos de todos los estudiantes matriculados</p>
+            <p className="text-gray-600">Visualiza el estado de pagos de todos los aprendices matriculados</p>
           </div>
         
         </div>
@@ -492,7 +492,7 @@ const AdminPaymentControl: React.FC<Props> = ({ students: initialStudents = [] }
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Total Estudiantes</p>
+                <p className="text-sm text-gray-600 font-medium">Total Aprendices</p>
                 <p className="text-3xl font-bold text-gray-900 mt-1">{verifiedStudents.length}</p>
               </div>
               <Users className="h-10 w-10 text-blue-600" />

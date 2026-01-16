@@ -59,7 +59,7 @@ const StudentManagement: React.FC<Props> = ({
   const { props } = usePage<any>();
   const currentUserId = props.auth?.user?.id;
 
-  // Función para obtener la lista de estudiantes desde el backend y mantener el estado canónico
+  // Función para obtener la lista de aprendices desde el backend y mantener el estado canónico
   const fetchStudents = async () => {
     try {
       const response = await axios.get('/api/admin/students');
@@ -88,7 +88,7 @@ const StudentManagement: React.FC<Props> = ({
 
   // ⚠️ COMENTADO: Listener para notificaciones de contratos firmados
   // Esta funcionalidad mostraba un modal al advisor para revisar y aprobar el contrato
-  // Ahora el contrato pasa directamente a "pago_por_verificar" cuando el estudiante firma
+  // Ahora el contrato pasa directamente a "pago_por_verificar" cuando el aprendiz firma
   
   // useEffect(() => {
   //   const handleContractSigned = (event: CustomEvent) => {
@@ -123,7 +123,7 @@ const StudentManagement: React.FC<Props> = ({
   //   });
   //   setContractReviewOpen(true);
 
-  //   // Refrescar lista de estudiantes
+  //   // Refrescar lista de aprendices
   //   fetchStudents();
   // };
 
@@ -142,7 +142,7 @@ const StudentManagement: React.FC<Props> = ({
     });
   };
 
-  // Filtrar estudiantes basado en filtros para Kanban y tabla
+  // Filtrar aprendices basado en filtros para Kanban y tabla
   const filteredStudents = React.useMemo(() => {
     console.log('📊 Total students received:', students.length);
     console.log('📊 Students data sample:', students.slice(0, 2));
@@ -416,7 +416,7 @@ const StudentManagement: React.FC<Props> = ({
         archived_reason: formData.archivedReason,
       });
 
-      // Agregar el nuevo estudiante al estado canónico refrescando desde el servidor
+      // Agregar el nuevo aprendiz al estado canónico refrescando desde el servidor
       await fetchStudents();
 
       // Éxito: cerrar modal y mostrar toast
@@ -528,7 +528,7 @@ const StudentManagement: React.FC<Props> = ({
         },
       });
 
-      // Actualizar el estudiante en el estado canónico refrescando desde el servidor
+      // Actualizar el aprendiz en el estado canónico refrescando desde el servidor
       await fetchStudents();
 
       // Cerrar modal ANTES del toast para que el usuario vea el cambio inmediatamente
@@ -542,7 +542,7 @@ const StudentManagement: React.FC<Props> = ({
         formData.paymentPlanId;
 
       if (isGeneratingContract) {
-        toast.success('Contrato generado y enviado al estudiante', {
+        toast.success('Contrato generado y enviado al aprendiz', {
           description: 'El prospecto recibirá un email para firmar el contrato. Recibirás una notificación cuando lo firme.',
           duration: 6000,
         });
@@ -974,16 +974,16 @@ const StudentManagement: React.FC<Props> = ({
       status: student?.status || 'active',
     });
 
-    // Estado para lista de estudiantes disponibles para referir
+    // Estado para lista de aprendices disponibles para referir
     const [availableStudents, setAvailableStudents] = useState<Array<{ value: string | number, label: string }>>([]);
 
-    // Cargar lista de estudiantes para Select2 de referidos
+    // Cargar lista de aprendices para Select2 de referidos
     React.useEffect(() => {
       const fetchAvailableStudents = async () => {
         try {
           const response = await axios.get('/api/admin/students');
           const studentOptions = response.data
-            .filter((s: any) => s.id !== student?.id) // Excluir al estudiante actual si está editando
+            .filter((s: any) => s.id !== student?.id) // Excluir al aprendiz actual si está editando
             .map((s: any) => ({
               value: s.id,
               label: `${s.name} (${s.email})`
@@ -1000,7 +1000,7 @@ const StudentManagement: React.FC<Props> = ({
     // Debug: Mostrar valores iniciales cuando es cajero
     React.useEffect(() => {
       if (isCashierEditing) {
-        console.log('Estudiante recibido:', student);
+        console.log('Aprendiz recibido:', student);
         console.log('FormData inicial:', formData);
       }
     }, []);
@@ -1198,7 +1198,7 @@ const StudentManagement: React.FC<Props> = ({
                   </h3>
                   <p className="text-blue-100">
                     {isCashierEditing
-                      ? 'Verifica el pago y matricula al estudiante'
+                      ? 'Verifica el pago y matricula al aprendiz'
                       : student
                         ? 'Actualiza la información del prospecto'
                         : 'Completa la información para registrar un nuevo prospecto'}
@@ -1359,7 +1359,7 @@ const StudentManagement: React.FC<Props> = ({
                         }}
                         options={[
                           { value: 'frio', label: 'Frío (Sin referencia)' },
-                          { value: 'referido', label: 'Referido por estudiante' },
+                          { value: 'referido', label: 'Referido por aprendiz' },
                           { value: 'lead', label: 'Lead (Marketing)' }
                         ]}
                         isSearchable={false}
@@ -1368,14 +1368,14 @@ const StudentManagement: React.FC<Props> = ({
 
                       {formData.source === 'referido' && (
                         <Select2
-                          label="Estudiante que lo refirió"
+                          label="Aprendiz que lo refirió"
                           value={formData.referredBy}
                           onChange={(value) => setFormData({ ...formData, referredBy: value ? Number(value) : null })}
                           options={availableStudents}
                           isSearchable={true}
                           isClearable={true}
                           required
-                          helperText="Busca y selecciona el estudiante que lo refirió"
+                          helperText="Busca y selecciona el aprendiz que lo refirió"
                         />
                       )}
                     </div>
@@ -1638,7 +1638,7 @@ const StudentManagement: React.FC<Props> = ({
 
                       {/* ✅ NUEVO: Campo para subir voucher de pago ya eliminado - ahora se genera automáticamente */}
                       {/* El contrato se genera automáticamente cuando el prospecto pasa a "Pago Por Verificar" */}
-                      {/* El estudiante recibirá un email con el link para revisar y aceptar el contrato */}
+                      {/* El aprendiz recibirá un email con el link para revisar y aceptar el contrato */}
 
                       {/* Mostrar contrato generado automáticamente si existe */}
                       {/* Mostrar contrato */}
@@ -1651,17 +1651,17 @@ const StudentManagement: React.FC<Props> = ({
                               </svg>
                             </div>
                             <div>
-                              <h4 className="font-bold text-gray-900">📄 Contrato Firmado por Estudiante</h4>
+                              <h4 className="font-bold text-gray-900">📄 Contrato Firmado por Aprendiz</h4>
                               <p className="text-sm text-gray-600">
                                 {student.latestContractAcceptance.advisor_approved
                                   ? 'El contrato ha sido aprobado por el asesor.'
-                                  : 'El estudiante ha firmado. Pendiente de revisión y aprobación.'}
+                                  : 'El aprendiz ha firmado. Pendiente de revisión y aprobación.'}
                               </p>
                             </div>
                           </div>
 
                           {/* ⚠️ COMENTADO: Botón de revisión y aprobación de contrato */}
-                          {/* Ahora el contrato pasa automáticamente a "pago_por_verificar" cuando el estudiante firma */}
+                          {/* Ahora el contrato pasa automáticamente a "pago_por_verificar" cuando el aprendiz firma */}
                           {/* Solo mostramos el enlace para ver el contrato firmado */}
                           
                           {/* {!student.latestContractAcceptance.advisor_approved ? (
@@ -1704,7 +1704,7 @@ const StudentManagement: React.FC<Props> = ({
                             </div>
                             <div>
                               <h4 className="font-bold text-gray-900">📄 Contrato Generado (Pendiente de Firma)</h4>
-                              <p className="text-sm text-gray-600">El estudiante recibió un email para firmar.</p>
+                              <p className="text-sm text-gray-600">El aprendiz recibió un email para firmar.</p>
                             </div>
                           </div>
                           <a
@@ -1736,7 +1736,7 @@ const StudentManagement: React.FC<Props> = ({
                               <span className="text-sm text-gray-700 leading-relaxed">
                                 He verificado que el pago ha sido recibido correctamente.
                                 <span className="block mt-3 text-green-900 font-semibold bg-green-100 p-3 rounded-lg border-l-4 border-green-600">
-                                  💡 Al confirmar, el estudiante será <strong>matriculado automáticamente</strong> en el sistema.
+                                  💡 Al confirmar, el aprendiz será <strong>matriculado automáticamente</strong> en el sistema.
                                 </span>
                               </span>
                             </div>
@@ -1777,7 +1777,7 @@ const StudentManagement: React.FC<Props> = ({
                               />
                               <div className="col-span-1 md:col-span-2">
                                 <p className="text-sm text-green-800 bg-green-100 p-2 rounded border border-green-200">
-                                  📝 Se generará automáticamente un comprobante de pago con estos datos y se enviará al estudiante.
+                                  📝 Se generará automáticamente un comprobante de pago con estos datos y se enviará al aprendiz.
                                 </p>
                               </div>
                             </div>
@@ -1904,7 +1904,7 @@ const StudentManagement: React.FC<Props> = ({
                   <div className='!hidden'>
                     {student && (
                       <>
-                        {/* Ver Cronograma - Solo para estudiantes matriculados */}
+                        {/* Ver Cronograma - Solo para aprendices matriculados */}
                         {student.prospectStatus === 'matriculado' && (
                           <button
                             type="button"
@@ -1930,7 +1930,7 @@ const StudentManagement: React.FC<Props> = ({
                               console.log('Botón cronograma clickeado');
 
                               if (!student.paymentPlanId) {
-                                toast.error('El estudiante no tiene un plan de pago asignado');
+                                toast.error('El aprendiz no tiene un plan de pago asignado');
                                 return;
                               }
 
@@ -1956,7 +1956,7 @@ const StudentManagement: React.FC<Props> = ({
 
                                   // Si no existe (404), intentar crear uno nuevo
                                   if (!student.enrollmentDate) {
-                                    toast.error('El estudiante no tiene fecha de matrícula');
+                                    toast.error('El aprendiz no tiene fecha de matrícula');
                                     return;
                                   }
 
@@ -2145,7 +2145,7 @@ const StudentManagement: React.FC<Props> = ({
               {userRole === 'sales_advisor'
                 ? 'Gestiona tus prospectos y envía propuestas comerciales'
                 : userRole === 'cashier'
-                  ? 'Verifica pagos y matricula estudiantes'
+                  ? 'Verifica pagos y matricula aprendices'
                   : 'Gestiona la inscripción de prospectos y seguimiento del proceso comercial'}
             </p>
           </div>
@@ -2312,8 +2312,8 @@ const StudentManagement: React.FC<Props> = ({
                                     </div>
 
                                     {/* ⚠️ COMENTADO: Botón de contrato firmado para revisión del advisor */}
-                                    {/* Este botón permitía al advisor revisar y aprobar el contrato firmado por el estudiante */}
-                                    {/* Ahora el contrato pasa directamente a "pago_por_verificar" cuando el estudiante firma */}
+                                    {/* Este botón permitía al advisor revisar y aprobar el contrato firmado por el aprendiz */}
+                                    {/* Ahora el contrato pasa directamente a "pago_por_verificar" cuando el aprendiz firma */}
                                     
                                     {/* {column.id === 'propuesta_enviada' &&
                                       student.latestContractAcceptance?.accepted_at &&
@@ -2465,8 +2465,8 @@ const StudentManagement: React.FC<Props> = ({
       )}
 
       {/* ⚠️ COMENTADO: Contract Review Modal */}
-      {/* Este modal permitía al advisor revisar y aprobar/rechazar el contrato firmado por el estudiante */}
-      {/* Ahora el contrato pasa automáticamente a "pago_por_verificar" cuando el estudiante firma */}
+      {/* Este modal permitía al advisor revisar y aprobar/rechazar el contrato firmado por el aprendiz */}
+      {/* Ahora el contrato pasa automáticamente a "pago_por_verificar" cuando el aprendiz firma */}
       
       {/* <ContractReviewModal
         isOpen={contractReviewOpen}

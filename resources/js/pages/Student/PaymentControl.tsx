@@ -194,7 +194,7 @@ const PaymentControl: React.FC = () => {
       setChangingPlan(true);
       await axios.post('/api/student/change-plan', {
         new_plan_id: selectedNewPlan,
-        reason: planChangeReason || 'Cambio solicitado por el estudiante',
+        reason: planChangeReason || 'Cambio solicitado por el aprendiz',
       });
 
       toast.success('Plan de pago cambiado exitosamente', {

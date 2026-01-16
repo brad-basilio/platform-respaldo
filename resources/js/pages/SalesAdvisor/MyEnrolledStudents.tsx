@@ -162,7 +162,7 @@ const MyEnrolledStudents: React.FC<Props> = ({ students: initialStudents = [] })
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Mis Matriculados Verificados</h1>
-            <p className="text-gray-600">Lista de tus estudiantes con matrícula verificada</p>
+            <p className="text-gray-600">Lista de tus aprendices con matrícula verificada</p>
           </div>
           <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg">
             <div className="text-center">

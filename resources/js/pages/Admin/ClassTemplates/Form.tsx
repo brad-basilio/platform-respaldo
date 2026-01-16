@@ -483,7 +483,7 @@ const ClassTemplateForm: React.FC<Props> = ({ template, academicLevels }) => {
               <Card>
                 <CardHeader>
                   <CardTitle>Objetivos de Aprendizaje</CardTitle>
-                  <CardDescription>Lista los objetivos que el estudiante logrará al completar esta sesión</CardDescription>
+                  <CardDescription>Lista los objetivos que el aprendiz logrará al completar esta sesión</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Textarea
@@ -610,7 +610,7 @@ const ClassTemplateForm: React.FC<Props> = ({ template, academicLevels }) => {
                         Recursos Descargables
                       </CardTitle>
                       <CardDescription>
-                        PDFs, documentos, presentaciones y otros materiales para el estudiante
+                        PDFs, documentos, presentaciones y otros materiales para el aprendiz
                       </CardDescription>
                     </div>
                     <Button type="button" onClick={() => setShowResourceModal(true)}>
@@ -854,7 +854,7 @@ const ClassTemplateForm: React.FC<Props> = ({ template, academicLevels }) => {
                     <div>
                       <h3 className="text-xl font-bold text-white">Subir Recurso</h3>
                       <p className="text-blue-100 text-sm">
-                        Sube un archivo para que los estudiantes puedan descargarlo
+                        Sube un archivo para que los aprendices puedan descargarlo
                       </p>
                     </div>
                   </div>

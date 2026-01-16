@@ -214,7 +214,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
 
     router.post(`/admin/class-requests/${selectedRequest.id}/schedule`, scheduleForm, {
       onSuccess: () => {
-        toast.success('Clase programada y estudiante inscrito');
+        toast.success('Clase programada y aprendiz inscrito');
         setShowScheduleModal(false);
       },
       onError: () => toast.error('Error al programar clase'),
@@ -250,7 +250,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
       scheduled_class_id: selectedClassId,
     }, {
       onSuccess: () => {
-        toast.success('Estudiante asignado a la clase');
+        toast.success('Aprendiz asignado a la clase');
         setShowAssignModal(false);
       },
       onError: () => toast.error('Error al asignar'),
@@ -280,7 +280,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
 
   const columnDefs = useMemo<ColDef<ClassRequest>[]>(() => [
     {
-      headerName: 'Estudiante',
+      headerName: 'Aprendiz',
       flex: 1,
       minWidth: 200,
       cellRenderer: (params: any) => {
@@ -442,16 +442,16 @@ const ClassRequestsIndex: React.FC<Props> = ({
         const templateGroups = activeGroups[req.template?.id] || [];
         const hasAvailableGroups = templateGroups.length > 0;
         
-        // Determinar qué pidió el estudiante
+        // Determinar qué pidió el aprendiz
         const wantsToJoinGroup = !!req.target_scheduled_class;
         const wantsNewClass = !!req.requested_datetime && !req.target_scheduled_class;
         
         if (req.status === 'pending') {
           return (
             <div className="flex items-center gap-1 h-full">
-              {/* Priorizar según la preferencia del estudiante */}
+              {/* Priorizar según la preferencia del aprendiz */}
               {wantsToJoinGroup ? (
-                // El estudiante quiere unirse a un grupo específico
+                // El aprendiz quiere unirse a un grupo específico
                 <>
                   <Button 
                     variant="default" 
@@ -474,7 +474,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
                   </Button>
                 </>
               ) : wantsNewClass ? (
-                // El estudiante quiere una nueva clase
+                // El aprendiz quiere una nueva clase
                 <>
                   <Button 
                     variant="default" 
@@ -672,7 +672,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Solicitudes de Clases</h1>
-            <p className="text-gray-500 mt-1">Gestiona las solicitudes de clases de los estudiantes</p>
+            <p className="text-gray-500 mt-1">Gestiona las solicitudes de clases de los aprendices</p>
           </div>
         </div>
 
@@ -844,7 +844,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
                 {/* Show student request info if available */}
                 {(selectedRequest.requested_datetime || selectedRequest.target_scheduled_class) && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-xs font-medium text-blue-800 mb-1">📋 Solicitud del estudiante:</p>
+                    <p className="text-xs font-medium text-blue-800 mb-1">📋 Solicitud del aprendiz:</p>
                     {selectedRequest.target_scheduled_class ? (
                       <p className="text-sm text-blue-700">
                         Quiere unirse a grupo existente
@@ -890,7 +890,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
                   />
 
                   <Input
-                    label="Máx. Estudiantes"
+                    label="Máx. Aprendices"
                     type="number"
                     min={1}
                     max={20}
@@ -953,7 +953,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
                   label="Motivo del rechazo"
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder="Explica al estudiante por qué se rechaza su solicitud..."
+                  placeholder="Explica al aprendiz por qué se rechaza su solicitud..."
                   rows={3}
                   required
                 />
@@ -990,7 +990,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
                   <div>
                     <h3 className="text-xl font-bold text-white">Unir a Grupo Existente</h3>
                     <p className="text-blue-100 text-sm">
-                      Estudiante: {selectedRequest.student.name}
+                      Aprendiz: {selectedRequest.student.name}
                     </p>
                   </div>
                 </div>
@@ -1007,7 +1007,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
                 {/* Show if student requested a specific group */}
                 {selectedRequest.target_scheduled_class && (
                   <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                    <p className="text-xs font-medium text-purple-800 mb-1">📋 El estudiante solicitó unirse a:</p>
+                    <p className="text-xs font-medium text-purple-800 mb-1">📋 El aprendiz solicitó unirse a:</p>
                     <p className="text-sm text-purple-700">
                       {new Date(selectedRequest.target_scheduled_class.scheduled_at).toLocaleDateString('es-PE', {
                         weekday: 'short',
@@ -1032,7 +1032,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
                   <div className="text-center py-8">
                     <AlertCircle className="w-12 h-12 mx-auto mb-3 text-gray-400" />
                     <p className="text-gray-600">No hay grupos disponibles con cupo</p>
-                    <p className="text-sm text-gray-500 mt-1">Crea un nuevo grupo para este estudiante</p>
+                    <p className="text-sm text-gray-500 mt-1">Crea un nuevo grupo para este aprendiz</p>
                   </div>
                 ) : (
                   <div className="space-y-2">

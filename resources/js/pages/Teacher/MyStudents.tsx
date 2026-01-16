@@ -100,7 +100,7 @@ export default function MyStudents({ students, stats }: Props) {
                   Volver al Dashboard
                 </Link>
                 <h1 className="text-2xl font-bold text-gray-900">Mis Participantes</h1>
-                <p className="text-gray-600 mt-1">Estudiantes de tus clases asignadas</p>
+                <p className="text-gray-600 mt-1">Aprendices de tus clases asignadas</p>
               </div>
               <div className="flex items-center gap-4 text-sm">
                 <div className="text-center px-4 py-2 bg-blue-50 rounded-lg">
@@ -144,7 +144,7 @@ export default function MyStudents({ students, stats }: Props) {
                 <Users className="w-16 h-16 mx-auto mb-4 text-gray-400" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay participantes</h3>
                 <p className="text-gray-600">
-                  {searchTerm ? 'No se encontraron participantes con ese criterio de búsqueda.' : 'Aún no tienes estudiantes asignados en tus clases.'}
+                  {searchTerm ? 'No se encontraron participantes con ese criterio de búsqueda.' : 'Aún no tienes aprendices asignados en tus clases.'}
                 </p>
               </CardContent>
             </Card>

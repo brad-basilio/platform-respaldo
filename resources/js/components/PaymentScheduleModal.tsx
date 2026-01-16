@@ -40,7 +40,7 @@ export default function PaymentScheduleModal({
       
       if (!response.ok) {
         if (response.status === 404) {
-          setError('Este estudiante no tiene una matrícula activa.');
+          setError('Este aprendiz no tiene una matrícula activa.');
         } else {
           throw new Error('Error al cargar el cronograma de pagos');
         }
@@ -426,7 +426,7 @@ export default function PaymentScheduleModal({
                                         })()}
                                       </>
                                     ) : (
-                                      /* Asesor/Estudiante ve que está en revisión */
+                                      /* Asesor/Aprendiz ve que está en revisión */
                                       <>
                                         <span className="text-xs text-blue-600 font-medium">
                                           En revisión por cajero

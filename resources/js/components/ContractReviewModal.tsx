@@ -39,7 +39,7 @@ export const ContractReviewModal: React.FC<ContractReviewModalProps> = ({
 
       if (response.data.success) {
         toast.success('¡Contrato aprobado!', {
-          description: 'Los emails han sido enviados y el estudiante ha pasado a pago por verificar',
+          description: 'Los emails han sido enviados y el aprendiz ha pasado a pago por verificar',
           duration: 5000,
         });
         onApproved();
@@ -69,7 +69,7 @@ export const ContractReviewModal: React.FC<ContractReviewModalProps> = ({
 
       if (response.data.success) {
         toast.success('Contrato reenviado', {
-          description: 'El estudiante recibirá un nuevo email para firmar el contrato nuevamente',
+          description: 'El aprendiz recibirá un nuevo email para firmar el contrato nuevamente',
           duration: 5000,
         });
         onResent();
@@ -104,7 +104,7 @@ export const ContractReviewModal: React.FC<ContractReviewModalProps> = ({
                 Revisar Contrato Firmado
               </DialogTitle>
               <p className="text-blue-100 text-sm mt-0.5">
-                Estudiante: <span className="font-semibold text-white">{studentName}</span>
+                Aprendiz: <span className="font-semibold text-white">{studentName}</span>
               </p>
             </div>
           </div>

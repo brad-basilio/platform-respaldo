@@ -828,7 +828,7 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
 
   const handleViewSchedule = async (student: Student) => {
     try {
-      console.log('📋 Abriendo cronograma para estudiante:', student.id, student.name);
+      console.log('📋 Abriendo cronograma para aprendiz:', student.id, student.name);
       
       // Obtener el enrollment completo con las cuotas
       const response = await axios.get(`/cashier/students/${student.id}/enrollment`);
@@ -860,7 +860,7 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
     const confirmTitle = action === 'approve' ? '¿Aprobar Voucher?' : '¿Rechazar Voucher?';
     const confirmText = action === 'approve' 
       ? '¿Confirmas que el voucher de pago es válido?' 
-      : 'El voucher será rechazado y el estudiante deberá subir uno nuevo.';
+      : 'El voucher será rechazado y el aprendiz deberá subir uno nuevo.';
     
     // Si ya se llamó con reject, no necesitamos confirmar de nuevo (ya se confirmó con el textarea)
     if (action === 'reject' && rejectionReason) {
@@ -935,7 +935,7 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
     }
   };
 
-  // Filtrar estudiantes según el tab activo
+  // Filtrar aprendices según el tab activo
   const filteredStudents = useMemo(() => {
     let filtered = students.filter(s => s.enrollmentVerified); // Solo verificados
     
@@ -950,7 +950,7 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
 
   const columnDefs = useMemo<ColDef<Student>[]>(() => [
     {
-      headerName: 'Estudiante',
+      headerName: 'Aprendiz',
       field: 'name',
       minWidth: 300,
       filter: 'agTextColumnFilter',
@@ -1097,7 +1097,7 @@ const CashierPaymentControl: React.FC<Props> = ({ students: initialStudents = []
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Control de Pagos</h1>
-            <p className="text-gray-600">Gestiona y verifica los pagos de estudiantes matriculados</p>
+            <p className="text-gray-600">Gestiona y verifica los pagos de aprendices matriculados</p>
           </div>
         </div>
 

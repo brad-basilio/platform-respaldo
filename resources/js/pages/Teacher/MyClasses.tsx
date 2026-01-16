@@ -293,7 +293,7 @@ export default function MyClasses({ scheduledClasses, stats, filters }: Props) {
                               </span>
                               <span className="flex items-center gap-1.5">
                                 <Users className="w-4 h-4" style={{ color: '#073372' }} />
-                                {scheduledClass.enrollments_count}/{scheduledClass.max_students} estudiantes
+                                {scheduledClass.enrollments_count}/{scheduledClass.max_students} aprendices
                               </span>
                               <Badge 
                                 variant="outline"

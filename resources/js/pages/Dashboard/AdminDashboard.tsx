@@ -190,7 +190,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="flex items-center justify-between mb-2">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
-                Tendencia de Estudiantes
+                Tendencia de Aprendices
               </h2>
               <p className="text-sm text-gray-500 mt-1">Últimos 30 días - Prospectos vs Verificados</p>
             </div>
@@ -291,7 +291,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <h2 className="text-2xl font-bold text-gray-900">
                   Top 5 Asesores
                 </h2>
-                <p className="text-sm text-gray-500 mt-1">Por estudiantes verificados (comisión)</p>
+                <p className="text-sm text-gray-500 mt-1">Por aprendices verificados (comisión)</p>
               </div>
               <Award className="h-6 w-6" style={{ color: COLORS.pradera }} />
             </div>

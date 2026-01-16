@@ -121,7 +121,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-1">
-              Panel de Estudiante
+              Panel de Aprendiz
             </h1>
             <p className="text-gray-500">
               Bienvenido, <span className="font-semibold text-gray-700">{student.name}</span>

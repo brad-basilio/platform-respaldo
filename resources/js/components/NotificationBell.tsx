@@ -137,7 +137,7 @@ export default function NotificationBell({ userId, userRole }: NotificationBellP
     });
 
     // ⚠️ COMENTADO: Escuchar eventos de contrato firmado por el asesor
-    // Ahora el contrato pasa automáticamente a "pago_por_verificar" cuando el estudiante firma
+    // Ahora el contrato pasa automáticamente a "pago_por_verificar" cuando el aprendiz firma
     // Ya no se requiere la aprobación manual del advisor
     
     // // Escuchar eventos de asesor (si el usuario es asesor/admin)

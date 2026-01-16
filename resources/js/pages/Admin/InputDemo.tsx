@@ -29,7 +29,7 @@ const InputDemo: React.FC = () => {
   ];
 
   const occupationOptions: SelectOption[] = [
-    { value: 'estudiante', label: '🎓 Estudiante' },
+    { value: 'aprendiz', label: '🎓 Aprendiz' },
     { value: 'empleado', label: '💼 Empleado' },
     { value: 'independiente', label: '🚀 Independiente' },
     { value: 'empresario', label: '👔 Empresario' },

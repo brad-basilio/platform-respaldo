@@ -401,7 +401,7 @@ const Dashboard: React.FC<Props> = () => {
         value: stats.completedPayments || 0, 
         icon: CheckCircle, 
         color: COLORS.pradera,
-        description: 'Estudiantes al 100%'
+        description: 'Aprendices al 100%'
       },
       { 
         label: 'Matrículas del Mes', 
@@ -592,7 +592,7 @@ const Dashboard: React.FC<Props> = () => {
                     dataKey="value"
                     radius={[0, 8, 8, 0]}
                     barSize={36}
-                    name="Estudiantes"
+                    name="Aprendices"
                   >
                     {paymentDistribution.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -609,7 +609,7 @@ const Dashboard: React.FC<Props> = () => {
             {/* Total general */}
             <div className="mt-6 pt-6 border-t-2 border-gray-200">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-gray-600 uppercase tracking-wide">Total Estudiantes</span>
+                <span className="text-sm font-bold text-gray-600 uppercase tracking-wide">Total Aprendices</span>
                 <span className="text-3xl font-black text-gray-900">
                   {stats.totalProspects || 0}
                 </span>

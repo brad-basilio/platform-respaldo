@@ -227,7 +227,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
               { id: 'my-classes', label: 'Mis Clases', icon: RiBookOpenLine },
             ]
           },
-          // ✅ Solo mostrar secciones financieras si el estudiante ha firmado el contrato
+          // ✅ Solo mostrar secciones financieras si el aprendiz ha firmado el contrato
           ...(!hasUnsignedContract ? [{
             section: 'FINANZAS',
             items: [

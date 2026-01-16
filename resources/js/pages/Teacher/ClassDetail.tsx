@@ -629,7 +629,7 @@ const ClassDetail: React.FC<Props> = ({ scheduledClass }) => {
                   </div>
                   
                   <div className="flex items-center justify-between py-2">
-                    <span className="text-gray-500 text-sm">Estudiantes</span>
+                    <span className="text-gray-500 text-sm">Aprendices</span>
                     <span className="font-medium text-gray-900">
                       {scheduledClass.enrollments.length}/{scheduledClass.max_students}
                     </span>
@@ -648,7 +648,7 @@ const ClassDetail: React.FC<Props> = ({ scheduledClass }) => {
                 </p>
               </div>
 
-              {/* Estudiantes y Asistencia - Mejorado */}
+              {/* Aprendices y Asistencia - Mejorado */}
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                 <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
                   <div className="flex items-center justify-between">
@@ -671,7 +671,7 @@ const ClassDetail: React.FC<Props> = ({ scheduledClass }) => {
                   {scheduledClass.enrollments.length === 0 ? (
                     <div className="text-center py-6 text-gray-500">
                       <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No hay estudiantes inscritos</p>
+                      <p className="text-sm">No hay aprendices inscritos</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -747,7 +747,7 @@ const ClassDetail: React.FC<Props> = ({ scheduledClass }) => {
               {scheduledClass.recording_url ? 'Cambiar Grabación' : 'Agregar Grabación'}
             </DialogTitle>
             <DialogDescription>
-              La grabación reemplazará el video de introducción para los estudiantes
+              La grabación reemplazará el video de introducción para los aprendices
             </DialogDescription>
           </DialogHeader>
           

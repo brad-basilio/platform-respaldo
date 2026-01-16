@@ -619,7 +619,7 @@ const PaymentMethodsConfig: React.FC = () => {
                     onChange={(file) => setYapeQrImage(file)}
                     onPreviewChange={(preview) => setYapeQrPreview(preview)}
                     required={!editingYape}
-                    helperText="Sube la imagen del código QR de Yape. Los estudiantes escanearán este código para realizar el pago."
+                    helperText="Sube la imagen del código QR de Yape. Los aprendices escanearán este código para realizar el pago."
                   />
                 </div>
 
@@ -643,7 +643,7 @@ const PaymentMethodsConfig: React.FC = () => {
                     <label htmlFor="yape-active" className="flex-1 cursor-pointer">
                       <span className="block text-sm font-semibold text-gray-900">Método activo</span>
                       <span className="block text-sm text-gray-600 mt-1">
-                        Si está activado, los estudiantes podrán ver y usar este método de pago
+                        Si está activado, los aprendices  podrán ver y usar este método de pago
                       </span>
                     </label>
                   </div>
@@ -843,7 +843,7 @@ const PaymentMethodsConfig: React.FC = () => {
                     <label htmlFor="transfer-active" className="flex-1 cursor-pointer">
                       <span className="block text-sm font-semibold text-gray-900">Método activo</span>
                       <span className="block text-sm text-gray-600 mt-1">
-                        Si está activado, los estudiantes podrán ver y usar esta cuenta bancaria
+                        Si está activado, los aprendices podrán ver y usar esta cuenta bancaria
                       </span>
                     </label>
                   </div>

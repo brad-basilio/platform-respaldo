@@ -258,7 +258,7 @@ const GroupManagement: React.FC = () => {
   const handleDeleteGroup = (groupId: string) => {
     const group = groups.find(g => g.id === groupId);
     if (group && group.studentIds.length > 0) {
-      alert('No se puede eliminar un grupo con estudiantes inscritos. Por favor remueve los estudiantes primero.');
+      alert('No se puede eliminar un grupo con aprendices inscritos. Por favor remueve los aprendices primero.');
       return;
     }
 
@@ -321,7 +321,7 @@ const GroupManagement: React.FC = () => {
             studentIds: [...currentStudents, studentId]
           });
         } else {
-          alert(`Capacidad máxima alcanzada (${maxCapacity} estudiantes para clases ${formData.type === 'theoretical' ? 'teóricas' : 'prácticas'})`);
+          alert(`Capacidad máxima alcanzada (${maxCapacity} aprendices para clases ${formData.type === 'theoretical' ? 'teóricas' : 'prácticas'})`);
         }
       }
     };
@@ -330,7 +330,7 @@ const GroupManagement: React.FC = () => {
       e.preventDefault();
       
       if (formData.studentIds.length > maxCapacity) {
-        alert(`No se puede exceder la capacidad máxima de ${maxCapacity} estudiantes`);
+        alert(`No se puede exceder la capacidad máxima de ${maxCapacity} aprendices`);
         return;
       }
       
@@ -372,8 +372,8 @@ const GroupManagement: React.FC = () => {
                 onChange={(e) => setFormData({...formData, type: e.target.value as 'theoretical' | 'practical', teacherId: '', studentIds: []})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="theoretical">Teórico (Máx 4 estudiantes)</option>
-                <option value="practical">Práctico (Máx 6 estudiantes)</option>
+                <option value="theoretical">Teórico (Máx 4 aprendices)</option>
+                <option value="practical">Práctico (Máx 6 aprendices)</option>
               </select>
             </div>
           </div>
@@ -501,7 +501,7 @@ const GroupManagement: React.FC = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Agregar Estudiantes ({formData.studentIds.length}/{maxCapacity})
+              Agregar Aprendices ({formData.studentIds.length}/{maxCapacity})
             </label>
             <select
               multiple
@@ -511,13 +511,13 @@ const GroupManagement: React.FC = () => {
                 if (selectedOptions.length <= maxCapacity) {
                   setFormData({...formData, studentIds: selectedOptions});
                 } else {
-                  alert(`Capacidad máxima alcanzada (${maxCapacity} estudiantes para clases ${formData.type === 'theoretical' ? 'teóricas' : 'prácticas'})`);
+                  alert(`Capacidad máxima alcanzada (${maxCapacity} aprendices para clases ${formData.type === 'theoretical' ? 'teóricas' : 'prácticas'})`);
                 }
               }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]"
             >
               {availableStudents.length === 0 ? (
-                <option disabled>No hay estudiantes disponibles para {formData.type === 'theoretical' ? 'teórico' : 'práctico'} nivel {formData.level === 'basic' ? 'básico' : formData.level === 'intermediate' ? 'intermedio' : 'avanzado'}</option>
+                <option disabled>No hay aprendices disponibles para {formData.type === 'theoretical' ? 'teórico' : 'práctico'} nivel {formData.level === 'basic' ? 'básico' : formData.level === 'intermediate' ? 'intermedio' : 'avanzado'}</option>
               ) : (
                 availableStudents.map(student => (
                   <option key={student.id} value={student.id}>
@@ -526,7 +526,7 @@ const GroupManagement: React.FC = () => {
                 ))
               )}
             </select>
-            <p className="text-xs text-gray-500 mt-1">Mantén presionado Ctrl (Windows) o Cmd (Mac) para seleccionar múltiples estudiantes</p>
+            <p className="text-xs text-gray-500 mt-1">Mantén presionado Ctrl (Windows) o Cmd (Mac) para seleccionar múltiples aprendices</p>
           </div>
 
           <div className="flex justify-end space-x-3">
@@ -554,7 +554,7 @@ const GroupManagement: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Gestión de Grupos</h1>
-          <p className="text-gray-600">Gestiona grupos de clases e inscripción de estudiantes</p>
+          <p className="text-gray-600">Gestiona grupos de clases e inscripción de aprendices</p>
         </div>
         <button
           onClick={() => setShowCreateForm(true)}
@@ -635,7 +635,7 @@ const GroupManagement: React.FC = () => {
                   Instructor
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estudiantes
+                  Aprendices
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Horario

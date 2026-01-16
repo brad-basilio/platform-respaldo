@@ -80,7 +80,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   // KPI Cards - Colores institucionales UNCED
   const kpiCards = [
     { 
-      label: 'Estudiantes Activos', 
+      label: 'Aprendices Activos', 
       value: stats.totalStudents, 
       icon: Users, 
       color: COLORS.catalina,
@@ -238,7 +238,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                       </span>
                       <span className="flex items-center gap-1.5">
                         <Users className="w-4 h-4" style={{ color: COLORS.catalina }} />
-                        {cls.students} estudiantes
+                        {cls.students} aprendices
                       </span>
                       <Badge 
                         variant="outline" 
@@ -343,7 +343,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     <div>
                       <p className="font-semibold text-gray-900">{cls.title}</p>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {cls.date} • {cls.time} • {cls.students} estudiantes
+                        {cls.date} • {cls.time} • {cls.students} aprendices
                       </p>
                     </div>
                   </div>

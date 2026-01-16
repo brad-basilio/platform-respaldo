@@ -17,7 +17,7 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
     const { props } = usePage<any>();
     const isStudent = props.auth?.user?.role === 'student';
     
-    // ✅ Obtener información del estudiante y su contrato
+    // ✅ Obtener información del aprendiz y su contrato
     const studentData = isStudent ? props.student : null;
     const hasUnsignedContract = studentData?.contract && !studentData.contract.accepted;
 

@@ -219,19 +219,19 @@ const Show: React.FC<Props> = ({ scheduledClass }) => {
       student_id: studentId
     }, {
       onSuccess: () => {
-        toast.success('Estudiante inscrito');
+        toast.success('Aprendiz inscrito');
         setShowEnrollModal(false);
         setStudentId('');
       },
-      onError: () => toast.error('Error al inscribir estudiante')
+      onError: () => toast.error('Error al inscribir aprendiz')
     });
   };
 
   const handleUnenrollStudent = (studentId: number) => {
-    if (confirm('¿Estás seguro de remover a este estudiante?')) {
+    if (confirm('¿Estás seguro de remover a este aprendiz?')) {
       router.delete(`/admin/scheduled-classes/${scheduledClass.id}/unenroll/${studentId}`, {
-        onSuccess: () => toast.success('Estudiante removido'),
-        onError: () => toast.error('Error al remover estudiante')
+        onSuccess: () => toast.success('Aprendiz removido'),
+        onError: () => toast.error('Error al remover aprendiz')
       });
     }
   };
@@ -706,13 +706,13 @@ const Show: React.FC<Props> = ({ scheduledClass }) => {
                 </p>
               </div>
 
-              {/* Estudiantes Inscritos */}
+              {/* Aprendices Inscritos */}
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                 <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                       <Users className="w-5 h-5 text-[#073372]" />
-                      Estudiantes ({scheduledClass.enrollments.length}/{scheduledClass.max_students})
+                      Aprendices ({scheduledClass.enrollments.length}/{scheduledClass.max_students})
                     </h3>
                     {scheduledClass.enrollments.length < scheduledClass.max_students && (
                       <Button 
@@ -729,7 +729,7 @@ const Show: React.FC<Props> = ({ scheduledClass }) => {
                   {scheduledClass.enrollments.length === 0 ? (
                     <div className="text-center py-6 text-gray-500">
                       <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No hay estudiantes inscritos</p>
+                      <p className="text-sm">No hay aprendices inscritos</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -897,7 +897,7 @@ const Show: React.FC<Props> = ({ scheduledClass }) => {
               {scheduledClass.recording_url ? 'Cambiar Grabación' : 'Agregar Grabación'}
             </DialogTitle>
             <DialogDescription>
-              La grabación reemplazará el video de introducción para los estudiantes
+              La grabación reemplazará el video de introducción para los aprendices
             </DialogDescription>
           </DialogHeader>
           
@@ -924,24 +924,24 @@ const Show: React.FC<Props> = ({ scheduledClass }) => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Inscribir Estudiante */}
+      {/* Modal Inscribir Aprendiz */}
       <Dialog open={showEnrollModal} onOpenChange={setShowEnrollModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Inscribir Estudiante</DialogTitle>
+            <DialogTitle>Inscribir Aprendiz</DialogTitle>
             <DialogDescription>
-              Ingresa el ID del estudiante a inscribir
+              Ingresa el ID del aprendiz a inscribir
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>ID del Estudiante</Label>
+              <Label>ID del Aprendiz</Label>
               <Input
                 type="number"
                 value={studentId}
                 onChange={(e) => setStudentId(e.target.value)}
-                placeholder="ID del estudiante"
+                placeholder="ID del aprendiz"
               />
             </div>
           </div>

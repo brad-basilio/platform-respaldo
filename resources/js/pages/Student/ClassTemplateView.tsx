@@ -1372,7 +1372,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                                   ? 'bg-orange-100 text-orange-700' 
                                   : 'bg-green-100 text-green-700'
                               }`}>
-                                {cls.enrolled_count}/{cls.max_students} estudiantes
+                                {cls.enrolled_count}/{cls.max_students} aprendices
                               </span>
                               <p className="text-xs text-gray-500 mt-1">
                                 {cls.available_spots} cupo{cls.available_spots !== 1 ? 's' : ''} disponible{cls.available_spots !== 1 ? 's' : ''}
