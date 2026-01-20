@@ -3,7 +3,7 @@
  * DEBUG: Investigar por qué el estudiante muestra nivel incorrecto
  * 
  * Ejecutar en el servidor con:
- * cd /var/www/html (o donde esté tu proyecto Laravel)
+ * cd /var/www/laravel (o donde esté tu proyecto Laravel)
  * php debug_student_level.php
  */
 
@@ -14,25 +14,42 @@ $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
 use App\Models\Student;
+use App\Models\User;
 use App\Models\AcademicLevel;
 use Illuminate\Support\Facades\DB;
 
+$targetEmail = 'julio.izquierdo.mejia@gmail.com';
+
 echo "========================================\n";
-echo "🔍 DEBUG: Estudiante julio.izquierdo.mejia@gmail.com\n";
+echo "🔍 DEBUG: Estudiante {$targetEmail}\n";
 echo "========================================\n\n";
 
-// 1. Buscar el estudiante
-$student = Student::where('email', 'julio.izquierdo.mejia@gmail.com')->first();
+// 1. Primero buscar el User por email
+$user = User::where('email', $targetEmail)->first();
+
+if (!$user) {
+    echo "❌ ERROR: Usuario no encontrado con email: {$targetEmail}\n";
+    exit(1);
+}
+
+echo "✅ Usuario encontrado:\n";
+echo "   - User ID: {$user->id}\n";
+echo "   - User Email: {$user->email}\n";
+echo "   - User Name: {$user->name}\n";
+echo "\n";
+
+// 2. Buscar el estudiante por user_id
+$student = Student::where('user_id', $user->id)->first();
 
 if (!$student) {
-    echo "❌ ERROR: Estudiante no encontrado con ese email\n";
+    echo "❌ ERROR: Estudiante no encontrado para user_id: {$user->id}\n";
     exit(1);
 }
 
 echo "✅ Estudiante encontrado:\n";
-echo "   - ID: {$student->id}\n";
+echo "   - Student ID: {$student->id}\n";
+echo "   - User ID: {$student->user_id}\n";
 echo "   - Nombre: {$student->first_name} {$student->paternal_last_name} {$student->maternal_last_name}\n";
-echo "   - Email: {$student->email}\n";
 echo "   - Prospect Status: {$student->prospect_status}\n";
 echo "   - Enrollment Verified: " . ($student->enrollment_verified ? 'Sí' : 'No') . "\n";
 echo "\n";
@@ -73,7 +90,7 @@ echo "========================================\n\n";
 
 // 4. Query raw para ver exactamente qué hay en la BD
 $rawStudent = DB::table('students')
-    ->where('email', 'julio.izquierdo.mejia@gmail.com')
+    ->where('user_id', $user->id)
     ->first();
 
 echo "Datos RAW del estudiante:\n";
@@ -86,8 +103,8 @@ echo "========================================\n\n";
 
 // 5. Simular cómo el Resource transforma los datos
 // Cargar el estudiante con las relaciones como lo hace el controlador
-$studentWithRelations = Student::with(['academicLevel', 'paymentPlan', 'registeredBy', 'contract'])
-    ->where('email', 'julio.izquierdo.mejia@gmail.com')
+$studentWithRelations = Student::with(['academicLevel', 'paymentPlan', 'registeredBy', 'contract', 'user'])
+    ->where('user_id', $user->id)
     ->first();
 
 echo "Datos que se enviarían al frontend:\n";
