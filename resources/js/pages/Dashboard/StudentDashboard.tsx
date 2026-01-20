@@ -127,7 +127,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
               Bienvenido, <span className="font-semibold text-gray-700">{student.name}</span>
             </p>
             <p className="text-sm text-gray-400 mt-1">
-              Nivel: {student.level === 'basic' ? 'Básico' : student.level === 'intermediate' ? 'Intermedio' : 'Avanzado'}
+              Nivel: {student.academicLevel?.name || 'No asignado'}
             </p>
           </div>
         </div>

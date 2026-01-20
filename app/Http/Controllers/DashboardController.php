@@ -215,6 +215,12 @@ class DashboardController extends Controller
             'verifiedEnrollmentBy' => $student->verifiedEnrollmentBy,
             'prospectStatus' => $student->prospect_status,
             'enrollmentDate' => $student->enrollment_date,
+            // ✅ Nivel académico explícito
+            'academicLevel' => $student->academicLevel ? [
+                'id' => $student->academicLevel->id,
+                'name' => $student->academicLevel->name,
+                'code' => $student->academicLevel->code,
+            ] : null,
         ]);
 
         return Inertia::render('Dashboard/Student', [
