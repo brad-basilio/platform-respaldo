@@ -81,6 +81,11 @@ class StudentController extends Controller
                     'role' => 'student',
                     'status' => $student->status ?? 'active',
                     'level' => $student->academicLevel?->code ?? null,
+                    'academicLevel' => $student->academicLevel ? [
+                        'id' => $student->academicLevel->id,
+                        'name' => $student->academicLevel->name,
+                        'code' => $student->academicLevel->code,
+                    ] : null,
                     'points' => $student->points ?? 0,
                     'prospectStatus' => $student->prospect_status,
                     'paymentDate' => $student->payment_date?->format('Y-m-d'),

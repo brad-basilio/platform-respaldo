@@ -1598,20 +1598,30 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
     },
     {
       headerName: 'Nivel',
-      field: 'level',
+      field: 'academicLevel',
       width: 130,
       filter: 'agTextColumnFilter',
       cellRenderer: (params: ICellRendererParams<Student>) => {
-        const level = params.value;
-        if (!level) return <div className="flex items-center justify-center w-full h-full"><span className="text-xs text-gray-400">N/A</span></div>;
+        const student = params.data!;
+        const academicLevel = student.academicLevel;
+        
+        // Si no hay academicLevel, mostrar N/A
+        if (!academicLevel) {
+          return <div className="flex items-center justify-center w-full h-full"><span className="text-xs text-gray-400">N/A</span></div>;
+        }
 
-        const colorClass = level === 'basic' ? 'bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30' :
-          level === 'intermediate' ? 'bg-[#F98613]/10 text-[#F98613] border border-[#F98613]/30' :
-            'bg-[#073372]/10 text-[#073372] border border-[#073372]/30';
+        // Usar el code del academicLevel para determinar el color
+        const levelCode = academicLevel.code?.toLowerCase() || '';
+        const colorClass = levelCode === 'basico' || levelCode === 'basic' 
+          ? 'bg-[#17BC91]/10 text-[#17BC91] border border-[#17BC91]/30' 
+          : levelCode === 'intermedio' || levelCode === 'intermediate' 
+            ? 'bg-[#F98613]/10 text-[#F98613] border border-[#F98613]/30' 
+            : 'bg-[#073372]/10 text-[#073372] border border-[#073372]/30';
+        
         return (
           <div className='flex items-center justify-center w-full h-full'>
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>
-              {level === 'basic' ? 'Básico' : level === 'intermediate' ? 'Intermedio' : 'Avanzado'}
+              {academicLevel.name}
             </span>
           </div>
         );
