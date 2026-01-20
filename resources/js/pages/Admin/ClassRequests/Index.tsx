@@ -380,7 +380,8 @@ const ClassRequestsIndex: React.FC<Props> = ({
                 </span>
               </div>
             )}
-            {hasRequestedTime && (
+            {/* Solo mostrar requested_datetime si NO quiere unirse a grupo */}
+            {hasRequestedTime && !wantsToJoinGroup && (
               <span className="text-xs text-gray-600 font-medium">
                 📅 {new Date(req.requested_datetime!).toLocaleDateString('es-PE', {
                   weekday: 'short',
@@ -391,6 +392,7 @@ const ClassRequestsIndex: React.FC<Props> = ({
                 })}
               </span>
             )}
+            {/* Mostrar horario del grupo cuando quiere unirse */}
             {wantsToJoinGroup && req.target_scheduled_class?.scheduled_at && (
               <span className="text-xs text-purple-600">
                 📅 {new Date(req.target_scheduled_class.scheduled_at).toLocaleDateString('es-PE', {

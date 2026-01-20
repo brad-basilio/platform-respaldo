@@ -337,7 +337,12 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
 
     router.post('/student/class-requests', payload, {
       onSuccess: () => {
-        toast.success('¡Solicitud enviada! Te notificaremos cuando sea procesada.');
+        // Si seleccionó un grupo existente, se inscribió automáticamente
+        if (targetClassId) {
+          toast.success('¡Te has inscrito exitosamente en el grupo!');
+        } else {
+          toast.success('¡Solicitud enviada! Te notificaremos cuando sea procesada.');
+        }
         setShowRequestModal(false);
         setMessage('');
         setSelectedClassId(null);

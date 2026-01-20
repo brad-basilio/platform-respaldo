@@ -247,7 +247,7 @@ class ClassRequestController extends Controller
                 return back()->withErrors(['error' => "Debes solicitar con al menos {$minAdvance} hora(s) de anticipación."]);
             }
 
-            // Si quiere unirse a una clase existente
+            // Si quiere unirse a una clase existente - INSCRIPCIÓN AUTOMÁTICA
             if ($request->target_scheduled_class_id) {
                 $targetClass = ScheduledClass::find($request->target_scheduled_class_id);
                 
@@ -259,7 +259,26 @@ class ClassRequestController extends Controller
                     return back()->withErrors(['error' => 'La clase seleccionada no corresponde a esta sesión.']);
                 }
 
-                $targetScheduledClassId = $targetClass->id;
+                // Inscribir automáticamente al estudiante en el grupo existente
+                StudentClassEnrollment::create([
+                    'student_id' => $student->id,
+                    'scheduled_class_id' => $targetClass->id,
+                ]);
+
+                // Crear solicitud marcada como scheduled directamente
+                // Usar el horario del grupo, no el requested_datetime calculado
+                ClassRequest::create([
+                    'student_id' => $user->id,
+                    'class_template_id' => $template->id,
+                    'student_message' => $request->message,
+                    'requested_datetime' => $targetClass->scheduled_at,
+                    'target_scheduled_class_id' => $targetClass->id,
+                    'scheduled_class_id' => $targetClass->id,
+                    'status' => 'scheduled',
+                    'processed_at' => now(),
+                ]);
+
+                return back()->with('success', '¡Te has inscrito exitosamente en el grupo!');
             }
         } elseif ($studentType === 'daily' && $isVerified) {
             // Flujo diario: puede elegir cualquier hora del día actual
@@ -290,7 +309,7 @@ class ClassRequestController extends Controller
                 return back()->withErrors(['error' => 'Debes solicitar con al menos 30 minutos de anticipación.']);
             }
 
-            // Si quiere unirse a una clase existente
+            // Si quiere unirse a una clase existente - INSCRIPCIÓN AUTOMÁTICA
             if ($request->target_scheduled_class_id) {
                 $targetClass = ScheduledClass::find($request->target_scheduled_class_id);
                 
@@ -302,7 +321,26 @@ class ClassRequestController extends Controller
                     return back()->withErrors(['error' => 'La clase seleccionada no corresponde a esta sesión.']);
                 }
 
-                $targetScheduledClassId = $targetClass->id;
+                // Inscribir automáticamente al estudiante en el grupo existente
+                StudentClassEnrollment::create([
+                    'student_id' => $student->id,
+                    'scheduled_class_id' => $targetClass->id,
+                ]);
+
+                // Crear solicitud marcada como scheduled directamente
+                // Usar el horario del grupo, no el requested_datetime calculado
+                ClassRequest::create([
+                    'student_id' => $user->id,
+                    'class_template_id' => $template->id,
+                    'student_message' => $request->message,
+                    'requested_datetime' => $targetClass->scheduled_at,
+                    'target_scheduled_class_id' => $targetClass->id,
+                    'scheduled_class_id' => $targetClass->id,
+                    'status' => 'scheduled',
+                    'processed_at' => now(),
+                ]);
+
+                return back()->with('success', '¡Te has inscrito exitosamente en el grupo!');
             }
         } elseif ($studentType === 'weekly' && $isVerified) {
             // Flujo semanal: puede elegir cualquier hora de cualquier día de la semana
@@ -334,7 +372,7 @@ class ClassRequestController extends Controller
                 return back()->withErrors(['error' => 'Debes solicitar con al menos 30 minutos de anticipación.']);
             }
 
-            // Si quiere unirse a una clase existente
+            // Si quiere unirse a una clase existente - INSCRIPCIÓN AUTOMÁTICA
             if ($request->target_scheduled_class_id) {
                 $targetClass = ScheduledClass::find($request->target_scheduled_class_id);
                 
@@ -346,7 +384,26 @@ class ClassRequestController extends Controller
                     return back()->withErrors(['error' => 'La clase seleccionada no corresponde a esta sesión.']);
                 }
 
-                $targetScheduledClassId = $targetClass->id;
+                // Inscribir automáticamente al estudiante en el grupo existente
+                StudentClassEnrollment::create([
+                    'student_id' => $student->id,
+                    'scheduled_class_id' => $targetClass->id,
+                ]);
+
+                // Crear solicitud marcada como scheduled directamente
+                // Usar el horario del grupo, no el requested_datetime calculado
+                ClassRequest::create([
+                    'student_id' => $user->id,
+                    'class_template_id' => $template->id,
+                    'student_message' => $request->message,
+                    'requested_datetime' => $targetClass->scheduled_at,
+                    'target_scheduled_class_id' => $targetClass->id,
+                    'scheduled_class_id' => $targetClass->id,
+                    'status' => 'scheduled',
+                    'processed_at' => now(),
+                ]);
+
+                return back()->with('success', '¡Te has inscrito exitosamente en el grupo!');
             }
         } else {
             // Flujo para no verificados: guardar la preferencia de horario sin validaciones estrictas
