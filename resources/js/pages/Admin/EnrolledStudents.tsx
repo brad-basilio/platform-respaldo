@@ -1528,6 +1528,9 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
       headerName: 'Alumno',
       field: 'name',
       width: 280,
+      minWidth: 280,
+      maxWidth: 350,
+      flex: 0,
       filter: 'agTextColumnFilter',
       cellRenderer: (params: ICellRendererParams<Student>) => {
         const student = params.data!;
@@ -1549,10 +1552,10 @@ const EnrolledStudents: React.FC<Props> = ({ students: initialStudents = [], gro
                   </span>
                 </div>
               )}
-              <div className="ml-3">
-                <div className="text-sm font-medium text-gray-900">{student.name}</div>
-                <div className="text-xs text-gray-500">{student.email}</div>
-                <div className="text-xs text-gray-400">{student.phoneNumber}</div>
+              <div className="ml-3 overflow-hidden">
+                <div className="text-sm font-medium text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis" title={student.name}>{student.name}</div>
+                <div className="text-xs text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis" title={student.email}>{student.email}</div>
+                <div className="text-xs text-gray-400 whitespace-nowrap overflow-hidden text-ellipsis">{student.phoneNumber}</div>
               </div>
             </div>
 
