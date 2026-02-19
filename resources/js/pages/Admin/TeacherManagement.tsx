@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { UserCheck, Plus, Trash2, Search, Clock, BookOpen, Users, AlertCircle, CheckCircle, Edit, XCircle } from 'lucide-react';
+import Swal from 'sweetalert2';
+import { toast } from 'sonner';
 import { router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { AgGridReact } from 'ag-grid-react';
@@ -7,6 +9,9 @@ import { ColDef } from 'ag-grid-community';
 import { ModuleRegistry } from 'ag-grid-community';
 import { AllCommunityModule } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
+import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/DatePicker';
+import { Select2 } from '@/components/ui/Select2';
 
 // Registrar módulos de AG Grid Community
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -55,6 +60,8 @@ interface Teacher {
   emergency_contact_number?: string;
   emergency_contact_relationship?: string;
   emergency_contact_name?: string;
+  meet_url?: string;
+  not_available_today?: boolean;
   assignedGroups?: AssignedGroup[];
   assignedGroupIds?: number[];
   availableSchedule?: TimeSlot[];
@@ -83,39 +90,101 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
   const teachers = initialTeachers.map(teacher => ({
     ...teacher,
     name: teacher.name || `${teacher.first_name} ${teacher.paternal_last_name} ${teacher.maternal_last_name || ''}`.trim(),
-    availableSchedule: teacher.availableSchedule || teacher.available_schedule || [],
+    availableSchedule: (teacher.availableSchedule || teacher.available_schedule || []).map((slot: any) => ({
+      id: slot.id,
+      dayOfWeek: slot.dayOfWeek || slot.day_of_week,
+      startTime: (slot.startTime || slot.start_time || '').substring(0, 5),
+      endTime: (slot.endTime || slot.end_time || '').substring(0, 5),
+      duration: slot.duration
+    })),
     assignedGroups: teacher.assignedGroups || [],
     assignedGroupIds: teacher.assignedGroupIds || [],
   }));
 
   const handleCreateTeacher = (formData: any) => {
+    const toastId = toast.loading('Registrando instructor...');
+    
     router.post('/admin/teachers', formData, {
       onSuccess: () => {
+        toast.dismiss(toastId);
+        toast.success('Instructor registrado', {
+          description: 'El instructor ha sido creado exitosamente.'
+        });
         setShowCreateForm(false);
       },
+      onError: (errors) => {
+        toast.dismiss(toastId);
+        console.error(errors);
+        toast.error('Error al registrar', {
+          description: 'Por favor verifica los datos e inténtalo de nuevo.'
+        });
+      }
     });
   };
 
   const handleUpdateTeacher = (formData: any) => {
     if (!editingTeacher) return;
     
+    const toastId = toast.loading('Actualizando información...');
+    
     router.put(`/admin/teachers/${editingTeacher.id}`, formData, {
       onSuccess: () => {
+        toast.dismiss(toastId);
+        toast.success('Instructor actualizado', {
+          description: 'La información ha sido guardada correctamente.'
+        });
         setEditingTeacher(null);
       },
+      onError: (errors) => {
+        toast.dismiss(toastId);
+        console.error(errors);
+        toast.error('Error al actualizar', {
+          description: 'Ocurrió un problema al guardar los cambios.'
+        });
+      }
     });
   };
 
   const handleDeleteTeacher = (teacherId: number) => {
     const teacher = teachers.find(t => t.id === teacherId);
     if (teacher && teacher.assignedGroups && teacher.assignedGroups.length > 0) {
-      alert('No se puede eliminar un instructor con grupos asignados. Por favor reasigna los grupos primero.');
+      Swal.fire({
+        icon: 'warning',
+        title: 'No se puede eliminar',
+        text: 'Este instructor tiene grupos asignados. Reasigna los grupos antes de eliminarlo.',
+        confirmButtonColor: '#f59e0b'
+      });
       return;
     }
 
-    if (confirm('¿Estás seguro de que quieres eliminar este instructor?')) {
-      router.delete(`/admin/teachers/${teacherId}`);
-    }
+    Swal.fire({
+      title: '¿Estás seguro?',
+      text: "Esta acción no se puede deshacer.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const toastId = toast.loading('Eliminando instructor...');
+        router.delete(`/admin/teachers/${teacherId}`, {
+          onSuccess: () => {
+             toast.dismiss(toastId);
+             toast.success('Eliminado', {
+               description: 'El instructor ha sido eliminado correctamente.'
+             });
+          },
+          onError: () => {
+             toast.dismiss(toastId);
+             toast.error('Error', {
+               description: 'No se pudo eliminar el instructor.'
+             });
+          }
+        });
+      }
+    });
   };
 
   const TeacherForm = ({ teacher, onSubmit, onCancel }: {
@@ -155,50 +224,96 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
       emergency_contact_relationship: teacher?.emergency_contact_relationship || '',
       emergency_contact_name: teacher?.emergency_contact_name || '',
       
-      // Horarios
-      available_schedule: teacher?.availableSchedule || teacher?.available_schedule || [
-        { dayOfWeek: 'Lunes', startTime: '09:00', endTime: '12:00', duration: 180 }
-      ],
+      // Link de Meet
+      meet_url: teacher?.meet_url || '',
+
+      // Horarios Disponibles
+      available_schedule: teacher?.availableSchedule || teacher?.available_schedule || [],
     });
 
-    const addScheduleSlot = () => {
-      setFormData({
-        ...formData,
-        available_schedule: [
-          ...formData.available_schedule,
-          { dayOfWeek: 'Lunes', startTime: '09:00', endTime: '12:00', duration: 180 }
-        ]
-      });
+    // Estado para nuevo horario
+    const [scheduleForm, setScheduleForm] = useState({
+      dayOfWeek: 'Lunes',
+      startTime: '09:00',
+      endTime: '12:00'
+    });
+
+    const addSchedule = () => {
+      // Validar hora fin > inicio
+      const [startH, startM] = scheduleForm.startTime.split(':').map(Number);
+      const [endH, endM] = scheduleForm.endTime.split(':').map(Number);
+      
+      if ((endH * 60 + endM) <= (startH * 60 + startM)) {
+         Swal.fire({
+           icon: 'error',
+           title: 'Horario Inválido',
+           text: 'La hora de fin debe ser mayor a la hora de inicio',
+           confirmButtonColor: '#ef4444'
+         });
+         return;
+      }
+
+      const newSlot: TimeSlot = {
+         dayOfWeek: scheduleForm.dayOfWeek,
+         startTime: scheduleForm.startTime,
+         endTime: scheduleForm.endTime,
+         duration: (endH * 60 + endM) - (startH * 60 + startM)
+      };
+
+      setFormData(prev => ({
+        ...prev,
+        available_schedule: [...(prev.available_schedule || []), newSlot]
+      }));
     };
 
-    const removeScheduleSlot = (index: number) => {
-      setFormData({
-        ...formData,
-        available_schedule: formData.available_schedule.filter((_: any, i: number) => i !== index)
-      });
-    };
-
-    const updateScheduleSlot = (index: number, field: keyof TimeSlot, value: string) => {
-      const updatedSchedule = [...formData.available_schedule];
-      if (field === 'duration') {
-        updatedSchedule[index] = { ...updatedSchedule[index], [field]: parseInt(value) };
-      } else {
-        updatedSchedule[index] = { ...updatedSchedule[index], [field]: value };
-      }
-      
-      // Calculate duration if start/end time changed
-      if (field === 'startTime' || field === 'endTime') {
-        const slot = updatedSchedule[index];
-        const start = parseInt(slot.startTime.replace(':', ''));
-        const end = parseInt(slot.endTime.replace(':', ''));
-        updatedSchedule[index].duration = Math.round((end - start) * 60 / 100); // Convert to minutes
-      }
-      
-      setFormData({ ...formData, available_schedule: updatedSchedule });
+    const removeSchedule = (index: number) => {
+      const newSchedule = [...(formData.available_schedule || [])];
+      newSchedule.splice(index, 1);
+      setFormData({...formData, available_schedule: newSchedule});
     };
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
+
+      // ✅ Validar campos requeridos
+      const requiredFields = [
+        { field: 'first_name', label: 'Nombres' },
+        { field: 'paternal_last_name', label: 'Apellido Paterno' },
+        { field: 'document_number', label: 'Número de Documento' },
+        { field: 'birth_date', label: 'Fecha de Nacimiento' },
+        { field: 'phone_number', label: 'Celular' },
+        { field: 'email', label: 'Correo Electrónico' },
+        { field: 'start_date', label: 'Fecha de Ingreso' },
+      ];
+
+      const missingFields = requiredFields
+        .filter(item => !formData[item.field as keyof typeof formData])
+        .map(item => item.label);
+
+      if (missingFields.length > 0) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Campos Incompletos',
+          html: `<p>Por favor completa los siguientes campos obligatorios:</p>
+                 <ul class="text-left mt-2 list-disc pl-5 text-sm text-gray-600">
+                   ${missingFields.map(field => `<li>${field}</li>`).join('')}
+                 </ul>`,
+          confirmButtonColor: '#f59e0b'
+        });
+        return;
+      }
+
+      // ✅ Validar horarios
+      if (!formData.available_schedule || formData.available_schedule.length === 0) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Sin Horarios',
+          text: 'Debes agregar al menos un horario de disponibilidad para el instructor.',
+          confirmButtonColor: '#f59e0b'
+        });
+        return;
+      }
+
       onSubmit(formData);
     };
 
@@ -221,7 +336,7 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
 
     return (
       <div
-        className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-sm animate-fade-in flex items-center justify-center p-4"
+        className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm animate-fade-in flex items-center justify-center p-4"
         onClick={onCancel}
         style={{ height: '100vh', width: '100vw' }}
       >
@@ -231,13 +346,13 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header del Modal */}
-          <div className="relative bg-gradient-to-r from-green-600 to-blue-600 px-8 py-6 rounded-t-3xl flex-shrink-0">
+          <div className="relative bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6 rounded-t-3xl flex-shrink-0">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-2xl font-bold text-white mb-1">
                   {teacher ? 'Editar Instructor' : 'Nuevo Instructor'}
                 </h3>
-                <p className="text-green-100">
+                <p className="text-blue-100">
                   {teacher
                     ? 'Actualiza la información del instructor'
                     : 'Completa la información para registrar un nuevo instructor'}
@@ -262,473 +377,380 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
             <div className="p-8 space-y-6 overflow-y-auto flex-1">
               {/* Sección 1: Datos Personales */}
               <div>
-                <div className="flex items-center mb-4 pb-2 border-b-2 border-blue-600">
-                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                <div className="flex items-center mb-4 pb-2 border-b-2 border-[#073372]">
+                  <div className="w-8 h-8 bg-[#073372] text-white rounded-full flex items-center justify-center font-bold mr-3">
                     1
                   </div>
                   <h4 className="text-lg font-semibold text-gray-900">Datos Personales del Instructor</h4>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nombres *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.first_name}
-                      onChange={(e) => setFormData({...formData, first_name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
+                  <Input
+                    label="Nombres"
+                    value={formData.first_name}
+                    onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                    required
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Apellido Paterno *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.paternal_last_name}
-                      onChange={(e) => setFormData({...formData, paternal_last_name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
+                  <Input
+                    label="Apellido Paterno"
+                    value={formData.paternal_last_name}
+                    onChange={(e) => setFormData({...formData, paternal_last_name: e.target.value})}
+                    required
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Apellido Materno
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.maternal_last_name}
-                      onChange={(e) => setFormData({...formData, maternal_last_name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                  <Input
+                    label="Apellido Materno"
+                    value={formData.maternal_last_name}
+                    onChange={(e) => setFormData({...formData, maternal_last_name: e.target.value})}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tipo de Documento *
-                    </label>
-                    <select
-                      value={formData.document_type}
-                      onChange={(e) => setFormData({...formData, document_type: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="DNI">DNI</option>
-                      <option value="CE">Carnet de Extranjería</option>
-                    </select>
-                  </div>
+                  <Select2
+                    label="Tipo de Documento"
+                    value={formData.document_type}
+                    onChange={(value) => setFormData({...formData, document_type: value as string})}
+                    options={[
+                      { value: 'DNI', label: 'DNI' },
+                      { value: 'CE', label: 'Carnet de Extranjería' }
+                    ]}
+                    isSearchable={false}
+                    isClearable={false}
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Número de Documento *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.document_number}
-                      onChange={(e) => setFormData({...formData, document_number: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder={formData.document_type === 'DNI' ? '12345678' : '001234567'}
-                      required
-                    />
-                  </div>
+                  <Input
+                    label="Número de Documento"
+                    value={formData.document_number}
+                    onChange={(e) => setFormData({...formData, document_number: e.target.value})}
+                    required
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Fecha de Nacimiento *
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.birth_date}
-                      onChange={(e) => setFormData({...formData, birth_date: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
+                  <DatePicker
+                    label="Fecha de Nacimiento"
+                    selected={formData.birth_date ? new Date(formData.birth_date) : null}
+                    onChange={(date) => setFormData({...formData, birth_date: date ? date.toISOString().split('T')[0] : ''})}
+                    maxDate={new Date()}
+                    required
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Sexo *
-                    </label>
-                    <select
-                      value={formData.gender}
-                      onChange={(e) => setFormData({...formData, gender: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="M">Masculino</option>
-                      <option value="F">Femenino</option>
-                    </select>
-                  </div>
+                  <Select2
+                    label="Sexo"
+                    value={formData.gender}
+                    onChange={(value) => setFormData({...formData, gender: value as string})}
+                    options={[
+                      { value: 'M', label: 'Masculino' },
+                      { value: 'F', label: 'Femenino' }
+                    ]}
+                    isSearchable={false}
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Número de Celular *
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.phone_number}
-                      onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="+51 987654321"
-                      required
-                    />
-                  </div>
+                  <Input
+                    label="Número de Celular"
+                    type="tel"
+                    value={formData.phone_number}
+                    onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
+                    required
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Grado de Instrucción *
-                    </label>
-                    <select
-                      value={formData.education_level}
-                      onChange={(e) => setFormData({...formData, education_level: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="tecnico">Técnico</option>
-                      <option value="universitario">Universitario</option>
-                      <option value="maestria">Maestría</option>
-                      <option value="doctorado">Doctorado</option>
-                    </select>
-                  </div>
+                  <Select2
+                    label="Grado de Instrucción"
+                    value={formData.education_level}
+                    onChange={(value) => setFormData({...formData, education_level: value as string})}
+                    options={[
+                      { value: 'tecnico', label: 'Técnico' },
+                      { value: 'universitario', label: 'Universitario' },
+                      { value: 'maestria', label: 'Maestría' },
+                      { value: 'doctorado', label: 'Doctorado' }
+                    ]}
+                    isSearchable={false}
+                  />
                 </div>
 
                 <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Correo Electrónico *
-                  </label>
-                  <input
+                  <Input
+                    label="Correo Electrónico"
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
                 </div>
               </div>
               {/* Sección 2: Datos Laborales */}
               <div>
-                <div className="flex items-center mb-4 pb-2 border-b-2 border-green-600">
-                  <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                <div className="flex items-center mb-4 pb-2 border-b-2 border-[#17BC91]">
+                  <div className="w-8 h-8 bg-[#17BC91] text-white rounded-full flex items-center justify-center font-bold mr-3">
                     2
                   </div>
                   <h4 className="text-lg font-semibold text-gray-900">Datos Laborales</h4>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Fecha de Ingreso *
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.start_date}
-                      onChange={(e) => setFormData({...formData, start_date: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
+                  <DatePicker
+                    label="Fecha de Ingreso"
+                    selected={formData.start_date ? new Date(formData.start_date) : null}
+                    onChange={(date) => setFormData({...formData, start_date: date ? date.toISOString().split('T')[0] : ''})}
+                    maxDate={new Date()}
+                    required
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Modalidad de Trabajo *
-                    </label>
-                    <select
-                      value={formData.work_modality}
-                      onChange={(e) => setFormData({...formData, work_modality: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="presencial">Presencial</option>
-                      <option value="virtual">Virtual</option>
-                      <option value="hibrido">Híbrido</option>
-                    </select>
-                  </div>
+                  <Select2
+                    label="Modalidad de Trabajo"
+                    value={formData.work_modality}
+                    onChange={(value) => setFormData({...formData, work_modality: value as string})}
+                    options={[
+                      { value: 'presencial', label: 'Presencial' },
+                      { value: 'virtual', label: 'Virtual' },
+                      { value: 'hibrido', label: 'Híbrido' }
+                    ]}
+                    isSearchable={false}
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nivel de Idioma *
-                    </label>
-                    <select
-                      value={formData.language_level}
-                      onChange={(e) => setFormData({...formData, language_level: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="nativo">Nativo</option>
-                      <option value="C2">C2 - Proficiency</option>
-                      <option value="C1">C1 - Advanced</option>
-                      <option value="B2">B2 - Upper Intermediate</option>
-                    </select>
-                  </div>
+                  <Select2
+                    label="Nivel de Idioma"
+                    value={formData.language_level}
+                    onChange={(value) => setFormData({...formData, language_level: value as string})}
+                    options={[
+                      { value: 'nativo', label: 'Nativo' },
+                      { value: 'C2', label: 'C2 - Proficiency' },
+                      { value: 'C1', label: 'C1 - Advanced' },
+                      { value: 'B2', label: 'B2 - Upper Intermediate' }
+                    ]}
+                    isSearchable={false}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Cuenta Bancaria / CCI
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.bank_account}
-                      onChange={(e) => setFormData({...formData, bank_account: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Número de cuenta o CCI"
-                    />
-                  </div>
+                  <Input
+                    label="Cuenta Bancaria / CCI"
+                    value={formData.bank_account}
+                    onChange={(e) => setFormData({...formData, bank_account: e.target.value})}
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Banco
-                    </label>
-                    <select
-                      value={formData.bank}
-                      onChange={(e) => setFormData({...formData, bank: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Seleccionar banco</option>
-                      <option value="BCP">Banco de Crédito del Perú</option>
-                      <option value="BBVA">BBVA</option>
-                      <option value="Scotiabank">Scotiabank</option>
-                      <option value="Interbank">Interbank</option>
-                      <option value="BanBif">BanBif</option>
-                      <option value="Banco Pichincha">Banco Pichincha</option>
-                      <option value="Otro">Otro</option>
-                    </select>
-                  </div>
+                  <Select2
+                    label="Banco"
+                    value={formData.bank}
+                    onChange={(value) => setFormData({...formData, bank: value as string})}
+                    options={[
+                      { value: 'BCP', label: 'Banco de Crédito del Perú' },
+                      { value: 'BBVA', label: 'BBVA' },
+                      { value: 'Scotiabank', label: 'Scotiabank' },
+                      { value: 'Interbank', label: 'Interbank' },
+                      { value: 'BanBif', label: 'BanBif' },
+                      { value: 'Banco Pichincha', label: 'Banco Pichincha' },
+                      { value: 'Otro', label: 'Otro' }
+                    ]}
+                    isSearchable={false}
+                    isClearable={true}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Estado de Contrato *
-                    </label>
-                    <select
-                      value={formData.contract_status}
-                      onChange={(e) => setFormData({...formData, contract_status: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="contratado">Contratado</option>
-                      <option value="en_proceso">En Proceso</option>
-                      <option value="finalizado">Finalizado</option>
-                    </select>
-                  </div>
+                  <Select2
+                    label="Estado de Contrato"
+                    value={formData.contract_status}
+                    onChange={(value) => setFormData({...formData, contract_status: value as string})}
+                    options={[
+                      { value: 'contratado', label: 'Contratado' },
+                      { value: 'en_proceso', label: 'En Proceso' },
+                      { value: 'finalizado', label: 'Finalizado' }
+                    ]}
+                    isSearchable={false}
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Periodo de Contrato
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.contract_period}
-                      onChange={(e) => setFormData({...formData, contract_period: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Ej: 6 meses, 1 año"
-                    />
-                  </div>
+                  <Input
+                    label="Periodo de Contrato"
+                    value={formData.contract_period}
+                    onChange={(e) => setFormData({...formData, contract_period: e.target.value})}
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Modalidad de Contrato
-                    </label>
-                    <select
-                      value={formData.contract_modality}
-                      onChange={(e) => setFormData({...formData, contract_modality: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="tiempo_completo">Tiempo Completo</option>
-                      <option value="medio_tiempo">Medio Tiempo</option>
-                      <option value="por_horas">Por Horas</option>
-                      <option value="freelance">Freelance</option>
-                    </select>
-                  </div>
+                  <Select2
+                    label="Modalidad de Contrato"
+                    value={formData.contract_modality}
+                    onChange={(value) => setFormData({...formData, contract_modality: value as string})}
+                    options={[
+                      { value: 'tiempo_completo', label: 'Tiempo Completo' },
+                      { value: 'medio_tiempo', label: 'Medio Tiempo' },
+                      { value: 'por_horas', label: 'Por Horas' },
+                      { value: 'freelance', label: 'Freelance' }
+                    ]}
+                    isSearchable={false}
+                    isClearable={true}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Especialización *
-                    </label>
-                    <select
-                      value={formData.specialization}
-                      onChange={(e) => setFormData({...formData, specialization: e.target.value as 'theoretical' | 'practical' | 'both'})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="theoretical">Solo Teórico</option>
-                      <option value="practical">Solo Práctico</option>
-                      <option value="both">Ambos</option>
-                    </select>
-                  </div>
+                  <Select2
+                    label="Especialización"
+                    value={formData.specialization}
+                    onChange={(value) => setFormData({...formData, specialization: value as 'theoretical' | 'practical' | 'both'})}
+                    options={[
+                      { value: 'theoretical', label: 'Solo Teórico' },
+                      { value: 'practical', label: 'Solo Práctico' },
+                      { value: 'both', label: 'Ambos' }
+                    ]}
+                    isSearchable={false}
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Estado *
-                    </label>
-                    <select
-                      value={formData.status}
-                      onChange={(e) => setFormData({...formData, status: e.target.value as 'active' | 'inactive'})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="active">Activo</option>
-                      <option value="inactive">Inactivo</option>
-                    </select>
-                  </div>
+                  <Select2
+                    label="Estado"
+                    value={formData.status}
+                    onChange={(value) => setFormData({...formData, status: value as 'active' | 'inactive'})}
+                    options={[
+                      { value: 'active', label: 'Activo' },
+                      { value: 'inactive', label: 'Inactivo' }
+                    ]}
+                    isSearchable={false}
+                  />
+                </div>
+
+                {/* Link de Google Meet */}
+                <div className="mt-4">
+                  <Input
+                    label="🔗 Link de Google Meet Personal"
+                    type="url"
+                    value={formData.meet_url}
+                    onChange={(e) => setFormData({...formData, meet_url: e.target.value})}
+                    helperText="Este link se usará automáticamente al asignar clases a este instructor."
+                  />
                 </div>
               </div>
 
               {/* Sección 3: Datos de Contacto y Emergencia */}
               <div>
-                <div className="flex items-center mb-4 pb-2 border-b-2 border-purple-600">
-                  <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                <div className="flex items-center mb-4 pb-2 border-b-2 border-[#F98613]">
+                  <div className="w-8 h-8 bg-[#F98613] text-white rounded-full flex items-center justify-center font-bold mr-3">
                     3
                   </div>
                   <h4 className="text-lg font-semibold text-gray-900">Datos de Contacto y Emergencia</h4>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Dirección Actual
-                  </label>
-                  <textarea
-                    rows={2}
+                  <Input
+                    label="Dirección Actual"
                     value={formData.current_address}
                     onChange={(e) => setFormData({...formData, current_address: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Dirección completa"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Contacto de Emergencia
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.emergency_contact_name}
-                      onChange={(e) => setFormData({...formData, emergency_contact_name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Nombre completo"
-                    />
-                  </div>
+                  <Input
+                    label="Contacto de Emergencia"
+                    value={formData.emergency_contact_name}
+                    onChange={(e) => setFormData({...formData, emergency_contact_name: e.target.value})}
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Teléfono de Emergencia
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.emergency_contact_number}
-                      onChange={(e) => setFormData({...formData, emergency_contact_number: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="+51 987654321"
-                    />
-                  </div>
+                  <Input
+                    label="Teléfono de Emergencia"
+                    type="tel"
+                    value={formData.emergency_contact_number}
+                    onChange={(e) => setFormData({...formData, emergency_contact_number: e.target.value})}
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Parentesco
-                    </label>
-                    <select
-                      value={formData.emergency_contact_relationship}
-                      onChange={(e) => setFormData({...formData, emergency_contact_relationship: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="padre">Padre</option>
-                      <option value="madre">Madre</option>
-                      <option value="esposo">Esposo/a</option>
-                      <option value="hermano">Hermano/a</option>
-                      <option value="hijo">Hijo/a</option>
-                      <option value="otro">Otro</option>
-                    </select>
-                  </div>
+                  <Select2
+                    label="Parentesco"
+                    value={formData.emergency_contact_relationship}
+                    onChange={(value) => setFormData({...formData, emergency_contact_relationship: value as string})}
+                    options={[
+                      { value: 'padre', label: 'Padre' },
+                      { value: 'madre', label: 'Madre' },
+                      { value: 'esposo', label: 'Esposo/a' },
+                      { value: 'hermano', label: 'Hermano/a' },
+                      { value: 'hijo', label: 'Hijo/a' },
+                      { value: 'otro', label: 'Otro' }
+                    ]}
+                    isSearchable={false}
+                    isClearable={true}
+                  />
                 </div>
               </div>
 
               {/* Sección 4: Horarios Disponibles */}
-              <div>
-                <div className="flex items-center justify-between mb-4 pb-2 border-b-2 border-orange-600">
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 bg-orange-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
-                      4
-                    </div>
-                    <h4 className="text-lg font-semibold text-gray-900">Horarios Disponibles</h4>
+              <div className="mt-6">
+                <div className="flex items-center mb-4 pb-2 border-b-2 border-purple-500">
+                  <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                    4
                   </div>
-                  <button
-                    type="button"
-                    onClick={addScheduleSlot}
-                    className="text-orange-600 hover:text-orange-700 text-sm font-medium flex items-center gap-1"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Agregar Horario
-                  </button>
+                  <h4 className="text-lg font-semibold text-gray-900">Horarios Disponibles</h4>
                 </div>
 
-                <div className="space-y-3">
-                  {formData.available_schedule.map((slot, index) => (
-                    <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <select
-                        value={slot.dayOfWeek}
-                        onChange={(e) => updateScheduleSlot(index, 'dayOfWeek', e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="Lunes">Lunes</option>
-                        <option value="Martes">Martes</option>
-                        <option value="Miércoles">Miércoles</option>
-                        <option value="Jueves">Jueves</option>
-                        <option value="Viernes">Viernes</option>
-                        <option value="Sábado">Sábado</option>
-                        <option value="Domingo">Domingo</option>
-                      </select>
-
-                      <input
-                        type="time"
-                        value={slot.startTime}
-                        onChange={(e) => updateScheduleSlot(index, 'startTime', e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                  <div className="flex flex-wrap gap-4 items-end">
+                    <div className="flex-1 min-w-[150px]">
+                      <Select2
+                        label="Día"
+                        value={scheduleForm.dayOfWeek}
+                        onChange={(val) => setScheduleForm({...scheduleForm, dayOfWeek: val as string})}
+                        options={[
+                          { value: 'Lunes', label: 'Lunes' },
+                          { value: 'Martes', label: 'Martes' },
+                          { value: 'Miércoles', label: 'Miércoles' },
+                          { value: 'Jueves', label: 'Jueves' },
+                          { value: 'Viernes', label: 'Viernes' },
+                          { value: 'Sábado', label: 'Sábado' },
+                          { value: 'Domingo', label: 'Domingo' }
+                        ]}
+                        isSearchable={false}
                       />
-
-                      <span className="text-gray-500">a</span>
-
-                      <input
+                    </div>
+                    <div className="flex-1 min-w-[150px]">
+                      <Input
+                        label="Hora Inicio"
                         type="time"
-                        value={slot.endTime}
-                        onChange={(e) => updateScheduleSlot(index, 'endTime', e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={scheduleForm.startTime}
+                        onChange={(e) => setScheduleForm({...scheduleForm, startTime: e.target.value})}
                       />
+                    </div>
+                    <div className="flex-1 min-w-[150px]">
+                      <Input
+                        label="Hora Fin"
+                        type="time"
+                        value={scheduleForm.endTime}
+                        onChange={(e) => setScheduleForm({...scheduleForm, endTime: e.target.value})}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addSchedule}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors h-[42px] mb-[2px]"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
 
-                      <span className="text-sm text-gray-500">
-                        ({slot.duration} min)
-                      </span>
-
-                      {formData.available_schedule.length > 1 && (
+                {/* Lista de Horarios */}
+                <div className="mt-4 space-y-2">
+                  {formData.available_schedule && formData.available_schedule.length > 0 ? (
+                    formData.available_schedule.map((slot: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center">
+                            <Clock className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="font-semibold text-gray-800">{slot.dayOfWeek}</span>
+                            <span className="mx-2 text-gray-400">|</span>
+                            <span className="text-gray-600">{slot.startTime} - {slot.endTime}</span>
+                          </div>
+                        </div>
                         <button
                           type="button"
-                          onClick={() => removeScheduleSlot(index)}
-                          className="text-red-600 hover:text-red-700 p-1"
+                          onClick={() => removeSchedule(index)}
+                          className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
-                      )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                      No hay horarios agregados. Añade al menos uno.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
@@ -745,7 +767,7 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm flex items-center gap-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white"
+                  className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm flex items-center gap-2 bg-gradient-to-r from-[#073372] to-[#17BC91] hover:from-[#052a5e] hover:to-[#14a77f] text-white"
                 >
                   {teacher ? 'Actualizar' : 'Crear'} Instructor
                 </button>
@@ -761,8 +783,6 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
   const forceReload = () => {
     router.reload({ 
       only: ['teachers'],
-      preserveState: false,
-      preserveScroll: false,
     });
   };
 
@@ -777,7 +797,7 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
         const teacher = params.data;
         return (
           <div className="flex items-center py-2 w-full h-full">
-            <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-gradient-to-r from-[#073372] to-[#17BC91] rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-white text-sm font-semibold">
                 {teacher.name?.split(' ').map((n: string) => n[0]).join('') || '?'}
               </span>
@@ -918,7 +938,7 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
           <div className="flex items-center space-x-2 w-full h-full">
             <button
               onClick={() => setEditingTeacher(teacher)}
-              className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+              className="text-[#073372] hover:text-[#17BC91] p-1 hover:bg-[#17BC91]/10 rounded transition-colors"
               title="Editar instructor"
             >
               <Edit className="h-4 w-4" />
@@ -971,7 +991,7 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
 
             <button
               onClick={() => setShowCreateForm(true)}
-              className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+              className="bg-gradient-to-r from-[#073372] to-[#17BC91] hover:from-[#052a5e] hover:to-[#14a77f] text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
             >
               <Plus className="h-5 w-5" />
               <span>Agregar Instructor</span>
@@ -1004,7 +1024,7 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
             placeholder="Buscar por nombre, email, especialización, nivel, modalidad..."
             value={quickFilterText}
             onChange={(e) => setQuickFilterText(e.target.value)}
-            className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#073372]"
           />
           {quickFilterText && (
             <button

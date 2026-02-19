@@ -40,12 +40,16 @@ class Teacher extends Model
         'emergency_contact_number',
         'emergency_contact_relationship',
         'emergency_contact_name',
+        // Disponibilidad y Meet
+        'meet_url',
+        'not_available_today',
     ];
 
     protected $casts = [
         'birth_date' => 'date',
         'start_date' => 'date',
         'age' => 'integer',
+        'not_available_today' => 'boolean',
     ];
 
     public function user(): BelongsTo

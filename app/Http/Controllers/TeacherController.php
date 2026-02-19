@@ -131,6 +131,7 @@ class TeacherController extends Controller
             'specialization' => 'required|in:theoretical,practical,both',
             'status' => 'required|in:active,inactive',
             'available_schedule' => 'required|array',
+            'meet_url' => 'nullable|url',
         ]);
 
         // Update user

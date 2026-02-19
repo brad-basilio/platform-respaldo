@@ -8,6 +8,7 @@ use App\Models\ClassTemplate;
 use App\Models\ScheduledClass;
 use App\Models\StudentClassEnrollment;
 use App\Models\Setting;
+use App\Services\TeacherAssignmentService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -39,7 +40,7 @@ class ClassRequestController extends Controller
         // The datetime from frontend already includes min_advance_hours + rounding to next full hour
         // We use this as the minimum time for available classes
         $calculatedSlot = Carbon::parse($request->datetime);
-        
+
         // Find scheduled classes for this template on the same day
         // Only show classes that are >= the calculated slot (which respects min advance time)
         $classes = ScheduledClass::where('class_template_id', $template->id)
@@ -73,7 +74,7 @@ class ClassRequestController extends Controller
     {
         $user = auth()->user();
         $student = $user->student; // Relación correcta es 'student', no 'studentProfile'
-        
+
         if (!$student || !$student->academic_level_id) {
             return Inertia::render('Student/MyClasses', [
                 'templates' => [],
@@ -130,7 +131,7 @@ class ClassRequestController extends Controller
         // Verificar si ya tiene una inscripción o solicitud
         $enrollment = StudentClassEnrollment::where('student_id', $student->id)
             ->whereHas('scheduledClass', fn($q) => $q->where('class_template_id', $template->id))
-            ->with(['scheduledClass' => function($q) {
+            ->with(['scheduledClass' => function ($q) {
                 $q->select('id', 'class_template_id', 'teacher_id', 'status', 'scheduled_at', 'meet_url', 'recording_url', 'max_students');
             }, 'scheduledClass.teacher:id,name', 'latestExamAttempt'])
             ->withCount('examAttempts')
@@ -140,15 +141,15 @@ class ClassRequestController extends Controller
         if ($enrollment) {
             // Always include attempt count
             $enrollment->exam_attempts_count = $enrollment->exam_attempts_count ?? 0;
-            
+
             if ($enrollment->latestExamAttempt) {
                 $attempt = $enrollment->latestExamAttempt;
                 $enrollment->latest_exam_score = $attempt->score;
                 $enrollment->latest_exam_total_points = $attempt->total_points;
                 $enrollment->latest_exam_percentage = $attempt->percentage ?? (
-                    $attempt->total_points > 0 
-                        ? round(($attempt->score / $attempt->total_points) * 100) 
-                        : 0
+                    $attempt->total_points > 0
+                    ? round(($attempt->score / $attempt->total_points) * 100)
+                    : 0
                 );
                 $enrollment->latest_exam_passed = $attempt->passed;
             }
@@ -216,7 +217,7 @@ class ClassRequestController extends Controller
         // Si es estudiante regular verificado, validar el datetime
         $studentType = $student->student_type ?? 'regular';
         $isVerified = $student->enrollment_verified ?? false;
-        
+
         $requestedDatetime = null;
         $targetScheduledClassId = null;
 
@@ -250,11 +251,11 @@ class ClassRequestController extends Controller
             // Si quiere unirse a una clase existente - INSCRIPCIÓN AUTOMÁTICA
             if ($request->target_scheduled_class_id) {
                 $targetClass = ScheduledClass::find($request->target_scheduled_class_id);
-                
+
                 if (!$targetClass || !$targetClass->hasAvailableSpace()) {
                     return back()->withErrors(['error' => 'La clase seleccionada ya no tiene espacio disponible.']);
                 }
-                
+
                 if ($targetClass->class_template_id !== $template->id) {
                     return back()->withErrors(['error' => 'La clase seleccionada no corresponde a esta sesión.']);
                 }
@@ -279,6 +280,39 @@ class ClassRequestController extends Controller
                 ]);
 
                 return back()->with('success', '¡Te has inscrito exitosamente en el grupo!');
+            }
+
+            // AUTO-ASSIGNMENT: No existing class selected, try to create one with available teacher
+            $assignmentService = app(TeacherAssignmentService::class);
+            $teacher = $assignmentService->findAvailableTeacher($requestedDatetime, $template);
+
+            if ($teacher) {
+                // Create a new scheduled class with the available teacher
+                $scheduledClass = $assignmentService->createClassWithEnrollment(
+                    $template,
+                    $requestedDatetime,
+                    $teacher,
+                    $student
+                );
+
+                // Create the class request marked as scheduled
+                ClassRequest::create([
+                    'student_id' => $user->id,
+                    'class_template_id' => $template->id,
+                    'student_message' => $request->message,
+                    'requested_datetime' => $requestedDatetime,
+                    'scheduled_class_id' => $scheduledClass->id,
+                    'status' => 'scheduled',
+                    'processed_at' => now(),
+                ]);
+
+                return back()->with('success', '¡Tu clase ha sido programada automáticamente con ' . ($teacher->user?->name ?? $teacher->first_name) . '!');
+            } else {
+                // No teacher available, return alternative slots
+                $alternativeSlots = $assignmentService->getAlternativeSlots($requestedDatetime, $template, 5);
+
+                return back()->with('alternative_slots', $alternativeSlots->toArray())
+                    ->withErrors(['no_teacher' => 'No hay profesores disponibles en este horario.']);
             }
         } elseif ($studentType === 'daily' && $isVerified) {
             // Flujo diario: puede elegir cualquier hora del día actual
@@ -312,11 +346,11 @@ class ClassRequestController extends Controller
             // Si quiere unirse a una clase existente - INSCRIPCIÓN AUTOMÁTICA
             if ($request->target_scheduled_class_id) {
                 $targetClass = ScheduledClass::find($request->target_scheduled_class_id);
-                
+
                 if (!$targetClass || !$targetClass->hasAvailableSpace()) {
                     return back()->withErrors(['error' => 'La clase seleccionada ya no tiene espacio disponible.']);
                 }
-                
+
                 if ($targetClass->class_template_id !== $template->id) {
                     return back()->withErrors(['error' => 'La clase seleccionada no corresponde a esta sesión.']);
                 }
@@ -341,6 +375,39 @@ class ClassRequestController extends Controller
                 ]);
 
                 return back()->with('success', '¡Te has inscrito exitosamente en el grupo!');
+            }
+
+            // AUTO-ASSIGNMENT for DAILY students: No existing class selected, try to create one with available teacher
+            $assignmentService = app(TeacherAssignmentService::class);
+            $teacher = $assignmentService->findAvailableTeacher($requestedDatetime, $template);
+
+            if ($teacher) {
+                // Create a new scheduled class with the available teacher
+                $scheduledClass = $assignmentService->createClassWithEnrollment(
+                    $template,
+                    $requestedDatetime,
+                    $teacher,
+                    $student
+                );
+
+                // Create the class request marked as scheduled
+                ClassRequest::create([
+                    'student_id' => $user->id,
+                    'class_template_id' => $template->id,
+                    'student_message' => $request->message,
+                    'requested_datetime' => $requestedDatetime,
+                    'scheduled_class_id' => $scheduledClass->id,
+                    'status' => 'scheduled',
+                    'processed_at' => now(),
+                ]);
+
+                return back()->with('success', '¡Tu clase ha sido programada automáticamente con ' . ($teacher->user?->name ?? $teacher->first_name) . '!');
+            } else {
+                // No teacher available, return alternative slots
+                $alternativeSlots = $assignmentService->getAlternativeSlots($requestedDatetime, $template, 5);
+
+                return back()->with('alternative_slots', $alternativeSlots->toArray())
+                    ->withErrors(['no_teacher' => 'No hay profesores disponibles en este horario.']);
             }
         } elseif ($studentType === 'weekly' && $isVerified) {
             // Flujo semanal: puede elegir cualquier hora de cualquier día de la semana
@@ -375,11 +442,11 @@ class ClassRequestController extends Controller
             // Si quiere unirse a una clase existente - INSCRIPCIÓN AUTOMÁTICA
             if ($request->target_scheduled_class_id) {
                 $targetClass = ScheduledClass::find($request->target_scheduled_class_id);
-                
+
                 if (!$targetClass || !$targetClass->hasAvailableSpace()) {
                     return back()->withErrors(['error' => 'La clase seleccionada ya no tiene espacio disponible.']);
                 }
-                
+
                 if ($targetClass->class_template_id !== $template->id) {
                     return back()->withErrors(['error' => 'La clase seleccionada no corresponde a esta sesión.']);
                 }
@@ -404,6 +471,39 @@ class ClassRequestController extends Controller
                 ]);
 
                 return back()->with('success', '¡Te has inscrito exitosamente en el grupo!');
+            }
+
+            // AUTO-ASSIGNMENT for WEEKLY students: No existing class selected, try to create one with available teacher
+            $assignmentService = app(TeacherAssignmentService::class);
+            $teacher = $assignmentService->findAvailableTeacher($requestedDatetime, $template);
+
+            if ($teacher) {
+                // Create a new scheduled class with the available teacher
+                $scheduledClass = $assignmentService->createClassWithEnrollment(
+                    $template,
+                    $requestedDatetime,
+                    $teacher,
+                    $student
+                );
+
+                // Create the class request marked as scheduled
+                ClassRequest::create([
+                    'student_id' => $user->id,
+                    'class_template_id' => $template->id,
+                    'student_message' => $request->message,
+                    'requested_datetime' => $requestedDatetime,
+                    'scheduled_class_id' => $scheduledClass->id,
+                    'status' => 'scheduled',
+                    'processed_at' => now(),
+                ]);
+
+                return back()->with('success', '¡Tu clase ha sido programada automáticamente con ' . ($teacher->user?->name ?? $teacher->first_name) . '!');
+            } else {
+                // No teacher available, return alternative slots
+                $alternativeSlots = $assignmentService->getAlternativeSlots($requestedDatetime, $template, 5);
+
+                return back()->with('alternative_slots', $alternativeSlots->toArray())
+                    ->withErrors(['no_teacher' => 'No hay profesores disponibles en este horario.']);
             }
         } else {
             // Flujo para no verificados: guardar la preferencia de horario sin validaciones estrictas

@@ -303,6 +303,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Plantillas de clases (solo lectura)
         Route::get('/teacher/class-templates', [\App\Http\Controllers\Teacher\TeacherClassController::class, 'classTemplates'])->name('teacher.class-templates');
         Route::get('/teacher/class-templates/{template}', [\App\Http\Controllers\Teacher\TeacherClassController::class, 'showTemplate'])->name('teacher.class-templates.show');
+        
+        // Disponibilidad y configuración del profesor
+        Route::get('/teacher/availability', [\App\Http\Controllers\TeacherAvailabilityController::class, 'index'])->name('teacher.availability');
+        Route::put('/teacher/availability', [\App\Http\Controllers\TeacherAvailabilityController::class, 'update'])->name('teacher.availability.update');
+        Route::post('/teacher/toggle-availability', [\App\Http\Controllers\TeacherAvailabilityController::class, 'toggleAvailability'])->name('teacher.toggle-availability');
     });
     
     // Settings

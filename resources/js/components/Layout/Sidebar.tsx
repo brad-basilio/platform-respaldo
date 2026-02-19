@@ -83,6 +83,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
     if (currentUrl.startsWith('/teacher/my-classes')) return 'teacher-my-classes';
     if (currentUrl.startsWith('/teacher/my-students')) return 'teacher-my-students';
     if (currentUrl.startsWith('/teacher/class-templates')) return 'teacher-class-templates';
+    if (currentUrl.startsWith('/teacher/availability')) return 'teacher-availability';
     if (currentUrl.startsWith('/admin/payment-control')) return 'admin-payment-control';
     if (currentUrl.startsWith('/cashier/payment-control')) return 'cashier-payment-control';
     if (currentUrl.startsWith('/cashier/payment-reports')) return 'payment-reports';
@@ -126,6 +127,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
       'teacher-my-classes': '/teacher/my-classes',
       'teacher-my-students': '/teacher/my-students',
       'teacher-class-templates': '/teacher/class-templates',
+      'teacher-availability': '/teacher/availability',
       
       'admin-payment-control': '/admin/payment-control',
       'cashier-payment-control': '/cashier/payment-control',
@@ -210,6 +212,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
             //  { id: 'teacher-class-templates', label: 'Plantillas de Clases', icon: RiBookOpenLine },
               { id: 'teacher-my-classes', label: 'Mis Clases', icon: RiVideoLine },
               { id: 'teacher-my-students', label: 'Mis Participantes', icon: RiTeamLine },
+            ]
+          },
+          {
+            section: 'CONFIGURACIÓN',
+            items: [
+              { id: 'teacher-availability', label: 'Mi Disponibilidad', icon: RiSettings4Line },
             ]
           },
         ];

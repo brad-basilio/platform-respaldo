@@ -21,6 +21,7 @@ Se ha completado la implementación del sistema de pagos profesional con tarjeta
 ### **Backend (PHP/Laravel)**
 
 #### Migraciones de Base de Datos
+
 ```
 database/migrations/
 ├── 2025_12_04_000001_create_payment_methods_table.php
@@ -29,6 +30,7 @@ database/migrations/
 ```
 
 #### Modelos
+
 ```
 app/Models/
 ├── CulqiTransaction.php (NUEVO)
@@ -37,6 +39,7 @@ app/Models/
 ```
 
 #### Controladores
+
 ```
 app/Http/Controllers/Student/
 ├── CulqiPaymentController.php (NUEVO)
@@ -44,6 +47,7 @@ app/Http/Controllers/Student/
 ```
 
 #### Servicios
+
 ```
 app/Services/
 └── CulqiService.php (NUEVO)
@@ -52,6 +56,7 @@ app/Services/
 ### **Frontend (React/TypeScript)**
 
 #### Componentes
+
 ```
 resources/js/components/
 ├── CulqiPaymentModal.tsx (NUEVO)
@@ -59,6 +64,7 @@ resources/js/components/
 ```
 
 #### Páginas del Panel de Estudiante
+
 ```
 resources/js/pages/Student/
 ├── PaymentControl.tsx (ACTUALIZADO)
@@ -68,12 +74,14 @@ resources/js/pages/Student/
 ```
 
 #### Configuración Admin
+
 ```
 resources/js/pages/Admin/
 └── Settings.tsx (ACTUALIZADO - Tab Culqi)
 ```
 
 #### Rutas
+
 ```
 routes/
 └── web.php (ACTUALIZADO)
@@ -192,6 +200,7 @@ php artisan migrate
 ```
 
 Esto creará 3 nuevas tablas:
+
 - `payment_methods` - Tarjetas guardadas de estudiantes
 - `culqi_transactions` - Registro de todas las transacciones
 - Columnas adicionales en `installment_vouchers`
@@ -210,16 +219,16 @@ Esto creará 3 nuevas tablas:
 1. Inicia sesión en [https://integ-panel.culqi.com](https://integ-panel.culqi.com)
 2. Ve a **Desarrollo → API Keys**
 3. Copia:
-   - **Clave Pública**: `pk_test_xxxxxxxxxxxxxxxx`
-   - **Clave Secreta**: `sk_test_xxxxxxxxxxxxxxxx`
+    - **Clave Pública**: `pk_test_xxxxxxxxxxxxxxxx`
+    - **Clave Secreta**: `sk_test_xxxxxxxxxxxxxxxx`
 
 #### Para Producción:
 
 1. Inicia sesión en [https://panel.culqi.com](https://panel.culqi.com)
 2. Ve a **Configuración → API Keys**
 3. Copia:
-   - **Clave Pública**: `pk_live_xxxxxxxxxxxxxxxx`
-   - **Clave Secreta**: `sk_live_xxxxxxxxxxxxxxxx`
+    - **Clave Pública**: `pk_live_xxxxxxxxxxxxxxxx`
+    - **Clave Secreta**: `sk_live_xxxxxxxxxxxxxxxx`
 
 ### Paso 4: Configurar en ANCED
 
@@ -227,11 +236,11 @@ Esto creará 3 nuevas tablas:
 2. Ve a **Configuraciones** (menú lateral)
 3. Click en tab **"Pasarela Culqi"**
 4. Ingresa:
-   ```
-   Clave Pública:  pk_test_xxxxxxxxxxxxxxxx
-   Clave Secreta:  sk_test_xxxxxxxxxxxxxxxx
-   URL de API:     https://api.culqi.com
-   ```
+    ```
+    Clave Pública:  pk_test_xxxxxxxxxxxxxxxx
+    Clave Secreta:  sk_test_xxxxxxxxxxxxxxxx
+    URL de API:     https://api.culqi.com
+    ```
 5. Click **"Guardar Configuración de Culqi"**
 
 ### Paso 5: Agregar Script de Culqi al Layout
@@ -240,8 +249,7 @@ Edita `resources/views/app.blade.php` y agrega antes del `</body>`:
 
 ```html
 <body>
-    @routes
-    @inertia
+    @routes @inertia
 
     <!-- Culqi Checkout Script -->
     <script src="https://js.culqi.com/checkout-js"></script>
@@ -262,6 +270,7 @@ npm run build
 ### Tarjetas de Prueba de Culqi
 
 #### ✅ Tarjeta Exitosa:
+
 ```
 Número:      4111 1111 1111 1111
 CVV:         123
@@ -270,6 +279,7 @@ Email:       test@culqi.com
 ```
 
 #### ❌ Tarjeta Rechazada:
+
 ```
 Número:      4000 0000 0000 0002
 CVV:         123
@@ -278,6 +288,7 @@ Email:       test@culqi.com
 ```
 
 #### 💳 Otras Tarjetas de Prueba:
+
 - **Mastercard**: `5111 1111 1111 1118`
 - **Amex**: `3711 111111 11111`
 - **Diners**: `3600 121212 1210`
@@ -295,6 +306,74 @@ Email:       test@culqi.com
 9. Verifica que aparece mensaje de éxito
 10. Verifica que la cuota se marca como pagada
 
+## 💳 Gestión de Tarjetas (Guardar Tarjeta)
+
+Esta sección detalla cómo un estudiante puede guardar su tarjeta para pagos futuros y habilitar el autopago.
+
+### 1. Flujo de Guardado (Frontend)
+
+El archivo principal es `resources/js/pages/Student/PaymentMethods.tsx`.
+
+1. **Inicialización**: Se carga el script `https://checkout.culqi.com/js/v4`.
+2. **Configuración para Tokenización (Sin Cobro)**:
+    ```javascript
+    window.Culqi.settings({
+        title: 'UNCED - Guardar Tarjeta',
+        currency: 'PEN',
+        amount: 0, // Se pone 0 porque solo queremos el token para guardar la tarjeta
+    });
+    ```
+3. **Recepción del Token**: Cuando el usuario ingresa sus datos, Culqi genera un `token.id` (tkn_xxx).
+4. **Confirmación de Opciones**: Se muestra un modal interno para que el usuario decida si quiere la tarjeta como **predeterminada** o habilitar **pagos automáticos**.
+5. **Envío al Servidor**: Se envía el `token_id` y las preferencias a `/api/student/payment-methods`.
+
+### 2. Flujo en el Servidor (Backend)
+
+El controlador encargado es `app/Http/Controllers/Student/PaymentMethodController.php`.
+
+```php
+public function store(Request $request) {
+    // 1. Validar token y preferencias
+    // 2. Obtener o crear un 'Customer' en Culqi (cus_xxx)
+    $customerId = $this->culqiService->getOrCreateCustomer($user);
+
+    // 3. Crear 'Card' en Culqi asociada al Customer (crd_xxx)
+    $cardResult = $this->culqiService->createCard($customerId, $request->token_id);
+
+    // 4. Guardar en la tabla 'payment_methods'
+    PaymentMethod::create([
+        'student_id' => $student->id,
+        'culqi_card_id' => $cardResult['data']['id'],
+        'culqi_customer_id' => $customerId,
+        'card_last4' => $cardResult['data']['last_four'],
+        // ... otros datos no sensibles
+    ]);
+}
+```
+
+### 3. Cobro a una Tarjeta Guardada
+
+Cuando se quiere cobrar usando una tarjeta ya guardada (ej. en Autopago o desde el control de pagos):
+
+1. Se recupera el `culqi_card_id` (crd_xxx) de la base de datos.
+2. Se usa el método `CulqiPaymentController::processPaymentWithSavedCard`.
+3. Se envía a Culqi un cargo usando `source_id` con el ID de la tarjeta (`crd_xxx`).
+
+---
+
+## 📅 Pagos Automáticos (Autopago)
+
+El sistema permite que las cuotas se cobren automáticamente el día de su vencimiento si el alumno habilitó esta opción.
+
+1. **Configuración**: El alumno marca "Habilitar Pagos Automáticos" en su panel.
+2. **Proceso**: Un comando programado (Cron Job) revisa diariamente las cuotas que vencen hoy.
+3. **Ejecución**: Si el alumno tiene una tarjeta predeterminada con autopago activo, el sistema intenta realizar el cargo automáticamente contra esa tarjeta.
+
+```php
+// Comando: php artisan payments:auto-process
+// Itera cuotas pendientes que vencen hoy y tengan autopago activo
+```
+
 ---
 
 ## 📊 Base de Datos
@@ -307,27 +386,27 @@ CREATE TABLE payment_methods (
     student_id BIGINT NOT NULL,
     type VARCHAR(255) DEFAULT 'card',
     provider VARCHAR(255) DEFAULT 'culqi',
-    
+
     -- Datos seguros de tarjeta
     card_brand VARCHAR(255),
     card_last4 VARCHAR(4),
     card_exp_month VARCHAR(2),
     card_exp_year VARCHAR(4),
     cardholder_name VARCHAR(255),
-    
+
     -- Tokens de Culqi
     culqi_card_id VARCHAR(255),      -- ID de tarjeta guardada (crd_xxx)
     culqi_customer_id VARCHAR(255),   -- ID de cliente (cus_xxx)
-    
+
     -- Configuraciones
     is_default BOOLEAN DEFAULT FALSE,
     auto_payment_enabled BOOLEAN DEFAULT FALSE,
-    
+
     metadata JSON,
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
     deleted_at TIMESTAMP NULL,
-    
+
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 );
 ```
@@ -340,27 +419,27 @@ CREATE TABLE culqi_transactions (
     student_id BIGINT NOT NULL,
     installment_id BIGINT,
     payment_method_id BIGINT,
-    
+
     -- Datos de Culqi
     culqi_charge_id VARCHAR(255) UNIQUE NOT NULL,  -- chr_xxx
     culqi_token_id VARCHAR(255),                    -- tkn_xxx
     amount DECIMAL(10,2),
     currency VARCHAR(3) DEFAULT 'PEN',
-    
+
     -- Estado
     status ENUM('pending', 'succeeded', 'failed', 'refunded') DEFAULT 'pending',
     failure_code VARCHAR(255),
     failure_message TEXT,
-    
+
     -- Metadata
     culqi_response JSON,
     card_brand VARCHAR(255),
     card_last4 VARCHAR(4),
     customer_email VARCHAR(255),
-    
+
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
-    
+
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
     FOREIGN KEY (installment_id) REFERENCES installments(id) ON DELETE SET NULL,
     FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id) ON DELETE SET NULL
@@ -414,17 +493,17 @@ En `CulqiPaymentModal.tsx`, puedes personalizar:
 
 ```typescript
 const appearance = {
-  theme: 'default',
-  menuType: 'sidebar',
-  buttonCardPayText: `Pagar S/. ${installment.amount.toFixed(2)}`,
-  defaultStyle: {
-    bannerColor: '#073372',        // Azul ANCED
-    buttonBackground: '#17BC91',   // Verde ANCED
-    menuColor: '#073372',
-    linksColor: '#17BC91',
-    buttonTextColor: '#ffffff',
-    priceColor: '#073372',
-  },
+    theme: 'default',
+    menuType: 'sidebar',
+    buttonCardPayText: `Pagar S/. ${installment.amount.toFixed(2)}`,
+    defaultStyle: {
+        bannerColor: '#073372', // Azul ANCED
+        buttonBackground: '#17BC91', // Verde ANCED
+        menuColor: '#073372',
+        linksColor: '#17BC91',
+        buttonTextColor: '#ffffff',
+        priceColor: '#073372',
+    },
 };
 ```
 
@@ -443,7 +522,7 @@ php artisan make:command ProcessAutoPayments
 public function handle()
 {
     $today = now();
-    
+
     // Obtener cuotas que vencen hoy
     $dueInstallments = Installment::where('due_date', $today->toDateString())
         ->where('status', 'pending')
@@ -469,19 +548,19 @@ public function handle()
                         'amount' => $installment->amount,
                     ])
                 );
-                
+
                 Log::info("Auto-payment successful", [
                     'student' => $student->id,
                     'installment' => $installment->id
                 ]);
-                
+
             } catch (\Exception $e) {
                 Log::error("Auto-payment failed", [
                     'student' => $student->id,
                     'installment' => $installment->id,
                     'error' => $e->getMessage()
                 ]);
-                
+
                 // Notificar al estudiante
                 // Mail::to($student->email)->send(...);
             }
@@ -519,13 +598,15 @@ Ambos flujos coexisten sin conflicto.
 ### Error: "No se pudo cargar Culqi"
 
 **Solución**: Verifica que el script de Culqi esté en `app.blade.php`:
+
 ```html
 <script src="https://js.culqi.com/checkout-js"></script>
 ```
 
 ### Error: "Invalid API Key"
 
-**Solución**: 
+**Solución**:
+
 1. Verifica que las credenciales sean correctas
 2. Confirma que no estés mezclando claves de test y producción
 3. Revisa en Settings → Pasarela Culqi
@@ -533,6 +614,7 @@ Ambos flujos coexisten sin conflicto.
 ### Error: "Charge creation failed"
 
 **Solución**:
+
 1. Revisa `storage/logs/laravel.log`
 2. Verifica que el monto sea mayor a 0
 3. Confirma que el token sea válido (tkn_xxx)

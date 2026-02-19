@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { 
   ArrowLeft, Clock, Play, FileText, 
   Send, Calendar, Lock, Users, Sparkles,
   BookOpen, Target, Video, CheckCircle, GraduationCap, UserPlus, Plus,
   FileQuestion, Award, Download, ExternalLink, Image, Film, Link as LinkIcon,
-  X, ChevronLeft, ChevronRight, Loader2, Eye, XCircle
+  X, ChevronLeft, ChevronRight, Loader2, Eye, XCircle, AlertTriangle
 } from 'lucide-react';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Button } from '@/components/ui/button';
@@ -118,6 +118,16 @@ interface AvailableClass {
   available_spots: number;
 }
 
+interface AlternativeSlot {
+  datetime: string;
+  datetime_formatted: string;
+  date: string;
+  time: string;
+  day_name: string;
+  teacher_id: number;
+  teacher_name: string;
+}
+
 interface Props {
   template: ClassTemplate;
   existingRequest: ClassRequest | null;
@@ -126,6 +136,7 @@ interface Props {
 }
 
 const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollment, studentInfo }) => {
+  const { props: pageProps } = usePage<{ flash?: { alternative_slots?: AlternativeSlot[] } }>();
   const enrolledClass = enrollment?.scheduled_class || null;
   const isEnrolled = !!enrolledClass;
   
@@ -135,6 +146,10 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  
+  // State for alternative slots when no teacher is available
+  const [alternativeSlots, setAlternativeSlots] = useState<AlternativeSlot[]>([]);
+  const [showAlternativeSlotsModal, setShowAlternativeSlotsModal] = useState(false);
   
   // New state for regular students
   const [classConfig, setClassConfig] = useState<ClassConfig | null>(null);
@@ -258,7 +273,11 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
         params: { datetime: toLocalISOString(nextAvailableSlot) }
       })
         .then(res => {
-          setAvailableClasses(res.data.classes || []);
+          const classes = res.data.classes || [];
+          setAvailableClasses(classes);
+          if (classes.length > 0) {
+            setSelectedClassId(classes[0].id);
+          }
         })
         .catch(err => {
           console.error('Error loading available classes:', err);
@@ -278,7 +297,11 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
         params: { datetime: preferredDatetime }
       })
         .then(res => {
-          setAvailableClasses(res.data.classes || []);
+          const classes = res.data.classes || [];
+          setAvailableClasses(classes);
+          if (classes.length > 0) {
+            setSelectedClassId(classes[0].id);
+          }
         })
         .catch(err => {
           console.error('Error loading available classes:', err);
@@ -295,36 +318,48 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
     }
   }, [nextAvailableSlot]);
 
-  const handleSubmitRequest = () => {
+  // Check for alternative slots in flash data
+  useEffect(() => {
+    if (pageProps.flash?.alternative_slots && pageProps.flash.alternative_slots.length > 0) {
+      setAlternativeSlots(pageProps.flash.alternative_slots);
+      setShowAlternativeSlotsModal(true);
+      setSubmitting(false);
+    }
+  }, [pageProps.flash?.alternative_slots]);
+
+  const handleSubmitRequest = (slotDatetime?: string) => {
     if (existingRequest || enrolledClass) return;
 
     setSubmitting(true);
+    setShowAlternativeSlotsModal(false);
     
     // Determine requested datetime based on flow type
-    let requestedDatetime: string | null = null;
+    let requestedDatetime: string | null = slotDatetime || null;
     let targetClassId: number | null = null;
 
-    if (useRegularFlow) {
-      // Regular student flow - próximo slot disponible
-      if (selectedClassId) {
-        const selectedClass = availableClasses.find(c => c.id === selectedClassId);
-        requestedDatetime = selectedClass?.scheduled_at || null;
-        targetClassId = selectedClassId;
-      } else if (calculatedSlot) {
-        requestedDatetime = toLocalISOString(calculatedSlot);
-      }
-    } else if (useDailyFlow || useWeeklyFlow) {
-      // Daily/Weekly flow - usa el horario seleccionado
-      if (preferredDatetime) {
-        requestedDatetime = preferredDatetime;
+    if (!slotDatetime) {
+      if (useRegularFlow) {
+        // Regular student flow - próximo slot disponible
         if (selectedClassId) {
+          const selectedClass = availableClasses.find(c => c.id === selectedClassId);
+          requestedDatetime = selectedClass?.scheduled_at || null;
           targetClassId = selectedClassId;
+        } else if (calculatedSlot) {
+          requestedDatetime = toLocalISOString(calculatedSlot);
         }
-      }
-    } else {
-      // Non-verified flow - guardar preferencia sin validaciones
-      if (preferredDatetime) {
-        requestedDatetime = preferredDatetime;
+      } else if (useDailyFlow || useWeeklyFlow) {
+        // Daily/Weekly flow - usa el horario seleccionado
+        if (preferredDatetime) {
+          requestedDatetime = preferredDatetime;
+          if (selectedClassId) {
+            targetClassId = selectedClassId;
+          }
+        }
+      } else {
+        // Non-verified flow - guardar preferencia sin validaciones
+        if (preferredDatetime) {
+          requestedDatetime = preferredDatetime;
+        }
       }
     }
     
@@ -341,16 +376,23 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
         if (targetClassId) {
           toast.success('¡Te has inscrito exitosamente en el grupo!');
         } else {
-          toast.success('¡Solicitud enviada! Te notificaremos cuando sea procesada.');
+          toast.success('¡Tu clase ha sido programada exitosamente!');
         }
         setShowRequestModal(false);
         setMessage('');
         setSelectedClassId(null);
         setPreferredDatetime('');
+        setAlternativeSlots([]);
       },
       onError: (errors) => {
-        const errorMsg = Object.values(errors)[0] as string || 'Error al enviar la solicitud';
-        toast.error(errorMsg);
+        // Check if this is a "no teacher" error with alternative slots
+        if (errors.no_teacher) {
+          toast.error(errors.no_teacher as string);
+          // Alternative slots will be handled by useEffect above
+        } else {
+          const errorMsg = Object.values(errors)[0] as string || 'Error al enviar la solicitud';
+          toast.error(errorMsg);
+        }
         setSubmitting(false);
       },
     });
@@ -1396,7 +1438,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                       ))}
 
                       {/* Option to request new class */}
-                      <div className="pt-2 border-t border-gray-200">
+                      <div className="hidden pt-2 border-t border-gray-200">
                         <button
                           onClick={() => setSelectedClassId(null)}
                           className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${
@@ -1696,11 +1738,12 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                   setPreferredDatetime('');
                 }}
                 disabled={submitting}
+
               >
                 Cancelar
               </Button>
               <Button 
-                onClick={handleSubmitRequest}
+                onClick={() => handleSubmitRequest()}
                 disabled={
                   submitting || 
                   (useRegularFlow && !calculatedSlot) ||
@@ -1719,6 +1762,104 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                     {selectedClassId ? 'Solicitar Unirme' : 'Enviar Solicitud'}
                   </>
                 )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alternative Slots Modal */}
+      {showAlternativeSlotsModal && alternativeSlots.length > 0 && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
+            {/* Header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-between">
+              <div className="flex items-center gap-3 text-white">
+                <AlertTriangle className="w-6 h-6" />
+                <div>
+                  <h3 className="font-semibold">No hay profesores disponibles</h3>
+                  <p className="text-sm text-white/80">Te mostramos horarios alternativos</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowAlternativeSlotsModal(false);
+                  setAlternativeSlots([]);
+                }}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6">
+              <p className="text-gray-600 mb-4">
+                No encontramos un profesor disponible en el horario que seleccionaste. 
+                Aquí tienes algunos horarios alternativos con profesores disponibles:
+              </p>
+              
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                {alternativeSlots.map((slot, index) => (
+                  <div 
+                    key={index}
+                    className="flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:border-[#17BC91] hover:bg-[#17BC91]/5 transition-all cursor-pointer group"
+                    onClick={() => handleSubmitRequest(slot.datetime)}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-[#17BC91]/10 flex items-center justify-center">
+                        <Calendar className="w-5 h-5 text-[#17BC91]" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 capitalize">
+                          {slot.day_name}, {new Date(slot.datetime).toLocaleDateString('es-PE', { 
+                            day: 'numeric', 
+                            month: 'long' 
+                          })}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {slot.time} hrs • Profesor: <span className="text-[#17BC91] font-medium">{slot.teacher_name}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      size="sm"
+                      className="bg-[#17BC91] hover:bg-[#14a57f] text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSubmitRequest(slot.datetime);
+                      }}
+                      disabled={submitting}
+                    >
+                      {submitting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        'Seleccionar'
+                      )}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              
+              {alternativeSlots.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <AlertTriangle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p>No hay horarios alternativos disponibles en este momento.</p>
+                  <p className="text-sm mt-1">Por favor, intenta más tarde.</p>
+                </div>
+              )}
+            </div>
+            
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setShowAlternativeSlotsModal(false);
+                  setAlternativeSlots([]);
+                }}
+              >
+                Cerrar
               </Button>
             </div>
           </div>
