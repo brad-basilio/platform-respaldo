@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, Upload, Check, AlertCircle, Smartphone, Copy, CheckCircle2, QrCode } from 'lucide-react';
+import { X, Upload, Check, AlertCircle, Smartphone, Copy, CheckCircle2, QrCode, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface YapeMethod {
@@ -29,13 +29,13 @@ const YapePaymentModal: React.FC<YapePaymentModalProps> = ({
   isPartialPayment = false,
 }) => {
   const [yapeMethods, setYapeMethods] = useState<YapeMethod[]>([]);
-  const [selectedYape, setSelectedYape] = useState<YapeMethod | null>(null);
   const [voucherFile, setVoucherFile] = useState<File | null>(null);
   const [voucherPreview, setVoucherPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -53,8 +53,10 @@ const YapePaymentModal: React.FC<YapePaymentModalProps> = ({
       const yapes = response.data.yapes || [];
       setYapeMethods(yapes);
       
-      if (yapes.length > 0) {
-        setSelectedYape(yapes[0]);
+      if (yapes.length === 1) {
+        setExpandedId(yapes[0].id);
+      } else {
+        setExpandedId(null);
       }
     } catch (error) {
       console.error('Error fetching yape methods:', error);
@@ -99,8 +101,8 @@ const YapePaymentModal: React.FC<YapePaymentModalProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (!selectedYape) {
-      toast.error('Selecciona un método Yape');
+    if (yapeMethods.length === 0) {
+      toast.error('No hay métodos Yape disponibles');
       return;
     }
 
@@ -219,46 +221,8 @@ const YapePaymentModal: React.FC<YapePaymentModalProps> = ({
               </div>
             </div>
 
-            {/* Selección de cuenta Yape (si hay más de una) */}
-            {yapeMethods.length > 1 && (
-              <div className="mb-4 space-y-2">
-                <label className="block text-sm font-semibold text-slate-700">
-                  Selecciona la cuenta Yape:
-                </label>
-                <div className="grid grid-cols-1 gap-2">
-                  {yapeMethods.map((yape) => (
-                    <button
-                      key={yape.id}
-                      onClick={() => setSelectedYape(yape)}
-                      className={`p-3 rounded-lg border-2 transition-all text-left ${
-                        selectedYape?.id === yape.id
-                          ? 'border-[#17BC91] bg-[#17BC91]/5 shadow-sm'
-                          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-slate-900">{yape.name}</p>
-                          {yape.description && (
-                            <p className="text-xs text-slate-600 mt-0.5">{yape.description}</p>
-                          )}
-                          <p className="text-sm text-slate-700 mt-1 flex items-center gap-1">
-                            <Smartphone className="w-3.5 h-3.5" />
-                            {yape.phone_number}
-                          </p>
-                        </div>
-                        {selectedYape?.id === yape.id && (
-                          <Check className="w-5 h-5 text-[#17BC91] flex-shrink-0" />
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Step 1: Instrucciones */}
-            {selectedYape && currentStep === 1 && (
+            {yapeMethods.length > 0 && currentStep === 1 && (
               <div className="bg-white border-2 border-[#17BC91]/20 rounded-xl p-5 space-y-4 animate-fadeIn">
                 <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
                   <div className="p-2.5 bg-gradient-to-br from-[#073372] to-[#17BC91] rounded-lg">
@@ -316,7 +280,7 @@ const YapePaymentModal: React.FC<YapePaymentModalProps> = ({
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <p className="text-xs text-slate-700 leading-relaxed">
-                    <span className="font-semibold">Siguiente paso:</span> Te mostraremos el código QR que debes escanear con Yape para realizar el pago.
+                    <span className="font-semibold">Siguiente paso:</span> Te mostraremos el código QR o número para realizar el pago.
                   </p>
                 </div>
 
@@ -324,7 +288,7 @@ const YapePaymentModal: React.FC<YapePaymentModalProps> = ({
                   onClick={() => setCurrentStep(2)}
                   className="w-full py-2.5 bg-gradient-to-r from-[#073372] to-[#17BC91] text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
                 >
-                  Ver código QR
+                  Ver datos de pago
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -333,7 +297,7 @@ const YapePaymentModal: React.FC<YapePaymentModalProps> = ({
             )}
 
             {/* Step 2: Ver QR y Pagar */}
-            {selectedYape && currentStep === 2 && (
+            {yapeMethods.length > 0 && currentStep === 2 && (
               <div className="bg-white border-2 border-[#17BC91]/20 rounded-xl p-5 space-y-4 animate-fadeIn">
                 <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
                   <div className="p-2.5 bg-gradient-to-br from-[#073372] to-[#17BC91] rounded-lg">
@@ -341,96 +305,144 @@ const YapePaymentModal: React.FC<YapePaymentModalProps> = ({
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-900">Escanea y paga</h4>
-                    <p className="text-xs text-slate-600">Usa tu app de Yape para escanear</p>
+                    <p className="text-xs text-slate-600">
+                        {yapeMethods.length > 1 
+                          ? 'Selecciona una cuenta y escanea el código' 
+                          : 'Usa tu app de Yape para escanear'}
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex flex-col items-center py-2">
-                  {selectedYape.qr_image_url ? (
-                    <>
-                      <div className="bg-white p-3 rounded-lg border-2 border-[#17BC91]/30 shadow-md mb-3">
-                        <img
-                          src={selectedYape.qr_image_url}
-                          alt="QR Yape"
-                          className="w-56 h-56 object-contain"
-                        />
-                      </div>
-                      <p className="text-xs text-slate-600 text-center mb-2">
-                        Escanea este código con tu app de Yape
-                      </p>
-                    </>
-                  ) : (
-                    <div className="w-full bg-[#17BC91]/5 border-2 border-[#17BC91]/30 rounded-lg p-4">
-                      <p className="text-xs font-medium text-slate-600 mb-2 text-center">
-                        Número de Yape:
-                      </p>
-                      <div className="flex items-center justify-center gap-2">
-                        <p className="text-2xl font-bold text-[#073372]">
-                          {selectedYape.phone_number}
-                        </p>
-                        <button
-                          onClick={() => copyToClipboard(selectedYape.phone_number)}
-                          className="p-1.5 hover:bg-[#073372]/10 rounded-md transition-colors"
-                          title="Copiar número"
+                <div className="space-y-3">
+                  {yapeMethods.map(yape => {
+                    const isExpanded = expandedId === yape.id;
+                    return (
+                        <div 
+                          key={yape.id} 
+                          className={`bg-white border-2 rounded-xl overflow-hidden transition-all duration-300 ${
+                            isExpanded ? 'border-[#17BC91]/30 shadow-md' : 'border-slate-200 hover:border-slate-300'
+                          }`}
                         >
-                          <Copy className={`w-4 h-4 ${copiedPhone ? 'text-[#17BC91]' : 'text-[#073372]'}`} />
-                        </button>
-                      </div>
-                      <p className="text-xs text-slate-600 text-center mt-2">
-                        Ingresa este número manualmente en Yape
-                      </p>
-                    </div>
-                  )}
-                </div>
+                          <button
+                            onClick={() => setExpandedId(isExpanded ? null : yape.id)}
+                            className="w-full flex items-center gap-3 p-4 text-left bg-slate-50/50 hover:bg-slate-50 transition-colors"
+                          >
+                             <div className="p-2 bg-slate-200 rounded-lg">
+                                <Smartphone className="w-5 h-5 text-slate-500" />
+                              </div>
+                            <div className="flex-1">
+                              <h4 className="font-bold text-slate-900 text-sm">
+                                {yape.name}
+                              </h4>
+                              {yape.description && (
+                                <p className="text-xs text-slate-600 line-clamp-1">{yape.description}</p>
+                              )}
+                              <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                                 <Smartphone className="w-3 h-3" /> {yape.phone_number}
+                              </p>
+                            </div>
+                            {isExpanded ? (
+                              <ChevronUp className="w-5 h-5 text-slate-400" />
+                            ) : (
+                              <ChevronDown className="w-5 h-5 text-slate-400" />
+                            )}
+                          </button>
 
-                <div className="bg-[#17BC91]/5 border border-[#17BC91]/30 rounded-lg p-4 space-y-3">
-                  <p className="text-sm font-semibold text-[#073372] mb-2">📱 Pasos en Yape:</p>
-                  <div className="flex items-start gap-3">
-                    <span className="flex items-center justify-center w-6 h-6 bg-[#073372] text-white rounded-full text-xs font-bold flex-shrink-0 mt-0.5">
-                      1
-                    </span>
-                    <p className="text-sm text-slate-700 flex-1">
-                      {selectedYape.qr_image_url 
-                        ? 'Escanea el código QR desde la app de Yape'
-                        : `Ingresa el número: ${selectedYape.phone_number}`
-                      }
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="flex items-center justify-center w-6 h-6 bg-[#073372] text-white rounded-full text-xs font-bold flex-shrink-0 mt-0.5">
-                      2
-                    </span>
-                    <p className="text-sm text-slate-700 flex-1">
-                      Verifica que el monto sea <span className="font-bold text-[#F98613]">
-                        {new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(amount)}
-                      </span>
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="flex items-center justify-center w-6 h-6 bg-[#073372] text-white rounded-full text-xs font-bold flex-shrink-0 mt-0.5">
-                      3
-                    </span>
-                    <p className="text-sm text-slate-700 flex-1">
-                      Confirma y completa el pago
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="flex items-center justify-center w-6 h-6 bg-[#17BC91] text-white rounded-full text-xs font-bold flex-shrink-0 mt-0.5">
-                      4
-                    </span>
-                    <p className="text-sm text-slate-700 flex-1">
-                      <span className="font-semibold text-[#17BC91]">¡Importante!</span> Toma captura de pantalla del comprobante
-                    </p>
-                  </div>
-                </div>
+                          {isExpanded && (
+                            <div className="p-4 border-t border-slate-100 bg-white animate-fadeIn">
+                                {/* Body Content (QR/Number + Instructions) */}
+                                <div className="flex flex-col items-center py-2">
+                                  {yape.qr_image_url ? (
+                                    <>
+                                      <div className="bg-white p-3 rounded-lg border-2 border-[#17BC91]/30 shadow-md mb-3">
+                                        <img
+                                          src={yape.qr_image_url}
+                                          alt="QR Yape"
+                                          className="w-56 h-56 object-contain"
+                                        />
+                                      </div>
+                                      <p className="text-xs text-slate-600 text-center mb-2">
+                                        Escanea este código con tu app de Yape
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <div className="w-full bg-[#17BC91]/5 border-2 border-[#17BC91]/30 rounded-lg p-4">
+                                      <p className="text-xs font-medium text-slate-600 mb-2 text-center">
+                                        Número de Yape:
+                                      </p>
+                                      <div className="flex items-center justify-center gap-2">
+                                        <p className="text-2xl font-bold text-[#073372]">
+                                          {yape.phone_number}
+                                        </p>
+                                        <button
+                                          onClick={() => copyToClipboard(yape.phone_number)}
+                                          className="p-1.5 hover:bg-[#073372]/10 rounded-md transition-colors"
+                                          title="Copiar número"
+                                        >
+                                          <Copy className={`w-4 h-4 ${copiedPhone ? 'text-[#17BC91]' : 'text-[#073372]'}`} />
+                                        </button>
+                                      </div>
+                                      <p className="text-xs text-slate-600 text-center mt-2">
+                                        Ingresa este número manualmente en Yape
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                <div className="bg-[#17BC91]/5 border border-[#17BC91]/30 rounded-lg p-4 space-y-3">
+                                  <p className="text-sm font-semibold text-[#073372] mb-2">📱 Pasos en Yape:</p>
+                                  <div className="flex items-start gap-3">
+                                    <span className="flex items-center justify-center w-6 h-6 bg-[#073372] text-white rounded-full text-xs font-bold flex-shrink-0 mt-0.5">
+                                      1
+                                    </span>
+                                    <p className="text-sm text-slate-700 flex-1">
+                                      {yape.qr_image_url 
+                                        ? 'Escanea el código QR desde la app de Yape'
+                                        : `Ingresa el número: ${yape.phone_number}`
+                                      }
+                                    </p>
+                                  </div>
+                                  <div className="flex items-start gap-3">
+                                    <span className="flex items-center justify-center w-6 h-6 bg-[#073372] text-white rounded-full text-xs font-bold flex-shrink-0 mt-0.5">
+                                      2
+                                    </span>
+                                    <p className="text-sm text-slate-700 flex-1">
+                                      Verifica que el monto sea <span className="font-bold text-[#F98613]">
+                                        {new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(amount)}
+                                      </span>
+                                    </p>
+                                  </div>
+                                  <div className="flex items-start gap-3">
+                                    <span className="flex items-center justify-center w-6 h-6 bg-[#073372] text-white rounded-full text-xs font-bold flex-shrink-0 mt-0.5">
+                                      3
+                                    </span>
+                                    <p className="text-sm text-slate-700 flex-1">
+                                      Confirma y completa el pago
+                                    </p>
+                                  </div>
+                                  <div className="flex items-start gap-3">
+                                    <span className="flex items-center justify-center w-6 h-6 bg-[#17BC91] text-white rounded-full text-xs font-bold flex-shrink-0 mt-0.5">
+                                      4
+                                    </span>
+                                    <p className="text-sm text-slate-700 flex-1">
+                                      <span className="font-semibold text-[#17BC91]">¡Importante!</span> Toma captura de pantalla del comprobante
+                                    </p>
+                                  </div>
+                                </div>
 
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-slate-700">
-                      <span className="font-semibold">No cierres Yape</span> hasta tomar la captura de pantalla del comprobante. La necesitarás en el siguiente paso.
-                    </p>
-                  </div>
+                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
+                                  <div className="flex items-start gap-2">
+                                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                                    <p className="text-xs text-slate-700">
+                                      <span className="font-semibold">No cierres Yape</span> hasta tomar la captura de pantalla del comprobante.
+                                    </p>
+                                  </div>
+                                </div>
+                            </div>
+                          )}
+                        </div>
+                    );
+                  })}
                 </div>
 
                 <div className="flex gap-2 pt-2">
@@ -451,7 +463,7 @@ const YapePaymentModal: React.FC<YapePaymentModalProps> = ({
             )}
 
             {/* Step 3: Upload Voucher */}
-            {selectedYape && currentStep === 3 && (
+            {yapeMethods.length > 0 && currentStep === 3 && (
               <div className="bg-white border-2 border-[#17BC91]/20 rounded-xl p-5 space-y-4 animate-fadeIn">
                 <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
                   <div className="p-2.5 bg-gradient-to-br from-[#073372] to-[#17BC91] rounded-lg">

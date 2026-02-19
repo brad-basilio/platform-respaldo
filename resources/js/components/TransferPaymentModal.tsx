@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, Upload, Check, AlertCircle, Building2, Copy, CheckCircle2 } from 'lucide-react';
+import { X, Upload, Check, AlertCircle, Building2, Copy, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TransferMethod {
@@ -34,11 +34,11 @@ const TransferPaymentModal: React.FC<TransferPaymentModalProps> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [transferMethods, setTransferMethods] = useState<TransferMethod[]>([]);
-  const [selectedTransfer, setSelectedTransfer] = useState<TransferMethod | null>(null);
   const [voucherFile, setVoucherFile] = useState<File | null>(null);
   const [voucherPreview, setVoucherPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -56,9 +56,11 @@ const TransferPaymentModal: React.FC<TransferPaymentModalProps> = ({
       const transfers = response.data.transfers || [];
       setTransferMethods(transfers);
       
-      // Seleccionar el primero por defecto
-      if (transfers.length > 0) {
-        setSelectedTransfer(transfers[0]);
+      // Configurar estado inicial de colapso
+      if (transfers.length === 1) {
+        setExpandedId(transfers[0].id);
+      } else {
+        setExpandedId(null);
       }
     } catch (error) {
       console.error('Error fetching transfer methods:', error);
@@ -103,8 +105,8 @@ const TransferPaymentModal: React.FC<TransferPaymentModalProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (!selectedTransfer) {
-      toast.error('Selecciona una cuenta bancaria');
+    if (transferMethods.length === 0) {
+      toast.error('No hay cuentas bancarias disponibles');
       return;
     }
 
@@ -308,7 +310,7 @@ const TransferPaymentModal: React.FC<TransferPaymentModalProps> = ({
               )}
 
               {/* Step 2: Bank Account Details */}
-              {currentStep === 2 && selectedTransfer && (
+              {currentStep === 2 && transferMethods.length > 0 && (
                 <div className="bg-white border-2 border-[#17BC91]/20 rounded-xl p-5 space-y-4 animate-fadeIn">
                   <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
                     <div className="p-2.5 bg-gradient-to-br from-[#073372] to-[#17BC91] rounded-lg">
@@ -316,7 +318,11 @@ const TransferPaymentModal: React.FC<TransferPaymentModalProps> = ({
                     </div>
                     <div>
                       <h4 className="font-bold text-slate-900">Datos de nuestra cuenta</h4>
-                      <p className="text-xs text-slate-600">Usa estos datos para transferir</p>
+                      <p className="text-xs text-slate-600">
+                        {transferMethods.length > 1 
+                          ? 'Selecciona una cuenta y usa los datos para transferir' 
+                          : 'Usa estos datos para transferir'}
+                      </p>
                     </div>
                   </div>
 
@@ -326,65 +332,90 @@ const TransferPaymentModal: React.FC<TransferPaymentModalProps> = ({
                     <p className="text-2xl font-bold text-[#F98613]">{formatCurrency(amount)}</p>
                   </div>
 
-                  {/* Bank account info */}
-                  <div className="bg-white border-2 border-[#17BC91]/30 rounded-xl p-4 space-y-3">
-                    {/* Bank header with logo */}
-                    <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
-                      {selectedTransfer.bank_logo_url && (
-                        <img
-                          src={selectedTransfer.bank_logo_url}
-                          alt={selectedTransfer.bank_name}
-                          className="h-10 object-contain"
-                        />
-                      )}
-                      <div className="flex-1">
-                        <h4 className="font-bold text-slate-900 text-sm">
-                          {selectedTransfer.bank_name}
-                        </h4>
-                        {selectedTransfer.description && (
-                          <p className="text-xs text-slate-600">{selectedTransfer.description}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      {/* Titular */}
-                      <div className="bg-slate-50 rounded-lg p-3">
-                        <p className="text-xs font-medium text-slate-600 mb-1">Titular de la cuenta:</p>
-                        <p className="text-sm font-bold text-slate-900">{selectedTransfer.account_holder}</p>
-                      </div>
-
-                      {/* Account Number */}
-                      <div className="bg-blue-50 rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-xs font-medium text-blue-900">Número de Cuenta:</p>
+                  {/* Bank Accounts List (Accordion) */}
+                  <div className="space-y-3">
+                    {transferMethods.map((method) => {
+                      const isExpanded = expandedId === method.id;
+                      return (
+                        <div 
+                          key={method.id} 
+                          className={`bg-white border-2 rounded-xl overflow-hidden transition-all duration-300 ${
+                            isExpanded ? 'border-[#17BC91]/30 shadow-md' : 'border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
                           <button
-                            onClick={() => handleCopy(selectedTransfer.account_number, 'Número de cuenta')}
-                            className="p-1.5 hover:bg-blue-100 rounded transition-colors"
-                            title="Copiar"
+                            onClick={() => setExpandedId(isExpanded ? null : method.id)}
+                            className="w-full flex items-center gap-3 p-4 text-left bg-slate-50/50 hover:bg-slate-50 transition-colors"
                           >
-                            <Copy className="w-4 h-4 text-blue-600" />
+                            {method.bank_logo_url ? (
+                              <img
+                                src={method.bank_logo_url}
+                                alt={method.bank_name}
+                                className="h-8 object-contain"
+                              />
+                            ) : (
+                              <div className="p-2 bg-slate-200 rounded-lg">
+                                <Building2 className="w-5 h-5 text-slate-500" />
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <h4 className="font-bold text-slate-900 text-sm">
+                                {method.bank_name}
+                              </h4>
+                              {method.description && (
+                                <p className="text-xs text-slate-600 line-clamp-1">{method.description}</p>
+                              )}
+                            </div>
+                            {isExpanded ? (
+                              <ChevronUp className="w-5 h-5 text-slate-400" />
+                            ) : (
+                              <ChevronDown className="w-5 h-5 text-slate-400" />
+                            )}
                           </button>
-                        </div>
-                        <p className="text-base font-bold text-blue-700 tracking-wider">{selectedTransfer.account_number}</p>
-                        <p className="text-xs text-blue-600 mt-1 capitalize">Cuenta {selectedTransfer.account_type}</p>
-                      </div>
 
-                      {/* CCI */}
-                      <div className="bg-[#17BC91]/10 rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-xs font-medium text-[#073372]">CCI (Interbancario):</p>
-                          <button
-                            onClick={() => handleCopy(selectedTransfer.cci, 'CCI')}
-                            className="p-1.5 hover:bg-[#17BC91]/20 rounded transition-colors"
-                            title="Copiar"
-                          >
-                            <Copy className="w-4 h-4 text-[#17BC91]" />
-                          </button>
+                          {isExpanded && (
+                            <div className="p-4 border-t border-slate-100 space-y-2.5 bg-white animate-fadeIn">
+                              {/* Titular */}
+                              <div className="bg-slate-50 rounded-lg p-3">
+                                <p className="text-xs font-medium text-slate-600 mb-1">Titular de la cuenta:</p>
+                                <p className="text-sm font-bold text-slate-900">{method.account_holder}</p>
+                              </div>
+
+                              {/* Account Number */}
+                              <div className="bg-blue-50 rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-1">
+                                  <p className="text-xs font-medium text-blue-900">Número de Cuenta:</p>
+                                  <button
+                                    onClick={() => handleCopy(method.account_number, 'Número de cuenta')}
+                                    className="p-1.5 hover:bg-blue-100 rounded transition-colors"
+                                    title="Copiar"
+                                  >
+                                    <Copy className="w-4 h-4 text-blue-600" />
+                                  </button>
+                                </div>
+                                <p className="text-base font-bold text-blue-700 tracking-wider font-mono">{method.account_number}</p>
+                                <p className="text-xs text-blue-600 mt-1 capitalize">Cuenta {method.account_type}</p>
+                              </div>
+
+                              {/* CCI */}
+                              <div className="bg-[#17BC91]/10 rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-1">
+                                  <p className="text-xs font-medium text-[#073372]">CCI (Interbancario):</p>
+                                  <button
+                                    onClick={() => handleCopy(method.cci, 'CCI')}
+                                    className="p-1.5 hover:bg-[#17BC91]/20 rounded transition-colors"
+                                    title="Copiar"
+                                  >
+                                    <Copy className="w-4 h-4 text-[#17BC91]" />
+                                  </button>
+                                </div>
+                                <p className="text-base font-bold text-[#073372] tracking-wider font-mono">{method.cci}</p>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <p className="text-base font-bold text-[#073372] tracking-wider">{selectedTransfer.cci}</p>
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
 
                   {/* Instructions */}
@@ -403,7 +434,7 @@ const TransferPaymentModal: React.FC<TransferPaymentModalProps> = ({
                         2
                       </span>
                       <p className="text-sm text-slate-700 flex-1">
-                        Selecciona "Transferir" y elige el banco destino
+                        Selecciona "Transferir", elige el banco y copia los datos
                       </p>
                     </div>
                     <div className="flex items-start gap-3">
@@ -411,20 +442,12 @@ const TransferPaymentModal: React.FC<TransferPaymentModalProps> = ({
                         3
                       </span>
                       <p className="text-sm text-slate-700 flex-1">
-                        Usa los botones <Copy className="w-3 h-3 inline" /> para copiar el número de cuenta o CCI
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="flex items-center justify-center w-6 h-6 bg-[#073372] text-white rounded-full text-xs font-bold flex-shrink-0 mt-0.5">
-                        4
-                      </span>
-                      <p className="text-sm text-slate-700 flex-1">
                         Ingresa el monto exacto: <span className="font-bold text-[#F98613]">{formatCurrency(amount)}</span>
                       </p>
                     </div>
                     <div className="flex items-start gap-3">
                       <span className="flex items-center justify-center w-6 h-6 bg-[#17BC91] text-white rounded-full text-xs font-bold flex-shrink-0 mt-0.5">
-                        5
+                        4
                       </span>
                       <p className="text-sm text-slate-700 flex-1">
                         <span className="font-semibold text-[#17BC91]">¡Importante!</span> Guarda o captura el comprobante de confirmación
