@@ -107,6 +107,7 @@ interface ClassConfig {
   max_advance_hours: number;
   operation_start_hour: number;
   operation_end_hour: number;
+  max_students: number;
 }
 
 interface AvailableClass {
@@ -273,7 +274,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
         params: { datetime: toLocalISOString(nextAvailableSlot) }
       })
         .then(res => {
-          const classes = res.data.classes || [];
+          const classes: AvailableClass[] = res.data.classes || [];
           setAvailableClasses(classes);
           // Auto-select first available class with spots
           const available = classes.find(c => c.available_spots > 0);
@@ -301,7 +302,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
         params: { datetime: preferredDatetime }
       })
         .then(res => {
-          const classes = res.data.classes || [];
+          const classes: AvailableClass[] = res.data.classes || [];
           setAvailableClasses(classes);
           // Auto-select first available class with spots
           const available = classes.find(c => c.available_spots > 0);
@@ -1462,7 +1463,9 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                           </div>
                           <div className="text-left">
                             <p className="font-medium text-gray-900">Solicitar nueva clase</p>
-                            <p className="text-sm text-gray-500">Se creará un nuevo grupo para este horario</p>
+                            <p className="text-sm text-gray-500">
+                              Se creará un nuevo grupo para este horario (Capacidad: {classConfig?.max_students || 6} estudiantes)
+                            </p>
                           </div>
                         </button>
                       </div>

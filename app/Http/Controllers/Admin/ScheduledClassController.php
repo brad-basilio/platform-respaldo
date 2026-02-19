@@ -46,7 +46,7 @@ class ScheduledClassController extends Controller
         }
 
         $scheduledClasses = $query->orderBy('scheduled_at', 'desc')->paginate(20);
-        
+
         $templates = ClassTemplate::with('academicLevel')->active()->ordered()->get();
         $teachers = User::where('role', 'teacher')->get();
         $groups = Group::where('status', 'active')->get();
@@ -56,7 +56,8 @@ class ScheduledClassController extends Controller
             'templates' => $templates,
             'teachers' => $teachers,
             'groups' => $groups,
-            'filters' => $request->only(['status', 'teacher_id', 'date', 'from_date', 'to_date'])
+            'filters' => $request->only(['status', 'teacher_id', 'date', 'from_date', 'to_date']),
+            'classMaxStudents' => (int) (\App\Models\Setting::where('key', 'class_max_students')->value('content') ?? 6),
         ]);
     }
 
@@ -275,7 +276,7 @@ class ScheduledClassController extends Controller
     public function getAvailableStudents(ScheduledClass $scheduledClass)
     {
         $enrolledIds = $scheduledClass->enrollments()->pluck('student_id');
-        
+
         $students = Student::whereNotIn('id', $enrolledIds)
             ->where('status', 'enrolled')
             ->get(['id', 'first_name', 'last_name', 'email']);

@@ -112,6 +112,9 @@ class TeacherAssignmentService
         Teacher $teacher,
         Student $student
     ): ScheduledClass {
+        // Get max students from settings
+        $maxStudents = (int) (\App\Models\Setting::where('key', 'class_max_students')->value('content') ?? 6);
+
         // Create the scheduled class
         $scheduledClass = ScheduledClass::create([
             'class_template_id' => $template->id,
@@ -119,7 +122,7 @@ class TeacherAssignmentService
             'scheduled_at' => $datetime,
             'status' => 'scheduled',
             'meet_url' => $teacher->meet_url,
-            'max_students' => 6, // Default max students
+            'max_students' => $maxStudents,
         ]);
 
         // Enroll the student

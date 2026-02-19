@@ -25,6 +25,7 @@ class ClassRequestController extends Controller
             'max_advance_hours' => (int) (Setting::where('key', 'class_request_max_advance_hours')->value('content') ?? 2),
             'operation_start_hour' => (int) (Setting::where('key', 'class_operation_start_hour')->value('content') ?? 8),
             'operation_end_hour' => (int) (Setting::where('key', 'class_operation_end_hour')->value('content') ?? 22),
+            'max_students' => (int) (Setting::where('key', 'class_max_students')->value('content') ?? 6),
         ]);
     }
 

@@ -146,6 +146,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
     class_request_max_advance_hours: settings.general?.find(s => s.key === 'class_request_max_advance_hours')?.content || '2',
     class_operation_start_hour: settings.general?.find(s => s.key === 'class_operation_start_hour')?.content || '8',
     class_operation_end_hour: settings.general?.find(s => s.key === 'class_operation_end_hour')?.content || '22',
+    class_max_students: settings.general?.find(s => s.key === 'class_max_students')?.content || '6',
   });
 
   const sections = [
@@ -480,6 +481,12 @@ const Settings: React.FC<Props> = ({ settings }) => {
         content: classesForm.data.class_operation_end_hour,
         type: 'general',
         description: 'Hora de fin de operación para clases',
+      },
+      {
+        key: 'class_max_students',
+        content: classesForm.data.class_max_students,
+        type: 'general',
+        description: 'Número máximo de aprendices por clase',
       },
     ];
 
@@ -1352,6 +1359,29 @@ const Settings: React.FC<Props> = ({ settings }) => {
                   </div>
                 </div>
 
+                {/* Max Students */}
+                <div className="bg-white border border-gray-200 rounded-xl p-6">
+                  <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    🎓 Capacidad de Clases
+                  </h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Define el número máximo de aprendices permitidos por clase. Esto se utilizará como valor predeterminado al crear nuevos grupos.
+                  </p>
+                  
+                  <div className="max-w-md">
+                    <Input
+                      label="Máximo de Aprendices por Clase"
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={classesForm.data.class_max_students}
+                      onChange={(e) => classesForm.setData('class_max_students', e.target.value)}
+                      helperText="Capacidad máxima sugerida para nuevas clases"
+                      variant="outlined"
+                    />
+                  </div>
+                </div>
+
                 {/* Vista previa */}
                 <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
                   <h4 className="text-sm font-semibold text-purple-900 mb-3">📊 Resumen de Configuración:</h4>
@@ -1366,6 +1396,12 @@ const Settings: React.FC<Props> = ({ settings }) => {
                       <span className="text-purple-700">Horario de operación:</span>
                       <span className="font-bold text-purple-900">
                         {classesForm.data.class_operation_start_hour.toString().padStart(2, '0')}:00 - {classesForm.data.class_operation_end_hour.toString().padStart(2, '0')}:00
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-purple-700">Capacidad Máxima:</span>
+                      <span className="font-bold text-purple-900">
+                        {classesForm.data.class_max_students} aprendices
                       </span>
                     </div>
                   </div>
