@@ -275,8 +275,12 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
         .then(res => {
           const classes = res.data.classes || [];
           setAvailableClasses(classes);
-          if (classes.length > 0) {
-            setSelectedClassId(classes[0].id);
+          // Auto-select first available class with spots
+          const available = classes.find(c => c.available_spots > 0);
+          if (available) {
+            setSelectedClassId(available.id);
+          } else {
+            setSelectedClassId(null);
           }
         })
         .catch(err => {
@@ -299,8 +303,12 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
         .then(res => {
           const classes = res.data.classes || [];
           setAvailableClasses(classes);
-          if (classes.length > 0) {
-            setSelectedClassId(classes[0].id);
+          // Auto-select first available class with spots
+          const available = classes.find(c => c.available_spots > 0);
+          if (available) {
+            setSelectedClassId(available.id);
+          } else {
+            setSelectedClassId(null);
           }
         })
         .catch(err => {
@@ -1438,7 +1446,7 @@ const ClassTemplateView: React.FC<Props> = ({ template, existingRequest, enrollm
                       ))}
 
                       {/* Option to request new class */}
-                      <div className="hidden pt-2 border-t border-gray-200">
+                      <div className={availableClasses.some(c => c.available_spots > 0) ? "hidden" : "pt-2 border-t border-gray-200"}>
                         <button
                           onClick={() => setSelectedClassId(null)}
                           className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${
