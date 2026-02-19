@@ -148,18 +148,38 @@ const Settings: React.FC<Props> = ({ settings }) => {
     class_operation_end_hour: settings.general?.find(s => s.key === 'class_operation_end_hour')?.content || '22',
   });
 
-  const tabs = [
-    { id: 'mail', label: 'Templates de Email', icon: RiMailLine },
-    { id: 'contract', label: 'Plantilla de Contrato', icon: RiFileTextLine },
-    { id: 'schedule', label: 'Cronograma de Pagos', icon: RiFileTextLine },
-    { id: 'receipt', label: 'Comprobantes', icon: RiFileTextLine },
-    { id: 'whatsapp', label: 'Configuración WhatsApp', icon: RiWhatsappLine },
-    { id: 'payment', label: 'Configuración de Pagos', icon: RiSettings4Line },
-    { id: 'classes', label: 'Configuración de Clases', icon: RiCalendarLine },
-    { id: 'payment_methods', label: 'Métodos de Pago (Yape/Transfer)', icon: RiBankCardLine },
-    { id: 'kulki', label: 'Pasarela Culqi', icon: RiSecurePaymentLine },
-    { id: 'general', label: 'Configuración General', icon: RiGlobalLine },
-    { id: 'contact', label: 'Información de Contacto', icon: RiMailLine },
+  const sections = [
+    {
+      title: 'General',
+      items: [
+        { id: 'general', label: 'General', icon: RiGlobalLine },
+        { id: 'contact', label: 'Contacto', icon: RiMailLine },
+      ]
+    },
+    {
+      title: 'Comunicación',
+      items: [
+        { id: 'mail', label: 'Templates Email', icon: RiMailLine },
+        { id: 'whatsapp', label: 'WhatsApp', icon: RiWhatsappLine },
+      ]
+    },
+    {
+      title: 'Pagos y Facturación',
+      items: [
+        { id: 'payment', label: 'Configuración Pagos', icon: RiSettings4Line },
+        { id: 'payment_methods', label: 'Métodos de Pago', icon: RiBankCardLine },
+        { id: 'kulki', label: 'Pasarela Culqi', icon: RiSecurePaymentLine },
+        { id: 'schedule', label: 'Cronograma', icon: RiFileTextLine },
+        { id: 'receipt', label: 'Comprobantes', icon: RiFileTextLine },
+      ]
+    },
+    {
+      title: 'Académico y Legal',
+      items: [
+        { id: 'classes', label: 'Clases', icon: RiCalendarLine },
+        { id: 'contract', label: 'Contrato', icon: RiFileTextLine },
+      ]
+    }
   ];
 
   const handleMailSubmit = (e: React.FormEvent) => {
@@ -505,34 +525,44 @@ const Settings: React.FC<Props> = ({ settings }) => {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="border-b border-gray-200 bg-slate-50">
-            <div className="overflow-x-auto">
-              <div className="flex flex-wrap gap-2 p-4 min-w-max">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id as 'mail' | 'whatsapp' | 'general' | 'contact' | 'payment' | 'contract' | 'schedule' | 'receipt' | 'kulki' | 'payment_methods' | 'classes')}
-                      className={`flex items-center px-5 py-3 rounded-lg font-medium transition-all whitespace-nowrap ${
-                        activeTab === tab.id
-                          ? 'bg-gradient-to-r from-[#073372] to-[#17BC91] text-white shadow-lg scale-105'
-                          : 'bg-white text-gray-700 hover:bg-gray-100 hover:shadow-md border border-gray-200'
-                      }`}
-                    >
-                      <Icon className="h-5 w-5 mr-2 flex-shrink-0" />
-                      <span className="text-sm">{tab.label}</span>
-                    </button>
-                  );
-                })}
+        {/* Tabs Grid Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+          {/* Sidebar Navigation */}
+          <div className="lg:col-span-1 space-y-6 sticky top-6">
+            {sections.map((section, idx) => (
+              <div key={idx}>
+                <h3 className="px-3 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  {section.title}
+                </h3>
+                <div className="space-y-1">
+                  {section.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setActiveTab(item.id as any)}
+                        className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 group ${
+                          activeTab === item.id
+                            ? 'bg-white text-[#073372] shadow-sm border border-gray-200'
+                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        }`}
+                      >
+                        <Icon className={`mr-3 h-5 w-5 transition-colors ${
+                          activeTab === item.id ? 'text-[#17BC91]' : 'text-gray-400 group-hover:text-gray-500'
+                        }`} />
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            ))}
           </div>
 
-          {/* Tab Content */}
-          <div className="p-8">
+          {/* Main Content Area */}
+          <div className="lg:col-span-3">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[600px]">
+              <div className="p-8">
             {/* Mail Templates Tab */}
             {activeTab === 'mail' && (
               <form onSubmit={handleMailSubmit} className="space-y-6">
@@ -1503,7 +1533,9 @@ const Settings: React.FC<Props> = ({ settings }) => {
           </div>
         </div>
       </div>
-    </AuthenticatedLayout >
+    </div>
+  </div>
+</AuthenticatedLayout>
   );
 };
 
