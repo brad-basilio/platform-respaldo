@@ -1,15 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { 
   Calendar, Clock, Users, Film, Play, CheckCircle, 
-  ExternalLink, ChevronRight, Search, Filter, ArrowLeft
+  ExternalLink, ChevronRight, Search, Filter, ArrowLeft,
+  XCircle, AlertCircle
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select2 } from '@/components/ui/Select2';
 import { DatePicker } from '@/components/ui/DatePicker';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+
+// AG Grid Imports
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef, ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-community';
+
+// Register AG Grid Modules
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 interface AcademicLevel {
   id: number;
@@ -78,6 +87,7 @@ interface Props {
 export default function MyClasses({ scheduledClasses, stats, filters }: Props) {
   const [statusFilter, setStatusFilter] = useState(filters.status || '');
   const [dateFilter, setDateFilter] = useState<Date | null>(filters.date ? new Date(filters.date) : null);
+  const [quickFilterText, setQuickFilterText] = useState<string>('');
 
   const getStatusConfig = (status: string) => {
     const configs: Record<string, { label: string; color: string; bgColor: string; borderColor: string }> = {
@@ -119,17 +129,190 @@ export default function MyClasses({ scheduledClasses, stats, filters }: Props) {
   const clearFilters = () => {
     setStatusFilter('');
     setDateFilter(null);
+    setQuickFilterText('');
     router.get('/teacher/my-classes');
   };
+
+  // AG Grid Column Definitions
+  const columnDefs = useMemo<ColDef<ScheduledClass>[]>(() => [
+    {
+      headerName: 'Sesión',
+      field: 'template.session_number',
+      minWidth: 100,
+      maxWidth: 120,
+      cellRenderer: (params: any) => {
+        const levelColor = params.data.template.academic_level?.color || '#073372';
+        return (
+          <div className="flex items-center justify-center h-full">
+            <div 
+              className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-sm"
+              style={{ backgroundColor: levelColor }}
+            >
+              {params.value}
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      headerName: 'Clase',
+      field: 'template.title',
+      minWidth: 250,
+      filter: 'agTextColumnFilter',
+      cellRenderer: (params: any) => {
+        const template = params.data.template;
+        return (
+            <div className="flex flex-col justify-center h-full py-1">
+                <span className="font-semibold text-gray-900 leading-tight">{template.title}</span>
+                <span 
+                    className="text-xs font-medium mt-1"
+                    style={{ color: template.academic_level?.color || '#64748b' }}
+                >
+                    {template.academic_level?.name}
+                </span>
+            </div>
+        );
+      }
+    },
+    {
+      headerName: 'Horario',
+      field: 'scheduled_at',
+      minWidth: 200,
+      cellRenderer: (params: any) => {
+        return (
+          <div className="flex flex-col justify-center h-full py-1">
+            <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                {formatDateTime(params.value)}
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-0.5">
+                <Clock className="w-3.5 h-3.5" />
+                {params.data.template.duration_minutes} min
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+        headerName: 'Estado',
+        field: 'status',
+        minWidth: 140,
+        cellRenderer: (params: any) => {
+            const config = getStatusConfig(params.value);
+            return (
+                <div className="flex items-center h-full">
+                    <span 
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                        style={{ 
+                            backgroundColor: config.bgColor, 
+                            color: config.color,
+                            border: `1px solid ${config.borderColor}`
+                        }}
+                    >
+                        {config.label}
+                    </span>
+                </div>
+            )
+        }
+    },
+    {
+        headerName: 'Alumnos',
+        field: 'enrollments_count',
+        minWidth: 120,
+        cellRenderer: (params: any) => {
+            return (
+                <div className="flex items-center h-full gap-1.5 text-sm text-gray-700">
+                    <Users className="w-4 h-4 text-slate-400" />
+                    <span className="font-medium">{params.value}</span>
+                    <span className="text-slate-400">/</span>
+                    <span className="text-slate-500">{params.data.max_students}</span>
+                </div>
+            );
+        }
+    },
+    {
+        headerName: 'Grabación',
+        field: 'recording_url',
+        minWidth: 140,
+        cellRenderer: (params: any) => {
+            if (!params.value) return (
+                <div className="flex items-center h-full text-xs text-slate-400 italic">
+                    Sin grabación
+                </div>
+            );
+            return (
+                <div className="flex items-center h-full">
+                     <Badge 
+                        className="text-white font-semibold flex items-center gap-1 hover:bg-[#F98613]/90"
+                        style={{ backgroundColor: '#F98613' }}
+                    >
+                        <Film className="w-3 h-3" />
+                         Grabación
+                    </Badge>
+                </div>
+            );
+        }
+    },
+    {
+      headerName: 'Acciones',
+      minWidth: 200,
+      pinned: 'right',
+      sortable: false,
+      filter: false,
+      cellRenderer: (params: any) => {
+        const cls = params.data;
+        return (
+          <div className="flex items-center gap-2 h-full">
+            {cls.status === 'scheduled' && (
+               <button
+                  onClick={() => handleUpdateStatus(cls.id, 'in_progress')}
+                  className="text-orange-500 hover:text-orange-700 p-1.5 hover:bg-orange-50 rounded-lg transition-colors"
+                  title="Iniciar Clase"
+               >
+                   <Play className="w-4 h-4" />
+               </button>
+            )}
+            {cls.status === 'in_progress' && (
+                <button
+                  onClick={() => handleUpdateStatus(cls.id, 'completed')}
+                  className="text-green-500 hover:text-green-700 p-1.5 hover:bg-green-50 rounded-lg transition-colors"
+                  title="Completar Clase"
+                >
+                    <CheckCircle className="w-4 h-4" />
+                </button>
+            )}
+            {cls.meet_url && (
+                <a 
+                    href={cls.meet_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Ir a Meet"
+                >
+                    <ExternalLink className="w-4 h-4" />
+                </a>
+            )}
+            <Link 
+                href={`/teacher/my-classes/${cls.id}`}
+                className="text-slate-600 hover:text-slate-900 p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                title="Ver Detalles"
+            >
+                <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+        );
+      }
+    }
+  ], []);
 
   return (
     <AuthenticatedLayout>
       <Head title="Mis Clases" />
 
       <div className="min-h-screen bg-gray-50">
-        {/* Header - Consistent with Dashboard Design */}
+        {/* Header */}
         <div className="bg-white border-b shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="w-full px-6 py-6">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div>
                 <Link 
@@ -145,25 +328,16 @@ export default function MyClasses({ scheduledClasses, stats, filters }: Props) {
               
               {/* Stats KPIs */}
               <div className="flex items-center gap-4">
-                <div 
-                  className="text-center px-5 py-3 rounded-xl shadow-md"
-                  style={{ backgroundColor: 'rgba(7, 51, 114, 0.05)' }}
-                >
-                  <div className="text-3xl font-black" style={{ color: '#073372' }}>{stats.scheduledClasses}</div>
+                <div className="text-center px-5 py-3 rounded-xl shadow-md bg-[#073372]/5">
+                  <div className="text-3xl font-black text-[#073372]">{stats.scheduledClasses}</div>
                   <div className="text-xs font-semibold text-gray-600 mt-1">Programadas</div>
                 </div>
-                <div 
-                  className="text-center px-5 py-3 rounded-xl shadow-md"
-                  style={{ backgroundColor: 'rgba(249, 134, 19, 0.05)' }}
-                >
-                  <div className="text-3xl font-black" style={{ color: '#F98613' }}>{stats.inProgressClasses}</div>
+                <div className="text-center px-5 py-3 rounded-xl shadow-md bg-[#F98613]/5">
+                  <div className="text-3xl font-black text-[#F98613]">{stats.inProgressClasses}</div>
                   <div className="text-xs font-semibold text-gray-600 mt-1">En Curso</div>
                 </div>
-                <div 
-                  className="text-center px-5 py-3 rounded-xl shadow-md"
-                  style={{ backgroundColor: 'rgba(23, 188, 145, 0.05)' }}
-                >
-                  <div className="text-3xl font-black" style={{ color: '#17BC91' }}>{stats.completedClasses}</div>
+                <div className="text-center px-5 py-3 rounded-xl shadow-md bg-[#17BC91]/5">
+                  <div className="text-3xl font-black text-[#17BC91]">{stats.completedClasses}</div>
                   <div className="text-xs font-semibold text-gray-600 mt-1">Completadas</div>
                 </div>
               </div>
@@ -171,220 +345,113 @@ export default function MyClasses({ scheduledClasses, stats, filters }: Props) {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {/* Filters Card - Material Design Style */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div 
-                className="p-2.5 rounded-lg"
-                style={{ backgroundColor: 'rgba(7, 51, 114, 0.1)' }}
-              >
-                <Filter className="w-5 h-5" style={{ color: '#073372' }} />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">Filtros de Búsqueda</h3>
-                <p className="text-sm text-gray-500">Encuentra tus clases rápidamente</p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-              <Select2
-                label="Estado de la Clase"
-                value={statusFilter}
-                onChange={(value) => setStatusFilter(value as string)}
-                options={[
-                  { value: '', label: 'Todos los estados' },
-                  { value: 'scheduled', label: '📅 Programadas' },
-                  { value: 'in_progress', label: '🔄 En Curso' },
-                  { value: 'completed', label: '✅ Completadas' },
-                  { value: 'cancelled', label: '❌ Canceladas' },
-                ]}
-                icon={<CheckCircle className="w-5 h-5" />}
-                isSearchable={false}
-                isClearable={false}
-              />
+        <div className="w-full px-6 py-6 space-y-6">
+          
+             {/* Search Bar & Filters */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                 <div className="w-full md:max-w-md">
+                    <Input
+                        label="Buscar en esta página..."
+                        value={quickFilterText}
+                        onChange={(e) => setQuickFilterText(e.target.value)}
+                        icon={<Search className="w-5 h-5" />}
+                    />
+                 </div>
 
-              <DatePicker
-                label="Fecha"
-                selected={dateFilter}
-                onChange={(date) => setDateFilter(date)}
-                isClearable
-                
-              />
-
-              <Button 
-                onClick={handleFilter} 
-                className="h-14 text-white font-semibold shadow-md hover:shadow-lg transition-all"
-                style={{ backgroundColor: '#073372' }}
-              >
-                <Search className="w-5 h-5 mr-2" />
-                Buscar
-              </Button>
-
-              {(statusFilter || dateFilter) && (
-                <Button 
-                  onClick={clearFilters} 
-                  variant="outline" 
-                  className="h-14 border-2 font-semibold hover:bg-gray-50"
-                  style={{ borderColor: '#F98613', color: '#F98613' }}
-                >
-                  Limpiar Filtros
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Classes List */}
-          {scheduledClasses.data.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-12 text-center">
-              <div 
-                className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center"
-                style={{ backgroundColor: 'rgba(7, 51, 114, 0.1)' }}
-              >
-                <Calendar className="w-10 h-10" style={{ color: '#073372', opacity: 0.5 }} />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">No hay clases</h3>
-              <p className="text-gray-500">No tienes clases asignadas con los filtros seleccionados.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {scheduledClasses.data.map((scheduledClass) => {
-                const statusConfig = getStatusConfig(scheduledClass.status);
-                return (
-                  <div 
-                    key={scheduledClass.id} 
-                    className="bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300 overflow-hidden"
-                  >
-                    <div className="flex items-stretch">
-                      {/* Session Number */}
-                      <div 
-                        className="w-28 flex-shrink-0 flex flex-col items-center justify-center py-6"
-                        style={{ backgroundColor: scheduledClass.template.academic_level?.color || '#073372' }}
-                      >
-                        <span className="text-4xl font-black text-white">{scheduledClass.template.session_number}</span>
-                        <span className="text-xs text-white/80 uppercase font-semibold mt-1">Sesión</span>
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 p-5">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h3 className="font-bold text-lg text-gray-900">{scheduledClass.template.title}</h3>
-                              <Badge 
-                                className="text-xs font-semibold px-3 py-1"
-                                style={{ 
-                                  backgroundColor: statusConfig.bgColor, 
-                                  color: statusConfig.color,
-                                  border: `1px solid ${statusConfig.borderColor}`
-                                }}
-                              >
-                                {statusConfig.label}
-                              </Badge>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mt-3">
-                              <span className="flex items-center gap-1.5">
-                                <Calendar className="w-4 h-4" style={{ color: '#073372' }} />
-                                {formatDateTime(scheduledClass.scheduled_at)}
-                              </span>
-                              <span className="flex items-center gap-1.5">
-                                <Clock className="w-4 h-4" style={{ color: '#073372' }} />
-                                {scheduledClass.template.duration_minutes} min
-                              </span>
-                              <span className="flex items-center gap-1.5">
-                                <Users className="w-4 h-4" style={{ color: '#073372' }} />
-                                {scheduledClass.enrollments_count}/{scheduledClass.max_students} aprendices
-                              </span>
-                              <Badge 
-                                variant="outline"
-                                className="font-semibold"
-                                style={{ borderColor: scheduledClass.template.academic_level?.color, color: scheduledClass.template.academic_level?.color }}
-                              >
-                                {scheduledClass.template.academic_level?.name}
-                              </Badge>
-                            </div>
-
-                            {/* Recording badge */}
-                            {scheduledClass.recording_url && (
-                              <div className="mt-3">
-                                <Badge 
-                                  className="text-white font-semibold"
-                                  style={{ backgroundColor: '#F98613' }}
-                                >
-                                  <Film className="w-3 h-3 mr-1.5" />
-                                  Con Grabación
-                                </Badge>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Actions */}
-                          <div className="flex items-center gap-2 ml-4">
-                            {scheduledClass.status === 'scheduled' && (
-                              <Button 
-                                className="font-semibold text-white shadow-md hover:shadow-lg transition-all"
-                                style={{ backgroundColor: '#F98613' }}
-                                onClick={() => handleUpdateStatus(scheduledClass.id, 'in_progress')}
-                              >
-                                <Play className="w-4 h-4 mr-1.5" />
-                                Iniciar
-                              </Button>
-                            )}
-                            {scheduledClass.status === 'in_progress' && (
-                              <Button 
-                                className="font-semibold text-white shadow-md hover:shadow-lg transition-all"
-                                style={{ backgroundColor: '#17BC91' }}
-                                onClick={() => handleUpdateStatus(scheduledClass.id, 'completed')}
-                              >
-                                <CheckCircle className="w-4 h-4 mr-1.5" />
-                                Completar
-                              </Button>
-                            )}
-                            {scheduledClass.meet_url && (
-                              <a href={scheduledClass.meet_url} target="_blank" rel="noopener noreferrer">
-                                <Button 
-                                  variant="outline"
-                                  className="font-semibold"
-                                  style={{ borderColor: '#073372', color: '#073372' }}
-                                >
-                                  <ExternalLink className="w-4 h-4 mr-1.5" />
-                                  Meet
-                                </Button>
-                              </a>
-                            )}
-                            <Link href={`/teacher/my-classes/${scheduledClass.id}`}>
-                              <Button 
-                                variant="outline"
-                                className="font-semibold text-gray-800"
-                              >
-                                Ver Detalle
-                                <ChevronRight className="w-4 h-4 ml-1" />
-                              </Button>
-                            </Link>
-                          </div>
-                        </div>
-                      </div>
+                 {/* Server Side Filters (Collapsible or Inline) */}
+                 <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
+                    <div className="w-full md:w-48">
+                         <Select2
+                            value={statusFilter}
+                            onChange={(value) => setStatusFilter(value as string)}
+                            options={[
+                            { value: '', label: 'Todos los estados' },
+                            { value: 'scheduled', label: '📅 Programadas' },
+                            { value: 'in_progress', label: '🔄 En Curso' },
+                            { value: 'completed', label: '✅ Completadas' },
+                            { value: 'cancelled', label: '❌ Canceladas' },
+                            ]}
+                            isSearchable={false}
+                            isClearable={false}
+                            label="Estado"
+                        />
                     </div>
-                  </div>
-                );
-              })}
+                     <div className="w-full md:w-48">
+                        <DatePicker
+                            selected={dateFilter}
+                            onChange={(date) => setDateFilter(date)}
+                            isClearable
+                            label="Fecha"
+                        />
+                    </div>
+                     <div className="flex gap-2 w-full md:w-auto">
+                        <Button 
+                            onClick={handleFilter} 
+                            className="bg-[#073372] hover:bg-[#052a5e] text-white shadow-sm h-[42px]"
+                            title="Aplicar Filtros"
+                        >
+                            <Search className="w-4 h-4" />
+                        </Button>
+                        {(statusFilter || dateFilter) && (
+                            <Button 
+                                onClick={clearFilters} 
+                                variant="outline"
+                                className="border-orange-500 text-orange-500 hover:bg-orange-50 h-[42px]"
+                                title="Limpiar Filtros"
+                            >
+                                <XCircle className="w-4 h-4" />
+                            </Button>
+                        )}
+                     </div>
+                 </div>
             </div>
-          )}
 
-          {/* Pagination */}
+            {/* AG Grid Table */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="ag-theme-quartz" style={{ height: '600px', width: '100%' }}>
+                    <AgGridReact<ScheduledClass>
+                        theme={themeQuartz}
+                        rowData={scheduledClasses.data}
+                        columnDefs={columnDefs}
+                        quickFilterText={quickFilterText}
+                        defaultColDef={{
+                            sortable: true,
+                            filter: true,
+                            resizable: true,
+                            flex: 1,
+                            minWidth: 100,
+                        }}
+                        pagination={true}
+                        paginationPageSize={10}
+                        paginationPageSizeSelector={[10, 20, 50]}
+                        rowSelection={{ mode: 'singleRow' }}
+                        animateRows={true}
+                        domLayout="normal"
+                        rowHeight={70}
+                        headerHeight={50}
+                        suppressCellFocus={true}
+                        rowClass="hover:bg-gray-50"
+                        overlayNoRowsTemplate={
+                            '<div style="padding: 20px;">No hay clases para mostrar</div>'
+                        }
+                    />
+                </div>
+            </div>
+
+          {/* Pagination Links (Server Side) */}
           {scheduledClasses.last_page > 1 && (
-            <div className="mt-8 flex justify-center gap-2">
+            <div className="mt-8 flex justify-center gap-2 pb-8">
               {Array.from({ length: scheduledClasses.last_page }, (_, i) => i + 1).map((page) => (
                 <Button
                   key={page}
                   variant={page === scheduledClasses.current_page ? 'default' : 'outline'}
                   className={page === scheduledClasses.current_page 
                     ? 'font-bold text-white shadow-md' 
-                    : 'font-semibold hover:bg-gray-50'
+                    : 'font-semibold hover:bg-gray-50 text-slate-600'
                   }
                   style={page === scheduledClasses.current_page 
                     ? { backgroundColor: '#073372' } 
-                    : { borderColor: '#073372', color: '#073372' }
+                    : { borderColor: '#e2e8f0' }
                   }
                   onClick={() => router.get('/teacher/my-classes', { ...filters, page })}
                 >

@@ -1016,25 +1016,13 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
       )}
 
       {/* Barra de búsqueda */}
-      <div className="relative">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre, email, especialización, nivel, modalidad..."
+      <div className="w-full">
+          <Input
+            label="Buscar por nombre, email, especialización..."
             value={quickFilterText}
             onChange={(e) => setQuickFilterText(e.target.value)}
-            className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#073372]"
+            icon={<Search className="w-5 h-5" />}
           />
-          {quickFilterText && (
-            <button
-              onClick={() => setQuickFilterText('')}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <XCircle className="w-5 h-5" />
-            </button>
-          )}
-        </div>
       </div>
 
       {/* AG Grid Table */}

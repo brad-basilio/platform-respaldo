@@ -1,15 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { 
   Users, Search, ArrowLeft, CheckCircle,
-  GraduationCap, ChevronDown, ChevronUp, Mail, Phone
+  GraduationCap, Mail, Phone, X, History,
+  XCircle, BookOpen
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+// AG Grid Imports
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef, ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-community';
+
+// Register AG Grid Modules
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 interface EnrollmentDetail {
   id: number;
@@ -47,31 +55,8 @@ interface Props {
 }
 
 export default function MyStudents({ students, stats }: Props) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [expandedStudent, setExpandedStudent] = useState<number | null>(null);
-
-  const filteredStudents = students.filter(student => {
-    const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
-    return fullName.includes(searchTerm.toLowerCase()) || 
-           student.email.toLowerCase().includes(searchTerm.toLowerCase());
-  });
-
-  const toggleExpand = (studentId: number) => {
-    setExpandedStudent(expandedStudent === studentId ? null : studentId);
-  };
-
-  const getStatusConfig = (status: string, attended: boolean, examCompleted: boolean) => {
-    if (status === 'completed' && attended && examCompleted) {
-      return { label: 'Completada', color: 'bg-emerald-100 text-emerald-700' };
-    }
-    if (status === 'completed' && attended && !examCompleted) {
-      return { label: 'Pendiente examen', color: 'bg-amber-100 text-amber-700' };
-    }
-    if (status === 'in_progress') {
-      return { label: 'En curso', color: 'bg-blue-100 text-blue-700' };
-    }
-    return { label: 'Programada', color: 'bg-gray-100 text-gray-700' };
-  };
+  const [quickFilterText, setQuickFilterText] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('es-PE', {
@@ -82,183 +67,321 @@ export default function MyStudents({ students, stats }: Props) {
     });
   };
 
+  const getStatusConfig = (status: string, attended: boolean, examCompleted: boolean) => {
+    if (status === 'completed' && attended && examCompleted) {
+      return { label: 'Completada', color: 'bg-emerald-100 text-emerald-700', border: 'border-emerald-200' };
+    }
+    if (status === 'completed' && attended && !examCompleted) {
+      return { label: 'Pendiente examen', color: 'bg-amber-100 text-amber-700', border: 'border-amber-200' };
+    }
+    if (status === 'in_progress') {
+      return { label: 'En curso', color: 'bg-blue-100 text-blue-700', border: 'border-blue-200' };
+    }
+    return { label: 'Programada', color: 'bg-gray-100 text-gray-700', border: 'border-gray-200' };
+  };
+
+  // AG Grid Column Definitions
+  const columnDefs = useMemo<ColDef<StudentData>[]>(() => [
+    {
+      headerName: 'Estudiante',
+      field: 'first_name',
+      minWidth: 250,
+      filter: 'agTextColumnFilter',
+      cellRenderer: (params: any) => {
+        const student = params.data;
+        const initial = student.first_name.charAt(0);
+        return (
+          <div className="flex items-center gap-3 py-1">
+            <div 
+              className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0"
+              style={{ backgroundColor: student.academic_level_color }}
+            >
+              {initial}
+            </div>
+            <div className="flex flex-col justify-center">
+              <span className="font-semibold text-gray-900 leading-tight">
+                {student.first_name} {student.last_name}
+              </span>
+              <span className="text-xs text-gray-500">{student.email}</span>
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      headerName: 'Nivel',
+      field: 'academic_level',
+      minWidth: 150,
+      filter: 'agTextColumnFilter',
+      cellRenderer: (params: any) => {
+        const color = params.data.academic_level_color;
+        return (
+          <div className="flex items-center h-full">
+            <Badge 
+              variant="outline" 
+              className="font-medium"
+              style={{ borderColor: color, color: color, backgroundColor: `${color}10` }}
+            >
+              <BookOpen className="w-3 h-3 mr-1.5" />
+              {params.value}
+            </Badge>
+          </div>
+        );
+      }
+    },
+    {
+      headerName: 'Contacto',
+      field: 'phone', // Filter by phone
+      minWidth: 180,
+      cellRenderer: (params: any) => {
+         const student = params.data;
+         return (
+             <div className="flex flex-col justify-center h-full text-sm text-gray-600 gap-1">
+                 {student.phone ? (
+                     <div className="flex items-center gap-1.5">
+                         <Phone className="w-3.5 h-3.5 text-gray-400" />
+                         <span>{student.phone}</span>
+                     </div>
+                 ) : (
+                     <span className="text-gray-400 italic text-xs">Sin teléfono</span>
+                 )}
+             </div>
+         )
+      }
+    },
+    {
+      headerName: 'Progreso',
+      field: 'progress',
+      minWidth: 200,
+      cellRenderer: (params: any) => {
+        const student = params.data;
+        return (
+          <div className="flex flex-col justify-center h-full w-full pr-4">
+             <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-medium text-gray-700">
+                    {student.completed_classes}/{student.total_classes} clases
+                </span>
+                <span className="text-xs font-bold text-gray-900">{student.progress}%</span>
+             </div>
+             <Progress value={student.progress} className="h-2 w-full" />
+          </div>
+        );
+      }
+    },
+    {
+      headerName: 'Acciones',
+      width: 200,
+      pinned: 'right',
+      sortable: false,
+      filter: false,
+      cellRenderer: (params: any) => {
+        return (
+          <div className="flex items-center h-full">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedStudent(params.data)}
+              className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 h-8"
+              title="Ver Historial de Clases"
+            >
+              <History className="w-4 h-4 mr-1.5" />
+              Historial
+            </Button>
+          </div>
+        );
+      }
+    }
+  ], []);
+
+  // Modal styles for history
+  const HistoryModal = ({ student, onClose }: { student: StudentData | null, onClose: () => void }) => {
+    if (!student) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+         <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+             {/* Header */}
+             <div className="flex items-center justify-between p-5 border-b bg-gray-50/50">
+                 <div className="flex items-center gap-3">
+                     <div 
+                         className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm"
+                         style={{ backgroundColor: student.academic_level_color }}
+                     >
+                         {student.first_name.charAt(0)}
+                     </div>
+                     <div>
+                         <h3 className="text-lg font-bold text-gray-900 leading-tight">
+                             {student.first_name} {student.last_name}
+                         </h3>
+                         <p className="text-sm text-gray-500">Historial de Clases</p>
+                     </div>
+                 </div>
+                 <button 
+                     onClick={onClose}
+                     className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors"
+                 >
+                     <X className="w-5 h-5" />
+                 </button>
+             </div>
+
+             {/* Content */}
+             <div className="p-5 overflow-y-auto">
+                 {student.enrollments.length === 0 ? (
+                     <div className="text-center py-12 text-gray-500">
+                         <BookOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                         <p>No hay historial de clases registrado.</p>
+                     </div>
+                 ) : (
+                     <div className="space-y-3">
+                         {student.enrollments.map((enrollment) => {
+                             const config = getStatusConfig(enrollment.status, enrollment.attended, enrollment.exam_completed);
+                             return (
+                                 <div 
+                                     key={enrollment.id}
+                                     className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+                                 >
+                                     <div className="flex items-start gap-4">
+                                         <div 
+                                             className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-[#073372] to-[#124d9c] text-white flex items-center justify-center font-bold text-sm shadow-sm"
+                                         >
+                                             {enrollment.session_number}
+                                         </div>
+                                         <div>
+                                             <h4 className="font-semibold text-gray-900">{enrollment.class_title}</h4>
+                                             <p className="text-sm text-gray-500 mt-0.5">
+                                                 <span className="font-medium text-gray-700">Programada:</span> {formatDate(enrollment.scheduled_at)}
+                                             </p>
+                                         </div>
+                                     </div>
+
+                                     <div className="flex flex-col items-end gap-2">
+                                         <Badge 
+                                             className={`${config.color} border px-2.5 py-0.5`}
+                                         >
+                                             {config.label}
+                                         </Badge>
+                                         <div className="flex gap-1.5">
+                                             {enrollment.attended && (
+                                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                                     <CheckCircle className="w-3 h-3 mr-1" /> Asistió
+                                                 </span>
+                                             )}
+                                             {enrollment.exam_completed && (
+                                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                                     <GraduationCap className="w-3 h-3 mr-1" /> Examen
+                                                 </span>
+                                             )}
+                                         </div>
+                                     </div>
+                                 </div>
+                             );
+                         })}
+                     </div>
+                 )}
+             </div>
+
+             {/* Footer */}
+             <div className="p-4 border-t bg-gray-50/50 flex justify-end">
+                 <Button 
+                     onClick={onClose}
+                     variant="outline"
+                     className="border-gray-300"
+                 >
+                     Cerrar
+                 </Button>
+             </div>
+         </div>
+      </div>
+    );
+  };
+
   return (
     <AuthenticatedLayout>
       <Head title="Mis Participantes" />
 
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <div className="bg-white border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="bg-white border-b shadow-sm">
+          <div className="w-full px-6 py-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
                 <Link 
                   href="/dashboard" 
-                  className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-2"
+                  className="inline-flex items-center gap-2 text-gray-500 hover:text-[#073372] transition-colors mb-2"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  Volver al Dashboard
+                  <span className="text-sm font-medium">Volver al Dashboard</span>
                 </Link>
                 <h1 className="text-2xl font-bold text-gray-900">Mis Participantes</h1>
-                <p className="text-gray-600 mt-1">Aprendices de tus clases asignadas</p>
+                <p className="text-gray-500 mt-1">Gestiona y monitorea el progreso de tus aprendices</p>
               </div>
-              <div className="flex items-center gap-4 text-sm">
-                <div className="text-center px-4 py-2 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">{stats.totalStudents}</div>
-                  <div className="text-blue-600">Total</div>
+              
+              <div className="flex items-center gap-4">
+                <div className="text-center px-5 py-2.5 bg-[#073372]/5 rounded-xl border border-[#073372]/10">
+                  <div className="text-2xl font-black text-[#073372]">{stats.totalStudents}</div>
+                  <div className="text-xs font-semibold text-gray-600">Total</div>
                 </div>
-                <div className="text-center px-4 py-2 bg-orange-50 rounded-lg">
-                  <div className="text-2xl font-bold text-orange-600">{stats.activeStudents}</div>
-                  <div className="text-orange-600">En Progreso</div>
+                <div className="text-center px-5 py-2.5 bg-[#F98613]/5 rounded-xl border border-[#F98613]/10">
+                  <div className="text-2xl font-black text-[#F98613]">{stats.activeStudents}</div>
+                  <div className="text-xs font-semibold text-gray-600">En Progreso</div>
                 </div>
-                <div className="text-center px-4 py-2 bg-emerald-50 rounded-lg">
-                  <div className="text-2xl font-bold text-emerald-600">{stats.graduatedStudents}</div>
-                  <div className="text-emerald-600">Completaron</div>
+                <div className="text-center px-5 py-2.5 bg-[#17BC91]/5 rounded-xl border border-[#17BC91]/10">
+                  <div className="text-2xl font-black text-[#17BC91]">{stats.graduatedStudents}</div>
+                  <div className="text-xs font-semibold text-gray-600">Completaron</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {/* Search */}
-          <Card className="mb-6">
-            <CardContent className="py-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Buscar por nombre o email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Students List */}
-          {filteredStudents.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Users className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay participantes</h3>
-                <p className="text-gray-600">
-                  {searchTerm ? 'No se encontraron participantes con ese criterio de búsqueda.' : 'Aún no tienes aprendices asignados en tus clases.'}
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {filteredStudents.map((student) => (
-                <Card key={student.id} className="overflow-hidden">
-                  <CardContent className="p-0">
-                    {/* Student Header */}
-                    <div 
-                      className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                      onClick={() => toggleExpand(student.id)}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div 
-                          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold"
-                          style={{ backgroundColor: student.academic_level_color }}
-                        >
-                          {student.first_name.charAt(0)}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-gray-900">
-                            {student.first_name} {student.last_name}
-                          </h3>
-                          <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
-                            <span className="flex items-center gap-1">
-                              <Mail className="w-4 h-4" />
-                              {student.email}
-                            </span>
-                            {student.phone && (
-                              <span className="flex items-center gap-1">
-                                <Phone className="w-4 h-4" />
-                                {student.phone}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-6">
-                        <div className="text-right">
-                          <Badge 
-                            variant="outline"
-                            style={{ borderColor: student.academic_level_color, color: student.academic_level_color }}
-                          >
-                            {student.academic_level}
-                          </Badge>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-sm text-gray-600">
-                              {student.completed_classes}/{student.total_classes} clases
-                            </span>
-                            <Progress value={student.progress} className="w-24 h-2" />
-                            <span className="text-sm font-medium text-gray-900">{student.progress}%</span>
-                          </div>
-                        </div>
-                        <Button variant="ghost" size="icon">
-                          {expandedStudent === student.id ? (
-                            <ChevronUp className="w-5 h-5" />
-                          ) : (
-                            <ChevronDown className="w-5 h-5" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Expanded Details */}
-                    {expandedStudent === student.id && (
-                      <div className="border-t bg-gray-50 p-4">
-                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Historial de Clases</h4>
-                        <div className="grid gap-2">
-                          {student.enrollments.map((enrollment) => {
-                            const statusConfig = getStatusConfig(enrollment.status, enrollment.attended, enrollment.exam_completed);
-                            return (
-                              <div 
-                                key={enrollment.id}
-                                className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded bg-[#073372] text-white flex items-center justify-center text-sm font-bold">
-                                    {enrollment.session_number}
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-gray-900 text-sm">{enrollment.class_title}</p>
-                                    <p className="text-xs text-gray-500">{formatDate(enrollment.scheduled_at)}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {enrollment.attended && (
-                                    <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
-                                      <CheckCircle className="w-3 h-3 mr-1" />
-                                      Asistió
-                                    </Badge>
-                                  )}
-                                  {enrollment.exam_completed && (
-                                    <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
-                                      <GraduationCap className="w-3 h-3 mr-1" />
-                                      Examen ✓
-                                    </Badge>
-                                  )}
-                                  <Badge className={statusConfig.color}>
-                                    {statusConfig.label}
-                                  </Badge>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+        <div className="w-full px-6 py-6 space-y-6">
+            {/* Search Bar */}
+            <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                <div className="w-full">
+                    <Input
+                        label="Buscar por nombre, email o teléfono..."
+                        value={quickFilterText}
+                        onChange={(e) => setQuickFilterText(e.target.value)}
+                        icon={<Search className="w-5 h-5" />}
+                    />
+                </div>
+                {/* Additional actions could go here */}
             </div>
-          )}
+
+            {/* AG Grid Table */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="ag-theme-quartz" style={{ height: '600px', width: '100%' }}>
+                    <AgGridReact<StudentData>
+                        theme={themeQuartz}
+                        rowData={students}
+                        columnDefs={columnDefs}
+                        quickFilterText={quickFilterText}
+                        defaultColDef={{
+                            sortable: true,
+                            filter: true,
+                            resizable: true,
+                            flex: 1,
+                            minWidth: 100,
+                        }}
+                        pagination={true}
+                        paginationPageSize={10}
+                        paginationPageSizeSelector={[10, 20, 50]}
+                        rowSelection={{ mode: 'singleRow' }}
+                        animateRows={true}
+                        domLayout="normal"
+                        rowHeight={70}
+                        headerHeight={50}
+                        suppressCellFocus={true}
+                        overlayNoRowsTemplate={
+                            '<div style="padding: 20px;">No se encontraron participantes</div>'
+                        }
+                    />
+                </div>
+            </div>
         </div>
+
+        {/* Modal for History */}
+        <HistoryModal student={selectedStudent} onClose={() => setSelectedStudent(null)} />
       </div>
     </AuthenticatedLayout>
   );

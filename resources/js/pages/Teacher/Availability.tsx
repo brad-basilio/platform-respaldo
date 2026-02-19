@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
 import { Head } from '@inertiajs/react';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
-import { Clock, Save, Trash2, Plus, AlertTriangle, CheckCircle, Link2, Calendar } from 'lucide-react';
+import { 
+  Clock, Save, Trash2, Plus, AlertTriangle, CheckCircle, 
+  Link2, Calendar, X, AlertCircle 
+} from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 
 interface TimeSlot {
   id?: number;
@@ -47,17 +54,17 @@ const Availability: React.FC<Props> = ({ teacher }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isTogglingAvailability, setIsTogglingAvailability] = useState(false);
   
-  // Estado para agregar horarios en grupo
-  const [showBulkAdd, setShowBulkAdd] = useState(false);
+  // Estado para agregar horarios en grupo (Modal)
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [bulkDays, setBulkDays] = useState<string[]>([]);
   const [bulkTimeRanges, setBulkTimeRanges] = useState<{start: string, end: string}[]>([
     { start: '09:00', end: '12:00' }
   ]);
 
-  const addTimeSlot = () => {
+  const addTimeSlot = (day: string) => {
     setTimeSlots([
       ...timeSlots,
-      { day_of_week: 'Lunes', start_time: '09:00', end_time: '12:00' }
+      { day_of_week: day, start_time: '09:00', end_time: '12:00' }
     ]);
   };
 
@@ -71,37 +78,29 @@ const Availability: React.FC<Props> = ({ teacher }) => {
     setTimeSlots(updated);
   };
 
-  // Agregar un rango de tiempo al bulk
+  // --- Bulk Actions ---
+
   const addBulkTimeRange = () => {
     setBulkTimeRanges([...bulkTimeRanges, { start: '14:00', end: '17:00' }]);
   };
 
-  // Eliminar un rango de tiempo del bulk
   const removeBulkTimeRange = (index: number) => {
     if (bulkTimeRanges.length > 1) {
       setBulkTimeRanges(bulkTimeRanges.filter((_, i) => i !== index));
     }
   };
 
-  // Actualizar un rango de tiempo
   const updateBulkTimeRange = (index: number, field: 'start' | 'end', value: string) => {
     const updated = [...bulkTimeRanges];
     updated[index] = { ...updated[index], [field]: value };
     setBulkTimeRanges(updated);
   };
 
-  // Agregar horarios en grupo
   const handleBulkAdd = () => {
     if (bulkDays.length === 0) {
       toast.error('Selecciona al menos un día');
       return;
     }
-    
-    if (bulkTimeRanges.length === 0) {
-      toast.error('Agrega al menos un horario');
-      return;
-    }
-    
     const newSlots: TimeSlot[] = [];
     bulkDays.forEach(day => {
       bulkTimeRanges.forEach(range => {
@@ -114,16 +113,12 @@ const Availability: React.FC<Props> = ({ teacher }) => {
     });
     
     setTimeSlots([...timeSlots, ...newSlots]);
-    setShowBulkAdd(false);
+    setIsBulkModalOpen(false);
     setBulkDays([]);
     setBulkTimeRanges([{ start: '09:00', end: '12:00' }]);
-    
-    toast.success(`Se agregaron ${newSlots.length} horarios`, {
-      description: `${bulkDays.length} día${bulkDays.length > 1 ? 's' : ''} × ${bulkTimeRanges.length} horario${bulkTimeRanges.length > 1 ? 's' : ''}`,
-    });
+    toast.success(`Se agregaron ${newSlots.length} horarios`);
   };
 
-  // Toggle día en selección múltiple
   const toggleBulkDay = (day: string) => {
     if (bulkDays.includes(day)) {
       setBulkDays(bulkDays.filter(d => d !== day));
@@ -132,35 +127,17 @@ const Availability: React.FC<Props> = ({ teacher }) => {
     }
   };
 
-  // Seleccionar Lunes a Viernes
-  const selectWeekdays = () => {
-    setBulkDays(['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']);
-  };
-
-  // Seleccionar todos
-  const selectAllDays = () => {
-    setBulkDays([...DAYS_OF_WEEK]);
-  };
-
-  // Limpiar selección
-  const clearBulkDays = () => {
-    setBulkDays([]);
-  };
+  // --- API Actions ---
 
   const handleSave = async () => {
-    // Validar horarios inválidos antes de enviar
     const invalidSlots = timeSlots.filter(slot => {
       const [startH, startM] = slot.start_time.split(':').map(Number);
       const [endH, endM] = slot.end_time.split(':').map(Number);
-      const duration = (endH * 60 + endM) - (startH * 60 + startM);
-      return duration <= 0;
+      return (endH * 60 + endM) - (startH * 60 + startM) <= 0;
     });
 
     if (invalidSlots.length > 0) {
-      toast.error('Hay horarios inválidos', {
-        description: 'La hora de fin debe ser mayor a la hora de inicio en todos los horarios.',
-        duration: 5000,
-      });
+      toast.error('Hay horarios inválidos (Fin debe ser mayor a Inicio)');
       return;
     }
 
@@ -174,16 +151,9 @@ const Availability: React.FC<Props> = ({ teacher }) => {
           end_time: slot.end_time.substring(0, 5),
         })),
       });
-      toast.success('Configuración guardada exitosamente', {
-        description: 'Tus horarios y link de Meet han sido actualizados.',
-        duration: 4000,
-      });
+      toast.success('Configuración guardada exitosamente');
     } catch (error) {
-      console.error('Error saving availability:', error);
-      toast.error('Error al guardar la configuración', {
-        description: 'No se pudieron guardar los cambios. Intenta nuevamente.',
-        duration: 5000,
-      });
+      toast.error('Error al guardar la configuración');
     } finally {
       setIsSaving(false);
     }
@@ -194,614 +164,328 @@ const Availability: React.FC<Props> = ({ teacher }) => {
     try {
       const response = await axios.post('/teacher/toggle-availability');
       setNotAvailableToday(response.data.not_available_today);
-      
       if (response.data.not_available_today) {
-        toast.warning('Has marcado que no atiendes hoy', {
-          description: 'No se te asignarán clases por el resto del día.',
-          duration: 5000,
-        });
+        toast.warning('Marcado como NO DISPONIBLE por hoy');
       } else {
-        toast.success('¡Disponibilidad activada!', {
-          description: 'Ya puedes recibir asignación de clases.',
-          duration: 4000,
-        });
+        toast.success('Marcado como DISPONIBLE hoy');
       }
     } catch (error) {
-      console.error('Error toggling availability:', error);
-      toast.error('Error al cambiar la disponibilidad', {
-        description: 'No se pudo cambiar tu estado. Intenta nuevamente.',
-        duration: 5000,
-      });
+      toast.error('Error al cambiar disponibilidad');
     } finally {
       setIsTogglingAvailability(false);
     }
+  };
+
+  const getDayColor = (day: string) => {
+      // Return a consistent color for headers based on the day
+      const colors: Record<string, string> = {
+          'Lunes': '#073372', // Navy
+          'Martes': '#0ea5e9', // Sky
+          'Miércoles': '#17BC91', // Teal
+          'Jueves': '#8b5cf6', // Violet
+          'Viernes': '#ec4899', // Pink
+          'Sábado': '#f59e0b', // Amber
+          'Domingo': '#ef4444', // Red
+      };
+      return colors[day] || '#64748b';
   };
 
   return (
     <AuthenticatedLayout>
       <Head title="Mi Disponibilidad" />
 
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Mi Disponibilidad</h1>
-            <p className="text-gray-600">Configura tus horarios de atención y link de Google Meet</p>
-          </div>
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="bg-gradient-to-r from-[#073372] to-[#17BC91] hover:from-[#052a5e] hover:to-[#14a77f] text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 disabled:opacity-50"
-          >
-            {isSaving ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Guardando...</span>
-              </>
-            ) : (
-              <>
-                <Save className="h-5 w-5" />
-                <span>Guardar Cambios</span>
-              </>
-            )}
-          </button>
+      <div className="bg-gray-50 min-h-screen pb-12">
+        {/* Top Header */}
+        <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
+             <div className="w-full px-6 py-4">
+                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                     <div>
+                         <h1 className="text-2xl font-bold text-gray-900">Mi Disponibilidad</h1>
+                         <p className="text-sm text-gray-500">Administra tus horarios de clase y preferencias</p>
+                     </div>
+                     <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setIsBulkModalOpen(true)}
+                            className="flex-1 sm:flex-none"
+                        >
+                            <Calendar className="w-4 h-4 mr-2" />
+                            Agregar Varios
+                        </Button>
+                        <Button
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="bg-[#073372] hover:bg-[#062b61] text-white flex-1 sm:flex-none"
+                        >
+                            {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+                            {!isSaving && <Save className="w-4 h-4 ml-2" />}
+                        </Button>
+                     </div>
+                 </div>
+             </div>
         </div>
 
-        {/* Card Principal con estilo de StudentManagement */}
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-          {/* Header del Card */}
-          <div className="relative bg-gradient-to-r from-[#073372] to-[#17BC91] px-8 py-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-2xl font-bold text-white mb-1">
-                  Configuración de Disponibilidad
+        <div className="w-full px-6 py-8 space-y-8">
+            
+            {/* Status & Meet Link Card */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Meet Link Section */}
+                <Card className="md:col-span-2 shadow-sm border-gray-200">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                            <div className="p-1.5 bg-blue-100 rounded-lg">
+                                <Link2 className="w-4 h-4 text-blue-700" />
+                            </div>
+                            Link de Google Meet
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                             <Input
+                                placeholder="https://meet.google.com/..."
+                                value={meetUrl}
+                                onChange={(e) => setMeetUrl(e.target.value)}
+                                className="font-mono text-sm"
+                            />
+                            <p className="text-xs text-gray-500">
+                                Este enlace se enviará automáticamente a tus alumnos cuando se programe una clase.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Daily Availability Status */}
+                <Card className={`shadow-sm border transition-colors ${notAvailableToday ? 'border-red-200 bg-red-50/50' : 'border-emerald-200 bg-emerald-50/50'}`}>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                            <div className={`p-1.5 rounded-lg ${notAvailableToday ? 'bg-red-100' : 'bg-emerald-100'}`}>
+                                {notAvailableToday ? <AlertCircle className="w-4 h-4 text-red-700" /> : <CheckCircle className="w-4 h-4 text-emerald-700" />}
+                            </div>
+                            Estado de Hoy
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col gap-4">
+                            <div className="flex items-center justify-between">
+                                <span className={`text-sm font-medium ${notAvailableToday ? 'text-red-700' : 'text-emerald-700'}`}>
+                                    {notAvailableToday ? 'NO Disponible' : 'Disponible'}
+                                </span>
+                                <Switch
+                                    checked={!notAvailableToday}
+                                    onCheckedChange={handleToggleAvailability}
+                                    disabled={isTogglingAvailability}
+                                    className="data-[state=checked]:bg-[#17BC91]"
+                                />
+                            </div>
+                            <p className="text-xs text-gray-500 leading-tight">
+                                {notAvailableToday 
+                                    ? "Has indicado que no puedes atender hoy. No recibirás nuevas asignaciones por el resto del día."
+                                    : "Estás disponible para recibir clases hoy según tus horarios configurados."
+                                }
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Weekly Schedule Grid */}
+            <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-gray-400" />
+                    Horarios Semanales
                 </h3>
-                <p className="text-blue-100">
-                  Define tus horarios y preferencias para recibir clases
-                </p>
-              </div>
-              <Clock className="w-10 h-10 text-white/80" />
-            </div>
-          </div>
-
-          {/* Contenido */}
-          <div className="p-8 space-y-6">
-            {/* Toggle Disponibilidad Hoy */}
-            <div className={`p-4 rounded-xl border-2 transition-all ${
-              notAvailableToday 
-                ? 'bg-red-50 border-red-300' 
-                : 'bg-[#17BC91]/10 border-[#17BC91]/30'
-            }`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  {notAvailableToday ? (
-                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                      <AlertTriangle className="h-6 w-6 text-red-600" />
-                    </div>
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-[#17BC91]/20 flex items-center justify-center">
-                      <CheckCircle className="h-6 w-6 text-[#17BC91]" />
-                    </div>
-                  )}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {notAvailableToday ? 'No disponible hoy' : 'Disponible hoy'}
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      {notAvailableToday 
-                        ? 'No se te asignarán clases hasta mañana. Este estado se reinicia a medianoche.'
-                        : 'Puedes recibir clases según tus horarios configurados.'}
-                    </p>
-                  </div>
-                </div>
                 
-                <button
-                  onClick={handleToggleAvailability}
-                  disabled={isTogglingAvailability}
-                  className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${
-                    notAvailableToday
-                      ? 'bg-[#17BC91] hover:bg-[#14a77f] text-white'
-                      : 'bg-[#F98613] hover:bg-[#e07610] text-white'
-                  } ${isTogglingAvailability ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {isTogglingAvailability ? (
-                    <span className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Cambiando...
-                    </span>
-                  ) : notAvailableToday ? (
-                    'Activar Disponibilidad'
-                  ) : (
-                    'No Atiendo Hoy'
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Sección 1: Link de Google Meet */}
-            <div>
-              <div className="flex items-center mb-4 pb-2 border-b-2 border-[#073372]">
-                <div className="w-8 h-8 bg-[#073372] text-white rounded-full flex items-center justify-center font-bold mr-3">
-                  1
-                </div>
-                <h4 className="text-lg font-semibold text-gray-900">Link de Google Meet Personal</h4>
-              </div>
-
-              <Input
-                label="URL de tu sala de Meet"
-                type="url"
-                value={meetUrl}
-                disabled
-                onChange={(e) => setMeetUrl(e.target.value)}
-                icon={<Link2 className="w-5 h-5" />}
-                helperText="Este link se usará automáticamente al asignar clases. Usa un link permanente para evitar crear uno nuevo cada clase."
-              />
-            </div>
-
-            {/* Sección 2: Horarios Disponibles por Día */}
-            <div>
-              <div className="flex items-center justify-between mb-4 pb-2 border-b-2 border-[#F98613]">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-[#F98613] text-white rounded-full flex items-center justify-center font-bold mr-3">
-                    2
-                  </div>
-                  <h4 className="text-lg font-semibold text-gray-900">Horarios Disponibles</h4>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowBulkAdd(!showBulkAdd)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                    showBulkAdd 
-                      ? 'bg-[#F98613] text-white' 
-                      : 'bg-[#F98613]/10 text-[#F98613] hover:bg-[#F98613]/20'
-                  }`}
-                >
-                  <Plus className="w-4 h-4" />
-                  Agregar Varios Días
-                </button>
-              </div>
-
-              {/* Panel para agregar horarios en grupo */}
-              {showBulkAdd && (
-                <div className="mb-6 p-5 bg-gradient-to-r from-[#F98613]/5 to-[#073372]/5 border-2 border-[#F98613]/30 rounded-2xl">
-                  <h5 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-[#F98613]" />
-                    Configuración Rápida de Horarios
-                  </h5>
-
-                  {/* Paso 1: Selección de días */}
-                  <div className="mb-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-6 h-6 bg-[#073372] text-white rounded-full flex items-center justify-center text-xs font-bold">1</div>
-                      <span className="font-medium text-gray-800">Selecciona los días</span>
-                    </div>
-                    
-                    {/* Botones de selección rápida */}
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      <button
-                        type="button"
-                        onClick={selectWeekdays}
-                        className="px-3 py-1.5 text-sm bg-[#073372] text-white rounded-lg hover:bg-[#052a5e] transition-colors"
-                      >
-                        📅 Lunes a Viernes
-                      </button>
-                      <button
-                        type="button"
-                        onClick={selectAllDays}
-                        className="px-3 py-1.5 text-sm bg-[#17BC91] text-white rounded-lg hover:bg-[#14a77f] transition-colors"
-                      >
-                        📆 Todos los días
-                      </button>
-                      <button
-                        type="button"
-                        onClick={clearBulkDays}
-                        className="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                      >
-                        ✕ Limpiar
-                      </button>
-                    </div>
-
-                    {/* Selector de días */}
-                    <div className="grid grid-cols-7 gap-2">
-                      {DAYS_OF_WEEK.map(day => (
-                        <button
-                          key={day}
-                          type="button"
-                          onClick={() => toggleBulkDay(day)}
-                          className={`p-3 rounded-xl text-center transition-all ${
-                            bulkDays.includes(day)
-                              ? 'bg-[#073372] text-white shadow-lg scale-105'
-                              : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-[#073372]'
-                          }`}
-                        >
-                          <div className="font-bold text-sm">{day.substring(0, 3)}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Paso 2: Rangos de horarios */}
-                  <div className="mb-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-[#F98613] text-white rounded-full flex items-center justify-center text-xs font-bold">2</div>
-                        <span className="font-medium text-gray-800">Define los horarios</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={addBulkTimeRange}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-[#17BC91] bg-[#17BC91]/10 hover:bg-[#17BC91]/20 rounded-lg transition-colors"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Agregar otro horario
-                      </button>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      {bulkTimeRanges.map((range, index) => (
-                        <div key={index} className="flex items-center gap-3 p-4 bg-white rounded-xl border-2 border-gray-200 shadow-sm">
-                          <span className="text-xs font-bold text-white bg-[#073372] px-2.5 py-1 rounded-full">
-                            #{index + 1}
-                          </span>
-                          <div className="flex items-center gap-3 flex-1 flex-wrap">
-                            <div className="flex-1 min-w-[140px]">
-                              <Input
-                                label="Hora inicio"
-                                type="time"
-                                value={range.start}
-                                onChange={(e) => updateBulkTimeRange(index, 'start', e.target.value)}
-                                icon={<Clock className="w-5 h-5" />}
-                              />
-                            </div>
-                            <span className="text-[#073372] font-bold text-xl hidden sm:block">→</span>
-                            <div className="flex-1 min-w-[140px]">
-                              <Input
-                                label="Hora fin"
-                                type="time"
-                                value={range.end}
-                                onChange={(e) => updateBulkTimeRange(index, 'end', e.target.value)}
-                                icon={<Clock className="w-5 h-5" />}
-                              />
-                            </div>
-                            {/* Calcular duración */}
-                            <div className={`px-4 py-2 rounded-xl font-semibold text-sm whitespace-nowrap ${
-                              (() => {
-                                const [startH, startM] = range.start.split(':').map(Number);
-                                const [endH, endM] = range.end.split(':').map(Number);
-                                const duration = (endH * 60 + endM) - (startH * 60 + startM);
-                                return duration <= 0 ? 'bg-red-100 text-red-600' : 'bg-[#17BC91]/10 text-[#17BC91]';
-                              })()
-                            }`}>
-                              {(() => {
-                                const [startH, startM] = range.start.split(':').map(Number);
-                                const [endH, endM] = range.end.split(':').map(Number);
-                                const duration = (endH * 60 + endM) - (startH * 60 + startM);
-                                if (duration <= 0) return '⚠️ Inválido';
-                                const hours = Math.floor(duration / 60);
-                                const mins = duration % 60;
-                                return hours > 0 ? `${hours}h ${mins > 0 ? mins + 'm' : ''}` : `${mins}m`;
-                              })()}
-                            </div>
-                          </div>
-                          {bulkTimeRanges.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeBulkTimeRange(index)}
-                              className="p-2.5 text-red-500 hover:text-white hover:bg-red-500 rounded-xl transition-all"
-                            >
-                              <Trash2 className="h-5 w-5" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Resumen y botón de agregar */}
-                  <div className="bg-white/50 rounded-xl p-4 mb-4">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="text-sm text-gray-600">
-                        <span className="font-semibold text-[#073372]">{bulkDays.length}</span> día{bulkDays.length !== 1 ? 's' : ''} × 
-                        <span className="font-semibold text-[#F98613] ml-1">{bulkTimeRanges.length}</span> horario{bulkTimeRanges.length !== 1 ? 's' : ''} = 
-                        <span className="font-bold text-[#17BC91] ml-1">{bulkDays.length * bulkTimeRanges.length}</span> entradas
-                      </div>
-                      {bulkDays.length > 0 && (
-                        <div className="text-xs text-gray-500">
-                          {bulkDays.slice(0, 3).join(', ')}{bulkDays.length > 3 ? ` +${bulkDays.length - 3} más` : ''}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Botones de acción */}
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={handleBulkAdd}
-                      disabled={bulkDays.length === 0 || bulkTimeRanges.length === 0}
-                      className="flex-1 py-3 bg-gradient-to-r from-[#073372] to-[#17BC91] text-white rounded-xl font-semibold hover:from-[#052a5e] hover:to-[#14a77f] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      <CheckCircle className="w-5 h-5" />
-                      Agregar {bulkDays.length * bulkTimeRanges.length} Horarios
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowBulkAdd(false);
-                        setBulkDays([]);
-                        setBulkTimeRanges([{ start: '09:00', end: '12:00' }]);
-                      }}
-                      className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <p className="text-sm text-gray-500 mb-4">
-                Define los días y horarios en los que estás disponible para dictar clases. 
-                <span className="text-[#F98613] font-medium"> Puedes agregar múltiples horarios por día</span> 
-                (ej: Lunes 9:00-12:00 y Lunes 18:00-21:00).
-              </p>
-
-              {/* Vista por Días de la Semana */}
-              <div className="space-y-4">
-                {DAYS_OF_WEEK.map(day => {
-                  const daySlots = timeSlots.filter(slot => slot.day_of_week === day);
-                  const dayIndex = DAYS_OF_WEEK.indexOf(day);
-                  const dayColors = [
-                    'bg-blue-50 border-blue-200',
-                    'bg-green-50 border-green-200',
-                    'bg-purple-50 border-purple-200',
-                    'bg-orange-50 border-orange-200',
-                    'bg-pink-50 border-pink-200',
-                    'bg-cyan-50 border-cyan-200',
-                    'bg-yellow-50 border-yellow-200',
-                  ];
-                  
-                  return (
-                    <div 
-                      key={day} 
-                      className={`rounded-xl border-2 overflow-hidden transition-all ${
-                        daySlots.length > 0 ? dayColors[dayIndex] : 'bg-gray-50 border-gray-200'
-                      }`}
-                    >
-                      {/* Header del día */}
-                      <div className={`px-4 py-3 flex items-center justify-between ${
-                        daySlots.length > 0 ? 'bg-white/50' : ''
-                      }`}>
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white ${
-                            daySlots.length > 0 ? 'bg-[#073372]' : 'bg-gray-400'
-                          }`}>
-                            {day.substring(0, 2).toUpperCase()}
-                          </div>
-                          <div>
-                            <span className="font-semibold text-gray-900">{day}</span>
-                            {daySlots.length > 0 && (
-                              <span className="ml-2 text-xs bg-[#17BC91] text-white px-2 py-0.5 rounded-full">
-                                {daySlots.length} horario{daySlots.length > 1 ? 's' : ''}
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {DAYS_OF_WEEK.map(day => {
+                        const daySlots = timeSlots.filter(s => s.day_of_week === day);
+                        const dayColor = getDayColor(day);
                         
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTimeSlots([
-                              ...timeSlots,
-                              { day_of_week: day, start_time: '09:00', end_time: '12:00' }
-                            ]);
-                          }}
-                          className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-[#F98613] hover:bg-[#F98613]/10 rounded-lg transition-colors"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Agregar
-                        </button>
-                      </div>
-                      
-                      {/* Horarios del día */}
-                      {daySlots.length > 0 && (
-                        <div className="px-4 pb-4 space-y-3">
-                          {timeSlots.map((slot, index) => {
-                            if (slot.day_of_week !== day) return null;
-                            
-                            const [startH, startM] = slot.start_time.split(':').map(Number);
-                            const [endH, endM] = slot.end_time.split(':').map(Number);
-                            const duration = (endH * 60 + endM) - (startH * 60 + startM);
-                            const isValid = duration > 0;
-                            
-                            return (
-                              <div 
-                                key={index} 
-                                className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-                              >
-                                <div className="flex items-center gap-3 flex-1 flex-wrap">
-                                  <div className="flex-1 min-w-[130px]">
-                                    <Input
-                                      label="Inicio"
-                                      type="time"
-                                      value={slot.start_time}
-                                      onChange={(e) => updateTimeSlot(index, 'start_time', e.target.value)}
-                                      icon={<Clock className="w-5 h-5" />}
-                                    />
-                                  </div>
-                                  
-                                  <span className="text-[#073372] font-bold text-xl hidden sm:block">→</span>
-                                  
-                                  <div className="flex-1 min-w-[130px]">
-                                    <Input
-                                      label="Fin"
-                                      type="time"
-                                      value={slot.end_time}
-                                      onChange={(e) => updateTimeSlot(index, 'end_time', e.target.value)}
-                                      icon={<Clock className="w-5 h-5" />}
-                                    />
-                                  </div>
-                                  
-                                  {/* Calcular y mostrar duración */}
-                                  <div className={`px-4 py-2.5 rounded-xl font-semibold text-sm whitespace-nowrap ${
-                                    isValid ? 'bg-[#17BC91]/10 text-[#17BC91]' : 'bg-red-100 text-red-600'
-                                  }`}>
-                                    {isValid ? (
-                                      (() => {
-                                        const hours = Math.floor(duration / 60);
-                                        const mins = duration % 60;
-                                        return hours > 0 ? `${hours}h ${mins > 0 ? mins + 'm' : ''}` : `${mins}m`;
-                                      })()
-                                    ) : '⚠️ Inválido'}
-                                  </div>
+                        return (
+                            <div key={day} className="flex flex-col bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden h-full">
+                                {/* Day Header */}
+                                <div className="px-4 py-3 border-b flex items-center justify-between bg-gray-50/50">
+                                    <div className="flex items-center gap-3">
+                                        <div 
+                                            className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white shadow-sm text-xs"
+                                            style={{ backgroundColor: dayColor }}
+                                        >
+                                            {day.substring(0,3).toUpperCase()}
+                                        </div>
+                                        <span className="font-semibold text-gray-900">{day}</span>
+                                    </div>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="h-8 w-8 p-0 text-gray-400 hover:text-[#073372] hover:bg-white"
+                                        onClick={() => addTimeSlot(day)}
+                                        title="Agregar Horario"
+                                    >
+                                        <Plus className="w-5 h-5" />
+                                    </Button>
+                                </div>
+
+                                {/* Slots List */}
+                                <div className="p-4 space-y-3 flex-1">
+                                    {daySlots.length === 0 ? (
+                                        <div className="h-full flex flex-col items-center justify-center text-gray-400 py-6 text-sm">
+                                            <span>No hay horarios</span>
+                                        </div>
+                                    ) : (
+                                        daySlots.map((slot, idx) => {
+                                            // Find the original index in standard array to update correctly with ID
+                                            const originalIndex = timeSlots.indexOf(slot);
+                                            
+                                            // Validation
+                                            const [sh, sm] = slot.start_time.split(':').map(Number);
+                                            const [eh, em] = slot.end_time.split(':').map(Number);
+                                            const isValid = (eh * 60 + em) > (sh * 60 + sm);
+
+                                            return (
+                                                <div key={idx} className="flex items-center gap-2 group animate-in slide-in-from-left-2 duration-200">
+                                                    <div className={`flex-1 flex items-center gap-2 p-1.5 rounded-lg border ${isValid ? 'border-gray-200 bg-white' : 'border-red-300 bg-red-50'}`}>
+                                                        <input
+                                                            type="time"
+                                                            className="flex-1 min-w-0 bg-transparent border-none text-sm font-medium text-gray-900 focus:ring-0 p-0 text-center"
+                                                            value={slot.start_time}
+                                                            onChange={(e) => updateTimeSlot(originalIndex, 'start_time', e.target.value)}
+                                                        />
+                                                        <span className="text-gray-400 text-xs">➜</span>
+                                                        <input
+                                                            type="time"
+                                                            className="flex-1 min-w-0 bg-transparent border-none text-sm font-medium text-gray-900 focus:ring-0 p-0 text-center"
+                                                            value={slot.end_time}
+                                                            onChange={(e) => updateTimeSlot(originalIndex, 'end_time', e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        onClick={() => removeTimeSlot(originalIndex)}
+                                                        className="text-gray-300 hover:text-red-500 transition-colors p-1"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            );
+                                        })
+                                    )}
                                 </div>
                                 
-                                <button
-                                  type="button"
-                                  onClick={() => removeTimeSlot(index)}
-                                  className="p-2.5 text-red-500 hover:text-white hover:bg-red-500 rounded-xl transition-all flex-shrink-0"
-                                  title="Eliminar horario"
-                                >
-                                  <Trash2 className="h-5 w-5" />
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Resumen de horarios */}
-              {timeSlots.length > 0 && (
-                <div className="mt-6 p-5 bg-gradient-to-r from-[#073372]/5 to-[#17BC91]/5 border border-[#17BC91]/30 rounded-2xl">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-[#17BC91] rounded-xl flex items-center justify-center">
-                      <CheckCircle className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h5 className="font-bold text-gray-900">Resumen de Disponibilidad</h5>
-                      <p className="text-sm text-gray-500">{timeSlots.length} horario{timeSlots.length > 1 ? 's' : ''} configurado{timeSlots.length > 1 ? 's' : ''}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {DAYS_OF_WEEK.map(day => {
-                      const daySlots = timeSlots.filter(slot => slot.day_of_week === day);
-                      if (daySlots.length === 0) return null;
-                      return (
-                        <div key={day} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-8 h-8 bg-[#073372] text-white rounded-lg flex items-center justify-center text-xs font-bold">
-                              {day.substring(0, 2)}
+                                {/* Footer summary for day */}
+                                {daySlots.length > 0 && (
+                                     <div className="bg-gray-50 px-4 py-2 border-t text-xs text-gray-500 text-center">
+                                         {daySlots.length} horarios configurados
+                                     </div>
+                                )}
                             </div>
-                            <span className="font-semibold text-gray-800">{day}</span>
-                          </div>
-                          <div className="space-y-1">
-                            {daySlots.map((s, i) => (
-                              <div key={i} className="flex items-center gap-2 text-sm">
-                                <Clock className="w-3.5 h-3.5 text-[#17BC91]" />
-                                <span className="text-gray-600">{s.start_time} - {s.end_time}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
+                        );
                     })}
-                  </div>
                 </div>
-              )}
-
-              {/* Mensaje si no hay horarios */}
-              {timeSlots.length === 0 && (
-                <div className="mt-6 text-center py-10 bg-gradient-to-r from-[#F98613]/5 to-[#F98613]/10 rounded-2xl border-2 border-dashed border-[#F98613]/40">
-                  <div className="w-16 h-16 bg-[#F98613]/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Calendar className="h-8 w-8 text-[#F98613]" />
-                  </div>
-                  <p className="text-gray-800 font-semibold text-lg">No tienes horarios configurados</p>
-                  <p className="text-gray-500 mt-2 max-w-md mx-auto">
-                    Usa el botón "Agregar Varios Días" para configurar rápidamente, o haz clic en "Agregar" en cualquier día
-                  </p>
-                </div>
-              )}
             </div>
-
-            {/* Sección 3: Información */}
-            <div>
-              <div className="flex items-center mb-4 pb-2 border-b-2 border-[#17BC91]">
-                <div className="w-8 h-8 bg-[#17BC91] text-white rounded-full flex items-center justify-center font-bold mr-3">
-                  3
-                </div>
-                <h4 className="text-lg font-semibold text-gray-900">¿Cómo funciona?</h4>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gradient-to-br from-[#073372]/5 to-[#073372]/10 border border-[#073372]/20 rounded-xl p-4 flex items-start gap-3">
-                  <div className="w-10 h-10 bg-[#073372] rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Clock className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h6 className="font-semibold text-gray-800 mb-1">Asignación Automática</h6>
-                    <p className="text-sm text-gray-600">Cuando un estudiante solicita una clase, el sistema busca profesores disponibles en ese horario.</p>
-                  </div>
-                </div>
-                
-                <div className="bg-gradient-to-br from-[#17BC91]/5 to-[#17BC91]/10 border border-[#17BC91]/20 rounded-xl p-4 flex items-start gap-3">
-                  <div className="w-10 h-10 bg-[#17BC91] rounded-lg flex items-center justify-center flex-shrink-0">
-                    <CheckCircle className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h6 className="font-semibold text-gray-800 mb-1">Rangos Configurados</h6>
-                    <p className="text-sm text-gray-600">Solo se te asignarán clases dentro de los rangos horarios que has configurado.</p>
-                  </div>
-                </div>
-                
-                <div className="bg-gradient-to-br from-[#F98613]/5 to-[#F98613]/10 border border-[#F98613]/20 rounded-xl p-4 flex items-start gap-3">
-                  <div className="w-10 h-10 bg-[#F98613] rounded-lg flex items-center justify-center flex-shrink-0">
-                    <AlertTriangle className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h6 className="font-semibold text-gray-800 mb-1">No Atiendo Hoy</h6>
-                    <p className="text-sm text-gray-600">Si marcas "No Atiendo Hoy", no recibirás asignaciones por el resto del día. Se reinicia a medianoche.</p>
-                  </div>
-                </div>
-                
-                <div className="bg-gradient-to-br from-purple-500/5 to-purple-500/10 border border-purple-500/20 rounded-xl p-4 flex items-start gap-3">
-                  <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Link2 className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h6 className="font-semibold text-gray-800 mb-1">Google Meet</h6>
-                    <p className="text-sm text-gray-600">Tu link de Google Meet se incluirá automáticamente en las clases que te asignen.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer con Botones */}
-          <div className="bg-gray-50 px-8 py-6 border-t-2 border-gray-200">
-            <div className="flex justify-end gap-4">
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-sm flex items-center gap-2 bg-gradient-to-r from-[#073372] to-[#17BC91] hover:from-[#052a5e] hover:to-[#14a77f] text-white disabled:opacity-50"
-              >
-                {isSaving ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Guardando...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-5 w-5" />
-                    Guardar Configuración
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
         </div>
+
+        {/* Bulk Add Modal */}
+        <Dialog open={isBulkModalOpen} onOpenChange={setIsBulkModalOpen}>
+            <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                    <DialogTitle>Configuración Rápida de Horarios</DialogTitle>
+                </DialogHeader>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
+                    {/* Step 1: Select Days */}
+                    <div className="space-y-4">
+                        <h4 className="font-semibold text-gray-900 flex items-center gap-2 text-sm">
+                            <span className="bg-[#073372] text-white w-5 h-5 rounded-full flex items-center justify-center text-xs">1</span>
+                            Selecciona los días
+                        </h4>
+                        <div className="grid grid-cols-2 gap-2">
+                             <Button 
+                                variant="outline" size="sm" 
+                                onClick={() => setBulkDays(['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'])}
+                                className="w-full text-xs"
+                             >
+                                 Lun - Vie
+                             </Button>
+                             <Button 
+                                variant="outline" size="sm" 
+                                onClick={() => setBulkDays(DAYS_OF_WEEK)}
+                                className="w-full text-xs"
+                             >
+                                 Todos
+                             </Button>
+                        </div>
+                        <div className="space-y-2">
+                            {DAYS_OF_WEEK.map(day => (
+                                <div 
+                                    key={day}
+                                    onClick={() => toggleBulkDay(day)}
+                                    className={`
+                                        flex items-center justify-between p-2 rounded-lg cursor-pointer border transition-all text-sm
+                                        ${bulkDays.includes(day) ? 'border-[#073372] bg-blue-50 text-[#073372]' : 'border-gray-100 hover:bg-gray-50 text-gray-600'}
+                                    `}
+                                >
+                                    <span>{day}</span>
+                                    {bulkDays.includes(day) && <CheckCircle className="w-4 h-4" />}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Step 2: Time Ranges */}
+                    <div className="space-y-4">
+                        <h4 className="font-semibold text-gray-900 flex items-center gap-2 text-sm">
+                             <span className="bg-[#F98613] text-white w-5 h-5 rounded-full flex items-center justify-center text-xs">2</span>
+                            Define los horarios
+                        </h4>
+                        
+                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                            {bulkTimeRanges.map((range, index) => (
+                                <div key={index} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                    <div className="grid grid-cols-2 gap-2 flex-1">
+                                        <div className="space-y-1">
+                                            <span className="text-[10px] uppercase text-gray-500 font-bold">Inicio</span>
+                                            <input 
+                                                type="time" 
+                                                className="w-full text-sm bg-white border border-gray-200 rounded px-2 py-1"
+                                                value={range.start}
+                                                onChange={(e) => updateBulkTimeRange(index, 'start', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <span className="text-[10px] uppercase text-gray-500 font-bold">Fin</span>
+                                            <input 
+                                                type="time" 
+                                                className="w-full text-sm bg-white border border-gray-200 rounded px-2 py-1"
+                                                value={range.end}
+                                                onChange={(e) => updateBulkTimeRange(index, 'end', e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                    {bulkTimeRanges.length > 1 && (
+                                        <button onClick={() => removeBulkTimeRange(index)} className="text-gray-400 hover:text-red-500 mt-4">
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        
+                        <Button variant="outline" size="sm" onClick={addBulkTimeRange} className="w-full border-dashed">
+                            <Plus className="w-3 h-3 mr-2" /> Agregar otro rango
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                    <Button variant="ghost" onClick={() => setIsBulkModalOpen(false)}>Cancelar</Button>
+                    <Button 
+                        onClick={handleBulkAdd}
+                        disabled={bulkDays.length === 0}
+                        className="bg-[#073372] hover:bg-[#062b61] text-white"
+                    >
+                        Agregar Horarios
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
       </div>
     </AuthenticatedLayout>
   );
