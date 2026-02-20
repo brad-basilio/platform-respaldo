@@ -243,29 +243,45 @@ const Availability: React.FC<Props> = ({ teacher, settings }) => {
                     <Clock className="w-5 h-5 text-gray-400" />
                     Días de Disponibilidad Semanal
                 </h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {DAYS_OF_WEEK.map(day => {
                         const isActive = activeDays.includes(day);
                         const dayColor = getDayColor(day);
                         
+                        // Detectar si el día de la tarjeta es HOY
+                        const todayName = new Date().toLocaleDateString('es-ES', { weekday: 'long' });
+                        const isToday = day.toLowerCase() === todayName.toLowerCase();
+                        
+                        // Si es HOY y el switch de "No disponible hoy" está activo, 
+                        // visualmente se debe mostrar como no laboral aunque el día esté activo semanalmente.
+                        const isOverriddenByToday = isToday && notAvailableToday;
+                        const effectivelyActive = isActive && !isOverriddenByToday;
+
                         return (
                             <div 
                                 key={day} 
                                 className={`flex flex-col rounded-xl shadow-sm border transition-all duration-300 overflow-hidden ${
-                                    isActive ? 'bg-white border-gray-200' : 'bg-gray-100/50 border-gray-200 grayscale opacity-70'
+                                    effectivelyActive 
+                                        ? 'bg-white border-gray-200' 
+                                        : isOverriddenByToday 
+                                            ? 'bg-red-50/50 border-red-200' 
+                                            : 'bg-gray-100/50 border-gray-200 grayscale opacity-70'
                                 }`}
                             >
                                 {/* Day Header */}
-                                <div className="px-4 py-3 border-b flex items-center justify-between bg-gray-50/50">
+                                <div className={`px-4 py-3 border-b flex items-center justify-between ${isOverriddenByToday ? 'bg-red-100/30' : 'bg-gray-50/50'}`}>
                                     <div className="flex items-center gap-3">
                                         <div 
-                                            className="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white shadow-sm text-sm"
-                                            style={{ backgroundColor: dayColor }}
+                                            className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white shadow-sm text-sm transition-transform ${isToday ? 'scale-110 ring-2 ring-offset-2 ring-blue-400' : ''}`}
+                                            style={{ backgroundColor: isOverriddenByToday ? '#ef4444' : dayColor }}
                                         >
                                             {day.substring(0,3).toUpperCase()}
                                         </div>
-                                        <span className="font-bold text-gray-900">{day}</span>
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-gray-900 leading-tight">{day}</span>
+                                            {isToday && <span className="text-[10px] text-blue-600 font-bold uppercase">Hoy</span>}
+                                        </div>
                                     </div>
                                     <Switch
                                         checked={isActive}
@@ -276,7 +292,7 @@ const Availability: React.FC<Props> = ({ teacher, settings }) => {
 
                                 {/* Status Info */}
                                 <div className="p-5 flex flex-col items-center justify-center text-center space-y-2">
-                                    {isActive ? (
+                                    {effectivelyActive ? (
                                         <>
                                             <div className="text-lg font-mono font-bold text-[#073372]">
                                                 {opStart} - {opEnd}
@@ -284,6 +300,18 @@ const Availability: React.FC<Props> = ({ teacher, settings }) => {
                                             <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
                                                 Disponible
                                             </span>
+                                        </>
+                                    ) : isOverriddenByToday ? (
+                                        <>
+                                            <div className="text-lg font-mono font-bold text-red-400 line-through decoration-2">
+                                                {opStart} - {opEnd}
+                                            </div>
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-[10px] uppercase tracking-wider font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
+                                                    Inactivo por Hoy
+                                                </span>
+                                                <span className="text-[9px] text-red-500 mt-1 font-medium italic">Bloqueado por estado diario</span>
+                                            </div>
                                         </>
                                     ) : (
                                         <>
