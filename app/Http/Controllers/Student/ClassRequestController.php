@@ -448,7 +448,7 @@ class ClassRequestController extends Controller
 
             // AUTO-ASSIGNMENT: No existing class selected, try to create one with available teacher
             $assignmentService = app(TeacherAssignmentService::class);
-            $teacher = $assignmentService->findAvailableTeacher($requestedDatetime, $template);
+            $teacher = $assignmentService->findAvailableTeacher($requestedDatetime, $template, $type);
 
             if ($teacher) {
                 // Create a new scheduled class with the available teacher
@@ -475,7 +475,7 @@ class ClassRequestController extends Controller
                 return back()->with('success', '¡Tu clase ha sido programada automáticamente con ' . ($teacher->user?->name ?? $teacher->first_name) . '!');
             } else {
                 // No teacher available, return alternative slots
-                $alternativeSlots = $assignmentService->getAlternativeSlots($requestedDatetime, $template, 5);
+                $alternativeSlots = $assignmentService->getAlternativeSlots($requestedDatetime, $template, 5, $type);
 
                 return back()->with('alternative_slots', $alternativeSlots->toArray())
                     ->withErrors(['no_teacher' => 'No hay profesores disponibles en este horario.']);
@@ -546,7 +546,7 @@ class ClassRequestController extends Controller
 
             // AUTO-ASSIGNMENT for DAILY students: No existing class selected, try to create one with available teacher
             $assignmentService = app(TeacherAssignmentService::class);
-            $teacher = $assignmentService->findAvailableTeacher($requestedDatetime, $template);
+            $teacher = $assignmentService->findAvailableTeacher($requestedDatetime, $template, $type);
 
             if ($teacher) {
                 // Create a new scheduled class with the available teacher
@@ -573,7 +573,7 @@ class ClassRequestController extends Controller
                 return back()->with('success', '¡Tu clase ha sido programada automáticamente con ' . ($teacher->user?->name ?? $teacher->first_name) . '!');
             } else {
                 // No teacher available, return alternative slots
-                $alternativeSlots = $assignmentService->getAlternativeSlots($requestedDatetime, $template, 5);
+                $alternativeSlots = $assignmentService->getAlternativeSlots($requestedDatetime, $template, 5, $type);
 
                 return back()->with('alternative_slots', $alternativeSlots->toArray())
                     ->withErrors(['no_teacher' => 'No hay profesores disponibles en este horario.']);
@@ -645,7 +645,7 @@ class ClassRequestController extends Controller
 
             // AUTO-ASSIGNMENT for WEEKLY students: No existing class selected, try to create one with available teacher
             $assignmentService = app(TeacherAssignmentService::class);
-            $teacher = $assignmentService->findAvailableTeacher($requestedDatetime, $template);
+            $teacher = $assignmentService->findAvailableTeacher($requestedDatetime, $template, $type);
 
             if ($teacher) {
                 // Create a new scheduled class with the available teacher
@@ -672,7 +672,7 @@ class ClassRequestController extends Controller
                 return back()->with('success', '¡Tu clase ha sido programada automáticamente con ' . ($teacher->user?->name ?? $teacher->first_name) . '!');
             } else {
                 // No teacher available, return alternative slots
-                $alternativeSlots = $assignmentService->getAlternativeSlots($requestedDatetime, $template, 5);
+                $alternativeSlots = $assignmentService->getAlternativeSlots($requestedDatetime, $template, 5, $type);
 
                 return back()->with('alternative_slots', $alternativeSlots->toArray())
                     ->withErrors(['no_teacher' => 'No hay profesores disponibles en este horario.']);

@@ -7,6 +7,7 @@ import {
   FileQuestion, Award, Download, ExternalLink, Image, Film, Link as LinkIcon,
   X, ChevronLeft, ChevronRight, Loader2, Eye, XCircle, AlertTriangle, Zap
 } from 'lucide-react';
+import { RiUserStarLine } from 'react-icons/ri';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -1205,6 +1206,19 @@ const ClassTemplateView: React.FC<Props> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* Info del profesor de hoy de prácticas */}
+                {!!pageProps.today_practice_teacher && (
+                  <div className="px-6 py-3 bg-[#17BC91]/5 border-b border-[#17BC91]/10 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-[#17BC91]/20 flex items-center justify-center">
+                        <RiUserStarLine className="text-[#17BC91] text-xs" />
+                      </div>
+                      <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Hoy Atiende:</span>
+                    </div>
+                    <span className="text-xs font-bold text-[#073372]">{pageProps.today_practice_teacher as string}</span>
+                  </div>
+                )}
                 
                 <div className="p-6 space-y-4">
                   <div className="flex items-center justify-between text-sm">

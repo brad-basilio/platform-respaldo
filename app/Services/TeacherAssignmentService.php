@@ -44,10 +44,14 @@ class TeacherAssignmentService
      * @param ClassTemplate|null $template Optional template to match specialization
      * @return Teacher|null
      */
-    public function findAvailableTeacher(Carbon $datetime, ?ClassTemplate $template = null): ?Teacher
+    public function findAvailableTeacher(Carbon $datetime, ?ClassTemplate $template = null, string $type = 'regular'): ?Teacher
     {
         $dayName = $this->getDayName($datetime);
         $requestedTime = $datetime->format('H:i');
+        $dateStr = $datetime->toDateString();
+
+        // 1. Obtener el profesor asignado a PRÁCTICAS para hoy
+        $practiceTeacherId = \App\Models\PracticeRotation::where('date', $dateStr)->value('teacher_id');
 
         // Find teachers who:
         // 1. Are active
@@ -64,6 +68,22 @@ class TeacherAssignmentService
                     ->where('start_time', '<=', $requestedTime)
                     ->where('end_time', '>', $requestedTime);
             });
+
+        // REGLA DE ROTACIÓN:
+        if ($type === 'practice') {
+            // Si es práctica, solo buscamos al profesor asignado
+            if ($practiceTeacherId) {
+                $query->where('user_id', $practiceTeacherId);
+            } else {
+                // Si no hay nadie asignado hoy a prácticas, nadie está disponible para prácticas
+                return null;
+            }
+        } else {
+            // Si es regular (teoría), EXCLUIMOS al profesor de prácticas de hoy
+            if ($practiceTeacherId) {
+                $query->where('user_id', '!=', $practiceTeacherId);
+            }
+        }
 
         // Filter by specialization if template is provided
         if ($template && $template->modality) {
@@ -153,7 +173,8 @@ class TeacherAssignmentService
     public function getAlternativeSlots(
         Carbon $fromDatetime,
         ?ClassTemplate $template = null,
-        int $limit = 5
+        int $limit = 5,
+        string $type = 'regular'
     ): Collection {
         $slots = collect();
         $currentDatetime = $fromDatetime->copy()->addHour()->startOfHour();
@@ -166,7 +187,7 @@ class TeacherAssignmentService
         while ($slots->count() < $limit && $currentDatetime->lt($maxDatetime)) {
             // Check if within operation hours
             if ($currentDatetime->hour >= $operationStart && $currentDatetime->hour < $operationEnd) {
-                $teacher = $this->findAvailableTeacher($currentDatetime, $template);
+                $teacher = $this->findAvailableTeacher($currentDatetime, $template, $type);
 
                 if ($teacher) {
                     $slots->push([

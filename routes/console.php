@@ -13,3 +13,10 @@ Artisan::command('inspire', function () {
 Schedule::job(new ResetTeacherAvailability)->dailyAt('00:00')
     ->name('reset-teacher-availability')
     ->withoutOverlapping();
+
+// Asegurar que el cronograma de prácticas siempre tenga los próximos 30 días
+Schedule::call(function () {
+    \App\Models\PracticeRotation::ensureRotationsExist(now(), 30);
+})->dailyAt('01:00')
+    ->name('generate-practice-rotations')
+    ->withoutOverlapping();

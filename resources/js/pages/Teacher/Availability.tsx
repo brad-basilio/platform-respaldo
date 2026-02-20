@@ -238,7 +238,7 @@ const Availability: React.FC<Props> = ({ teacher, settings }) => {
             </div>
 
             {/* Weekly Schedule Grid */}
-            <div>
+            <div className='hidden'>
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                     <Clock className="w-5 h-5 text-gray-400" />
                     Días de Disponibilidad Semanal

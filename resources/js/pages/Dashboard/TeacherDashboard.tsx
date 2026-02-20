@@ -1,10 +1,11 @@
 import React from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { 
   Users, BookOpen, Calendar, Clock, 
   CheckCircle, Play, Film, ChevronRight,
-  Zap
+  Zap, Star, ShieldCheck
 } from 'lucide-react';
+import { RiUserStarLine, RiGroupLine, RiCalendarCheckLine } from 'react-icons/ri';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -77,6 +78,9 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   upcomingClasses = [],
   recentClasses = [],
 }) => {
+  const { props } = usePage<any>();
+  const isPracticeToday = props.auth?.is_today_practice_teacher;
+
   // KPI Cards - Colores institucionales UNCED
   const kpiCards = [
     { 
@@ -104,6 +108,48 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   return (
     <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto bg-gray-50">
+      {/* Alerta de Turno de Práctica - WOW Effect */}
+      {isPracticeToday && (
+        <div className="relative overflow-hidden bg-gradient-to-r from-[#073372] to-[#17BC91] rounded-2xl p-1 shadow-xl shadow-cyan-900/20 animate-fade-in">
+          <div className="bg-[#073372]/90 backdrop-blur-sm rounded-[calc(1rem-3px)] p-6 flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+            <div className="flex items-center gap-5">
+              <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 shadow-inner">
+                <RiUserStarLine className="text-white text-4xl animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge className="bg-[#17BC91] text-white border-0 text-[10px] font-black uppercase tracking-widest px-2">
+                    Turno Activo
+                  </Badge>
+                  <span className="text-white/60 text-xs font-medium">• Hoy {new Date().toLocaleDateString('es-PE', { day: 'numeric', month: 'long' })}</span>
+                </div>
+                <h2 className="text-2xl font-black text-white leading-tight">¡Hoy te toca el Cronograma de Prácticas!</h2>
+                <p className="text-white/70 text-sm max-w-xl">
+                  Estás a cargo de todas las sesiones de práctica del día. Los aprendices te verán como su instructor asignado para resolver dudas y practicar speaking.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <Link href="/teacher/practice-rotations" className="w-full">
+                <Button className="w-full bg-white text-[#073372] hover:bg-gray-100 font-bold border-0 shadow-lg">
+                  <RiCalendarCheckLine className="mr-2 text-lg" />
+                  Ver Cronograma
+                </Button>
+              </Link>
+              <Link href="/my-classes?type=practice" className="w-full">
+                <Button className="w-full bg-white/10 text-white hover:bg-white/20 border-white/20 font-bold backdrop-blur-md">
+                  <RiGroupLine className="mr-2 text-lg" />
+                  Ver Mis Prácticas
+                </Button>
+              </Link>
+            </div>
+          </div>
+          {/* Decorative background elements */}
+          <div className="absolute top-[-20%] right-[-5%] w-64 h-64 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute bottom-[-20%] left-[10%] w-48 h-48 bg-[#17BC91]/10 rounded-full blur-3xl pointer-events-none"></div>
+        </div>
+      )}
+
       {/* Header Minimalista */}
       <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">

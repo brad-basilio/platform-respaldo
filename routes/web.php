@@ -136,6 +136,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/admin/students/{student}/enrollment', [CashierController::class, 'getStudentEnrollment'])->name('admin.students.enrollment');
     });
 
+    // Practice Rotation Management (Cronograma) - View only for these roles
+    Route::get('/admin/practice-rotations', [\App\Http\Controllers\Admin\PracticeRotationController::class, 'index'])->name('admin.practice-rotations.index');
+    Route::get('/api/admin/practice-rotations', [\App\Http\Controllers\Admin\PracticeRotationController::class, 'getRotations'])->name('api.admin.practice-rotations');
+
     // Admin-only routes
     Route::middleware('can:admin')->group(function () {
 
@@ -149,6 +153,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/admin/settings', [SettingController::class, 'index'])->name('admin.settings');
         Route::post('/admin/settings', [SettingController::class, 'update'])->name('admin.settings.update');
         Route::post('/admin/settings/single', [SettingController::class, 'updateSingle'])->name('admin.settings.update-single');
+
+        // Practice Rotation Management - Admin ONLY
+        Route::post('/api/admin/practice-rotations', [\App\Http\Controllers\Admin\PracticeRotationController::class, 'store'])->name('api.admin.practice-rotations.store');
+        Route::post('/api/admin/practice-rotations/generate', [\App\Http\Controllers\Admin\PracticeRotationController::class, 'generate'])->name('api.admin.practice-rotations.generate');
 
         // Image upload for TinyMCE editor
         Route::post('/admin/upload-image', [\App\Http\Controllers\ImageUploadController::class, 'upload'])->name('admin.upload-image');
@@ -310,6 +318,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/teacher/availability', [\App\Http\Controllers\TeacherAvailabilityController::class, 'index'])->name('teacher.availability');
         Route::put('/teacher/availability', [\App\Http\Controllers\TeacherAvailabilityController::class, 'update'])->name('teacher.availability.update');
         Route::post('/teacher/toggle-availability', [\App\Http\Controllers\TeacherAvailabilityController::class, 'toggleAvailability'])->name('teacher.toggle-availability');
+        Route::get('/teacher/practice-rotations', [\App\Http\Controllers\Admin\PracticeRotationController::class, 'index'])->name('teacher.practice-rotations.index');
     });
 
     // Settings
@@ -335,6 +344,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/student/payment-methods', function () {
             return inertia('Student/PaymentMethods');
         })->name('student.payment-methods');
+
+        Route::get('/student/practice-rotations', [\App\Http\Controllers\Admin\PracticeRotationController::class, 'index'])->name('student.practice-rotations.index');
 
         // Contract routes
         Route::get('/contract/accept/{token}', [ContractController::class, 'view'])->name('contract.view');

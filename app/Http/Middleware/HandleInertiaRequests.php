@@ -44,7 +44,27 @@ class HandleInertiaRequests extends Middleware
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $request->user(),
+                'is_today_practice_teacher' => (function () use ($request) {
+                    $user = $request->user();
+                    if (!$user || $user->role !== 'teacher') return false;
+
+                    $today = now()->toDateString();
+                    return \App\Models\PracticeRotation::where('date', $today)
+                        ->where('teacher_id', $user->id)
+                        ->exists();
+                })(),
             ],
+            'today_practice_teacher' => (function () {
+                $today = now()->toDateString();
+                $rotation = \App\Models\PracticeRotation::where('date', $today)->with('teacher:id,name')->first();
+
+                if (!$rotation) {
+                    \App\Models\PracticeRotation::ensureRotationsExist(now(), 7);
+                    $rotation = \App\Models\PracticeRotation::where('date', $today)->with('teacher:id,name')->first();
+                }
+
+                return $rotation?->teacher?->name;
+            })(),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

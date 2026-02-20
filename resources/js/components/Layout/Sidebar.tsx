@@ -16,8 +16,10 @@ import {
   RiDashboard2Line,
   RiGroupLine,
   RiShieldUserLine,
-  RiFileListLine
+  RiFileListLine,
+  RiCalendarCheckLine
 } from 'react-icons/ri';
+import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { usePage, router } from '@inertiajs/react';
 import { User } from '@/types/models';
 
@@ -99,7 +101,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
     if (currentUrl.startsWith('/admin/settings')) return 'settings';
     if (currentUrl.startsWith('/settings')) return 'settings';
     if (currentUrl.startsWith('/dashboard')) return 'dashboard';
-    if (currentUrl.startsWith('/admin/users')) return 'users';
+    if (currentUrl.startsWith('/admin/practice-rotations')) return 'practice-rotations';
+    if (currentUrl.startsWith('/student/practice-rotations')) return 'practice-rotations';
+    if (currentUrl.startsWith('/teacher/practice-rotations')) return 'practice-rotations';
     return 'dashboard';
   };
 
@@ -150,6 +154,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
       'scheduled-practices': '/admin/scheduled-practices',
       'class-requests': '/admin/class-requests',
       'practice-requests': '/admin/practice-requests',
+      'practice-rotations': user?.role === 'admin' ? '/admin/practice-rotations' : `/${user?.role.replace('_', '-')}/practice-rotations`,
     };
 
     const route = routes[view];
@@ -157,6 +162,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
       router.visit(route);
     }
   };
+
+  const todayTeacher = page.props.today_practice_teacher as string;
 
   const getMenuItems = () => {
     switch (user?.role) {
@@ -183,6 +190,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
               { id: 'scheduled-practices', label: 'Grupos de Práctica', icon: RiGroupLine },
               { id: 'class-requests', label: 'Solicitudes de Clases', icon: RiMessage3Line },
               { id: 'practice-requests', label: 'Solicitudes de Práctica', icon: RiFileListLine },
+              { 
+                id: 'practice-rotations', 
+                label: 'Cronograma Maestro', 
+                icon: RiCalendarCheckLine,
+        
+              },
             ]
           },
           {
@@ -227,6 +240,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
               { id: 'teacher-my-classes', label: 'Mis Clases Teóricas', icon: RiVideoLine },
               { id: 'teacher-my-practices', label: 'Mis Sesiones Prácticas', icon: RiGroupLine },
               { id: 'teacher-my-students', label: 'Mis Participantes', icon: RiTeamLine },
+              { 
+                id: 'practice-rotations', 
+                label: 'Mis días de práctica', 
+                icon: RiCalendarCheckLine,
+              },
             ]
           },
           {
@@ -248,6 +266,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
             section: 'ACADÉMICO',
             items: [
               { id: 'my-classes', label: 'Mis Clases', icon: RiBookOpenLine },
+              { 
+                id: 'practice-rotations', 
+                label: 'Mis días de práctica', 
+                icon: RiCalendarCheckLine,
+                badge: todayTeacher
+              },
             ]
           },
           // ✅ Solo mostrar secciones financieras si el aprendiz ha firmado el contrato
@@ -375,6 +399,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
                     <Icon className={`mr-3 h-5 w-5 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-white/70 group-hover:text-white'
                       }`} />
                     <span className="truncate">{item.label}</span>
+                    {item.badge && (
+                      <span className="ml-auto text-[10px] bg-white/10 px-2 py-0.5 rounded-full text-white/90 border border-white/5 font-bold uppercase truncate max-w-[80px]">
+                        {item.badge}
+                      </span>
+                    )}
                     {isContractPage && (
                       <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded text-white/80">
                         Bloqueado
