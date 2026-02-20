@@ -50,9 +50,14 @@ const Availability: React.FC<Props> = ({ teacher, settings }) => {
   const [meetUrl, setMeetUrl] = useState(teacher.meet_url || '');
   const [notAvailableToday, setNotAvailableToday] = useState(teacher.not_available_today);
   
-  // Normalizar las horas de operación para asegurar formato HH:mm
-  const opStart = settings.operation_start_hour.length === 2 ? `${settings.operation_start_hour}:00` : settings.operation_start_hour.substring(0, 5);
-  const opEnd = settings.operation_end_hour.length === 2 ? `${settings.operation_end_hour}:00` : settings.operation_end_hour.substring(0, 5);
+  // Normalizar las horas de operación para asegurar formato HH:mm requerido por el backend
+  const formatHour = (h: string) => {
+    const hour = h.includes(':') ? h.split(':')[0] : h;
+    return hour.padStart(2, '0') + ':00';
+  };
+
+  const opStart = formatHour(settings?.operation_start_hour || '08');
+  const opEnd = formatHour(settings?.operation_end_hour || '22');
 
   const [activeDays, setActiveDays] = useState<string[]>(
     teacher.time_slots && teacher.time_slots.length > 0
