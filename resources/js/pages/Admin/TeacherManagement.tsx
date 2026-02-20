@@ -12,6 +12,17 @@ import { themeQuartz } from 'ag-grid-community';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { Select2 } from '@/components/ui/Select2';
+import { Switch } from '@/components/ui/switch';
+
+const DAYS_OF_WEEK = [
+  'Lunes',
+  'Martes',
+  'Miércoles',
+  'Jueves',
+  'Viernes',
+  'Sábado',
+  'Domingo',
+];
 
 // Registrar módulos de AG Grid Community
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -77,9 +88,13 @@ interface Group {
 interface Props {
   teachers: Teacher[];
   groups: Group[];
+  settings: {
+    operation_start_hour: string;
+    operation_end_hour: string;
+  };
 }
 
-const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups }) => {
+const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups, settings }) => {
   const { flash } = usePage().props as any;
 
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -231,45 +246,22 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
       available_schedule: teacher?.availableSchedule || teacher?.available_schedule || [],
     });
 
-    // Estado para nuevo horario
-    const [scheduleForm, setScheduleForm] = useState({
-      dayOfWeek: 'Lunes',
-      startTime: '09:00',
-      endTime: '12:00'
-    });
+    // Normalizar las horas de operación para asegurar formato HH:mm
+    const opStart = settings.operation_start_hour.length === 2 ? `${settings.operation_start_hour}:00` : settings.operation_start_hour.substring(0, 5);
+    const opEnd = settings.operation_end_hour.length === 2 ? `${settings.operation_end_hour}:00` : settings.operation_end_hour.substring(0, 5);
 
-    const addSchedule = () => {
-      // Validar hora fin > inicio
-      const [startH, startM] = scheduleForm.startTime.split(':').map(Number);
-      const [endH, endM] = scheduleForm.endTime.split(':').map(Number);
-      
-      if ((endH * 60 + endM) <= (startH * 60 + startM)) {
-         Swal.fire({
-           icon: 'error',
-           title: 'Horario Inválido',
-           text: 'La hora de fin debe ser mayor a la hora de inicio',
-           confirmButtonColor: '#ef4444'
-         });
-         return;
+    const [activeDays, setActiveDays] = useState<string[]>(
+      teacher 
+        ? Array.from(new Set((formData.available_schedule || []).map((slot: any) => slot.dayOfWeek || slot.day_of_week)))
+        : DAYS_OF_WEEK
+    );
+
+    const toggleDay = (day: string) => {
+      if (activeDays.includes(day)) {
+        setActiveDays(activeDays.filter(d => d !== day));
+      } else {
+        setActiveDays([...activeDays, day]);
       }
-
-      const newSlot: TimeSlot = {
-         dayOfWeek: scheduleForm.dayOfWeek,
-         startTime: scheduleForm.startTime,
-         endTime: scheduleForm.endTime,
-         duration: (endH * 60 + endM) - (startH * 60 + startM)
-      };
-
-      setFormData(prev => ({
-        ...prev,
-        available_schedule: [...(prev.available_schedule || []), newSlot]
-      }));
-    };
-
-    const removeSchedule = (index: number) => {
-      const newSchedule = [...(formData.available_schedule || [])];
-      newSchedule.splice(index, 1);
-      setFormData({...formData, available_schedule: newSchedule});
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -304,17 +296,31 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
       }
 
       // ✅ Validar horarios
-      if (!formData.available_schedule || formData.available_schedule.length === 0) {
+      if (activeDays.length === 0) {
         Swal.fire({
           icon: 'warning',
           title: 'Sin Horarios',
-          text: 'Debes agregar al menos un horario de disponibilidad para el instructor.',
+          text: 'Debes seleccionar al menos un día de disponibilidad para el instructor.',
           confirmButtonColor: '#f59e0b'
         });
         return;
       }
 
-      onSubmit(formData);
+      const submissionData = {
+        ...formData,
+        available_schedule: activeDays.map(day => {
+          const [startH, startM] = opStart.split(':').map(Number);
+          const [endH, endM] = opEnd.split(':').map(Number);
+          return {
+            dayOfWeek: day,
+            startTime: opStart,
+            endTime: opEnd,
+            duration: (endH * 60 + endM) - (startH * 60 + startM)
+          };
+        })
+      };
+
+      onSubmit(submissionData);
     };
 
     // Bloquear scroll del body cuando el modal está abierto
@@ -677,80 +683,34 @@ const TeacherManagement: React.FC<Props> = ({ teachers: initialTeachers, groups 
                   <h4 className="text-lg font-semibold text-gray-900">Horarios Disponibles</h4>
                 </div>
 
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                  <div className="flex flex-wrap gap-4 items-end">
-                    <div className="flex-1 min-w-[150px]">
-                      <Select2
-                        label="Día"
-                        value={scheduleForm.dayOfWeek}
-                        onChange={(val) => setScheduleForm({...scheduleForm, dayOfWeek: val as string})}
-                        options={[
-                          { value: 'Lunes', label: 'Lunes' },
-                          { value: 'Martes', label: 'Martes' },
-                          { value: 'Miércoles', label: 'Miércoles' },
-                          { value: 'Jueves', label: 'Jueves' },
-                          { value: 'Viernes', label: 'Viernes' },
-                          { value: 'Sábado', label: 'Sábado' },
-                          { value: 'Domingo', label: 'Domingo' }
-                        ]}
-                        isSearchable={false}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-[150px]">
-                      <Input
-                        label="Hora Inicio"
-                        type="time"
-                        value={scheduleForm.startTime}
-                        onChange={(e) => setScheduleForm({...scheduleForm, startTime: e.target.value})}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-[150px]">
-                      <Input
-                        label="Hora Fin"
-                        type="time"
-                        value={scheduleForm.endTime}
-                        onChange={(e) => setScheduleForm({...scheduleForm, endTime: e.target.value})}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={addSchedule}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors h-[42px] mb-[2px]"
-                    >
-                      <Plus className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Lista de Horarios */}
-                <div className="mt-4 space-y-2">
-                  {formData.available_schedule && formData.available_schedule.length > 0 ? (
-                    formData.available_schedule.map((slot: any, index: number) => (
-                      <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {DAYS_OF_WEEK.map(day => {
+                    const isActive = activeDays.includes(day);
+                    return (
+                      <div 
+                        key={day} 
+                        className={`p-4 rounded-xl border transition-all duration-200 flex items-center justify-between ${
+                          isActive ? 'bg-white border-purple-200 shadow-sm' : 'bg-gray-50 border-gray-100 opacity-60'
+                        }`}
+                      >
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center">
-                            <Clock className="w-4 h-4" />
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${
+                            isActive ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-500'
+                          }`}>
+                            {day.substring(0,3).toUpperCase()}
                           </div>
                           <div>
-                            <span className="font-semibold text-gray-800">{slot.dayOfWeek}</span>
-                            <span className="mx-2 text-gray-400">|</span>
-                            <span className="text-gray-600">{slot.startTime} - {slot.endTime}</span>
+                            <span className="font-semibold text-gray-800 block">{day}</span>
+                            <span className="text-[10px] text-gray-500">{isActive ? `${opStart} - ${opEnd}` : 'No disponible'}</span>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeSchedule(index)}
-                          className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <Switch
+                          checked={isActive}
+                          onCheckedChange={() => toggleDay(day)}
+                        />
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                      No hay horarios agregados. Añade al menos uno.
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
               </div>
             </div>

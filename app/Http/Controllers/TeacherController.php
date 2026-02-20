@@ -18,7 +18,7 @@ class TeacherController extends Controller
             if (!$teacher->user) {
                 return null; // Skip teachers without users
             }
-            
+
             return array_merge($teacher->toArray(), [
                 'name' => $teacher->user->name,
                 'email' => $teacher->user->email,
@@ -41,6 +41,10 @@ class TeacherController extends Controller
         return Inertia::render('Admin/TeacherManagement', [
             'teachers' => $teachers->values(), // Re-index array after filtering
             'groups' => $groups,
+            'settings' => [
+                'operation_start_hour' => \App\Models\Setting::get('class_operation_start_hour', '08:00'),
+                'operation_end_hour' => \App\Models\Setting::get('class_operation_end_hour', '22:00'),
+            ],
         ]);
     }
 

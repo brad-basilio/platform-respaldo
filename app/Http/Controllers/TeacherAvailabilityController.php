@@ -34,6 +34,10 @@ class TeacherAvailabilityController extends Controller
                     ];
                 }),
             ],
+            'settings' => [
+                'operation_start_hour' => \App\Models\Setting::get('class_operation_start_hour', '08:00'),
+                'operation_end_hour' => \App\Models\Setting::get('class_operation_end_hour', '22:00'),
+            ],
         ]);
     }
 
@@ -97,8 +101,8 @@ class TeacherAvailabilityController extends Controller
         return response()->json([
             'success' => true,
             'not_available_today' => (bool) $teacher->not_available_today,
-            'message' => $teacher->not_available_today 
-                ? 'Has marcado que no atiendes hoy' 
+            'message' => $teacher->not_available_today
+                ? 'Has marcado que no atiendes hoy'
                 : 'Disponibilidad activada',
         ]);
     }
