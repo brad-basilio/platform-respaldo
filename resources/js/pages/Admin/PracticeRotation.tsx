@@ -315,7 +315,7 @@ const PracticeRotation: React.FC<PageProps> = ({ auth, teachers }) => {
                             value={rotation?.teacher_id?.toString() || ""}
                             onValueChange={(val) => handleUpdateRotation(dateStr, parseInt(val))}
                           >
-                            <SelectTrigger className={`h-10 text-xs ${
+                            <SelectTrigger className={`h-10 text-xs text-black ${
                               !rotation ? 'border-amber-200 bg-amber-50/30' : 'border-gray-100 bg-white'
                             }`}>
                               <SelectValue placeholder="Seleccionar..." />
