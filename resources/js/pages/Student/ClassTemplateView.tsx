@@ -138,7 +138,7 @@ interface AlternativeSlot {
 interface Props {
   template: ClassTemplate;
   existingRequest: ClassRequest | null;
-  existingPracticeRequest: ClassRequest | null;
+  practiceRequests: ClassRequest[];
   enrollment: Enrollment | null;
   practiceEnrollments: Enrollment[];
   studentInfo?: StudentInfo;
@@ -148,7 +148,7 @@ interface Props {
 const ClassTemplateView: React.FC<Props> = ({ 
   template, 
   existingRequest, 
-  existingPracticeRequest,
+  practiceRequests = [],
   enrollment, 
   practiceEnrollments,
   studentInfo,
@@ -230,13 +230,32 @@ const ClassTemplateView: React.FC<Props> = ({
   const useWeeklyFlow = studentType === 'weekly' && isVerified;
   
   // Limite de 1 práctica por día: verificar si ya hay una práctica hoy (no cancelada)
+  const practiceToday = useMemo(() => {
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+    return practiceEnrollments.find(pe => {
+      const practiceDateStr = new Date(pe.scheduled_class.scheduled_at).toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+      return practiceDateStr === todayStr && pe.scheduled_class.status === 'scheduled';
+    });
+  }, [practiceEnrollments]);
+
   const hasPracticeToday = useMemo(() => {
     const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
-    return practiceEnrollments.some(pe => {
+    
+    // Check enrollments
+    const hasEnrollmentToday = practiceEnrollments.some(pe => {
       const practiceDateStr = new Date(pe.scheduled_class.scheduled_at).toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
       return practiceDateStr === todayStr && pe.scheduled_class.status !== 'cancelled';
     });
-  }, [practiceEnrollments]);
+
+    // Check pending requests
+    const hasPendingToday = practiceRequests.some(pr => {
+      if (!pr.scheduled_class?.scheduled_at) return false;
+      const practiceDateStr = new Date(pr.scheduled_class.scheduled_at).toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+      return practiceDateStr === todayStr && pr.status !== 'rejected';
+    });
+
+    return hasEnrollmentToday || hasPendingToday;
+  }, [practiceEnrollments, practiceRequests]);
 
   // Fetch class config on mount for regular, daily and weekly students
   useEffect(() => {
@@ -367,11 +386,8 @@ const ClassTemplateView: React.FC<Props> = ({
     // Para regular, verificar si ya tiene solicitud o inscripción
     if (requestType === 'regular' && (existingRequest || enrolledClass)) return;
     
-    // Para práctica, verificar si ya tiene una solicitud activa
-    if (requestType === 'practice' && existingPracticeRequest) {
-      toast.error('Ya tienes una solicitud de práctica en proceso.');
-      return;
-    }
+    // Para práctica, se permite tener múltiples solicitudes para diferentes días.
+    // El backend se encargará de validar que no haya duplicados el mismo día.
 
     setSubmitting(true);
     setShowAlternativeSlotsModal(false);
@@ -1207,18 +1223,7 @@ const ClassTemplateView: React.FC<Props> = ({
                   </div>
                 </div>
 
-                {/* Info del profesor de hoy de prácticas */}
-                {!!pageProps.today_practice_teacher && (
-                  <div className="px-6 py-3 bg-[#17BC91]/5 border-b border-[#17BC91]/10 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-[#17BC91]/20 flex items-center justify-center">
-                        <RiUserStarLine className="text-[#17BC91] text-xs" />
-                      </div>
-                      <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Hoy Atiende:</span>
-                    </div>
-                    <span className="text-xs font-bold text-[#073372]">{pageProps.today_practice_teacher as string}</span>
-                  </div>
-                )}
+
                 
                 <div className="p-6 space-y-4">
                   <div className="flex items-center justify-between text-sm">
@@ -1274,15 +1279,20 @@ const ClassTemplateView: React.FC<Props> = ({
                       </div>
                     ))}
                     
-                    {existingPracticeRequest && existingPracticeRequest.status === 'pending' && (
-                      <div className="text-xs p-3 rounded-lg border border-orange-100 bg-orange-50/30 flex items-center justify-between">
-                        <div>
+                    {/* Mostrar todas las solicitudes de práctica pendientes */}
+                    {practiceRequests && practiceRequests.filter(pr => pr.status === 'pending').map((pr, idx) => (
+                      <div key={`pending-${pr.id || idx}`} className="text-xs p-3 rounded-lg border border-orange-100 bg-orange-50/30 flex items-center justify-between">
+                        <div className="flex-1">
                           <p className="font-semibold text-gray-800">Solicitud en Revisión</p>
-                          <p className="text-gray-500">Un administrador te asignará pronto</p>
+                          <p className="text-gray-500 text-[10px]">
+                            {pr.scheduled_class?.scheduled_at ? 
+                              new Date(pr.scheduled_class.scheduled_at).toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) 
+                              : 'Horario por confirmar'}
+                          </p>
                         </div>
-                        <Badge className="bg-orange-500 text-white border-0">Espera</Badge>
+                        <Badge className="bg-orange-500 text-white border-0 text-[9px] h-5">Espera</Badge>
                       </div>
-                    )}
+                    ))}
                   </div>
 
                   {!isClassCompleted ? (
@@ -1292,19 +1302,46 @@ const ClassTemplateView: React.FC<Props> = ({
                         Debes completar la clase teórica antes de iniciar tus prácticas.
                       </p>
                     </div>
-                  ) : (existingPracticeRequest && existingPracticeRequest.status !== 'scheduled') || practiceEnrollments.some(pe => pe.scheduled_class.status === 'scheduled') ? (
-                    <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <Clock className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-blue-700 font-medium">
-                        Ya tienes una práctica activa (solicitada o programada). Debes realizarla antes de pedir otra.
-                      </p>
-                    </div>
                   ) : hasPracticeToday ? (
-                    <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                      <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-amber-700 font-medium">
-                        Ya has realizado o tienes programada una práctica para hoy. Solo se permite una por día.
-                      </p>
+                    <div className="space-y-3">
+                      {practiceToday ? (
+                        <div className="p-4 bg-cyan-50 rounded-xl border-2 border-cyan-200 shadow-sm animate-pulse-subtle">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 rounded-full bg-cyan-500 flex items-center justify-center text-white shadow-sm">
+                              <Video className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-cyan-700 uppercase tracking-wider">¡Práctica para hoy!</p>
+                              <p className="text-sm font-semibold text-[#073372]">
+                                {new Date(practiceToday.scheduled_class.scheduled_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {practiceToday.scheduled_class.meet_url ? (
+                            <Button 
+                              className="w-full bg-[#17BC91] hover:bg-[#14a77f] text-white font-bold py-6 shadow-md"
+                              onClick={() => window.open(practiceToday.scheduled_class.meet_url, '_blank')}
+                            >
+                              <Play className="w-5 h-5 mr-2" />
+                              UNIRSE A LA PRÁCTICA
+                            </Button>
+                          ) : (
+                            <div className="text-center p-2 bg-white/50 rounded-lg border border-cyan-100">
+                              <p className="text-[10px] text-cyan-600 font-medium italic">
+                                El link se activará unos minutos antes de la clase.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                          <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-amber-700 font-medium">
+                            Ya tienes una práctica hoy. Podrás solicitar otra para mañana o una fecha posterior.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ) : practiceEnrollments.length >= practiceSettings.max_allowed ? (
                     <div className="flex items-start gap-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
@@ -1377,38 +1414,64 @@ const ClassTemplateView: React.FC<Props> = ({
                 </div>
               )}
 
-              {/* Scheduled Info */}
-              {isEnrolled && enrolledClass && (
-                <div className="bg-gradient-to-br from-[#17BC91]/10 to-[#17BC91]/5 rounded-xl border border-[#17BC91]/20 p-6">
-                  <h3 className="font-semibold text-[#17BC91] mb-3 flex items-center gap-2">
-                    <Calendar className="w-5 h-5" />
-                    {isClassCompleted ? 'Clase Completada' : 'Clase Programada'}
-                  </h3>
-                  <p className="text-gray-800 font-medium">
-                    {new Date(enrolledClass.scheduled_at).toLocaleDateString('es-PE', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </p>
-                  {enrolledClass.meet_url && !isClassCompleted && (
-                    <a 
-                      href={enrolledClass.meet_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-3 inline-block"
-                    >
-                      <Button size="sm" className="bg-[#17BC91] hover:bg-[#14a77f] text-white">
-                        <Play className="w-4 h-4 mr-1" />
-                        Entrar a clase
+              {/* Scheduled Info - Teoría & Práctica */}
+              <div className="space-y-4">
+                {isEnrolled && enrolledClass && (
+                  <div className={`bg-gradient-to-br from-[#073372]/10 to-[#073372]/5 rounded-xl border border-[#073372]/20 p-6 ${!isClassCompleted ? 'animate-fade-in' : ''}`}>
+                    <h3 className="font-semibold text-[#073372] mb-3 flex items-center gap-2">
+                      <Calendar className="w-5 h-5" />
+                      {isClassCompleted ? 'Clase Teórica Completada' : 'Clase Teórica Programada'}
+                    </h3>
+                    <p className="text-gray-800 font-medium text-sm mb-3">
+                      {new Date(enrolledClass.scheduled_at).toLocaleDateString('es-PE', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                    {enrolledClass.meet_url && !isClassCompleted && (
+                      <Button 
+                        onClick={() => window.open(enrolledClass.meet_url, '_blank')}
+                        className="w-full bg-[#073372] hover:bg-[#052555] text-white"
+                      >
+                        <Video className="w-4 h-4 mr-2" />
+                        Entrar a clase teórica
                       </Button>
-                    </a>
-                  )}
-                </div>
-              )}
+                    )}
+                  </div>
+                )}
+
+                {practiceToday && (
+                  <div className="bg-gradient-to-br from-[#17BC91]/15 to-[#17BC91]/5 rounded-xl border-2 border-[#17BC91]/30 p-6 animate-pulse-subtle">
+                    <h3 className="font-semibold text-[#129b75] mb-3 flex items-center gap-2">
+                      <Zap className="w-5 h-5" />
+                      Práctica Programada para Hoy
+                    </h3>
+                    <p className="text-gray-800 font-bold mb-3">
+                      {new Date(practiceToday.scheduled_class.scheduled_at).toLocaleTimeString('es-PE', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })} - {practiceToday.scheduled_class.teacher?.name || 'Instructor'}
+                    </p>
+                    {practiceToday.scheduled_class.meet_url ? (
+                      <Button 
+                        onClick={() => window.open(practiceToday.scheduled_class.meet_url, '_blank')}
+                        className="w-full bg-[#17BC91] hover:bg-[#14a77f] text-white font-bold py-6 shadow-lg shadow-emerald-200"
+                      >
+                        <Play className="w-5 h-5 mr-2" />
+                        ENTRAR A PRÁCTICA AHORA
+                      </Button>
+                    ) : (
+                      <p className="text-xs text-emerald-700 italic bg-emerald-50 p-2 rounded border border-emerald-100">
+                        * El link de acceso se activará previo al inicio de la sesión.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { BookOpen, CheckCircle, Clock, PlayCircle, Send, Eye, FileQuestion, FileText, AlertCircle, Lock, ChevronRight, Trophy, Target, Zap, Star } from 'lucide-react';
+import { BookOpen, CheckCircle, Clock, PlayCircle, Send, Eye, FileQuestion, FileText, AlertCircle, Lock, ChevronRight, Trophy, Target, Zap, Star, Video, Loader2 } from 'lucide-react';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { toast } from 'sonner';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import axios from 'axios';
 
 interface AcademicLevel {
   id: number;
@@ -32,20 +33,17 @@ interface ScheduledClass {
   id: number;
   scheduled_at: string;
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  meet_url?: string;
   recording_url?: string;
-  template: ClassTemplate;
-}
-
-interface ClassEnrollment {
-  id: number;
-  attended: boolean;
-  exam_completed: boolean;
-  scheduled_class: ScheduledClass;
+  teacher?: { id: number; name: string };
+  type: 'regular' | 'practice';
 }
 
 interface ClassRequest {
   id: number;
   status: 'pending' | 'approved' | 'rejected' | 'scheduled';
+  type: 'regular' | 'practice';
+  requested_datetime?: string;
   student_message?: string;
   admin_response?: string;
   created_at: string;
@@ -55,8 +53,10 @@ interface SessionStat {
   regular_enrolled: boolean;
   regular_completed: boolean;
   regular_status: string | null;
+  regular_session: ScheduledClass | null;
   practice_count: number;
   practice_completed_count: number;
+  practice_sessions: ScheduledClass[];
   pending_request: ClassRequest | null;
 }
 
@@ -65,9 +65,31 @@ interface PracticeSettings {
   max_allowed: number;
 }
 
+interface StudentInfo {
+  studentType: 'regular' | 'daily' | 'weekly';
+  isVerified: boolean;
+}
+
+interface ClassConfig {
+  min_advance_hours: number;
+  max_advance_hours: number;
+  operation_start_hour: number;
+  operation_end_hour: number;
+}
+
+interface AvailableClass {
+  id: number;
+  scheduled_at: string;
+  teacher: { id: number; name: string } | null;
+  enrolled_count: number;
+  max_students: number;
+  available_spots: number;
+}
+
 interface Props {
   templates: ClassTemplate[];
   sessionStats: Record<number, SessionStat>; // keyed by template_id
+  studentInfo: StudentInfo;
   academicLevel?: AcademicLevel;
   practiceSettings: PracticeSettings;
   message?: string;
@@ -76,14 +98,23 @@ interface Props {
 const StudentMyClasses: React.FC<Props> = ({ 
   templates, 
   sessionStats, 
+  studentInfo,
   academicLevel,
   practiceSettings,
   message 
 }) => {
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestType, setRequestType] = useState<'regular' | 'practice'>('regular');
   const [selectedTemplate, setSelectedTemplate] = useState<ClassTemplate | null>(null);
   const [requestMessage, setRequestMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // States for scheduling (copied from ClassTemplateView logic)
+  const [classConfig, setClassConfig] = useState<ClassConfig | null>(null);
+  const [availableClasses, setAvailableClasses] = useState<AvailableClass[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(false);
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  const [preferredDatetime, setPreferredDatetime] = useState<string>('');
 
   // Ordenar templates por session_number
   const sortedTemplates = useMemo(() => {
@@ -143,9 +174,70 @@ const StudentMyClasses: React.FC<Props> = ({
     return null;
   }, [sortedTemplates, sessionStats]);
 
-  const handleRequestClass = (template: ClassTemplate) => {
+  const useRegularFlow = studentInfo.studentType === 'regular' && studentInfo.isVerified;
+  const useDailyFlow = studentInfo.studentType === 'daily' && studentInfo.isVerified;
+  const useWeeklyFlow = studentInfo.studentType === 'weekly' && studentInfo.isVerified;
+
+  // Next slot calculation logic
+  const nextAvailableSlot = useMemo(() => {
+    if (!classConfig) return null;
+    const now = new Date();
+    const { min_advance_hours, operation_start_hour, operation_end_hour } = classConfig;
+    let slotHour = now.getHours() + min_advance_hours;
+    if (now.getMinutes() > 0) slotHour += 1;
+    const slot = new Date(now);
+    slot.setHours(slotHour, 0, 0, 0);
+    if (slot.getHours() >= operation_end_hour) {
+      slot.setDate(slot.getDate() + 1);
+      slot.setHours(operation_start_hour, 0, 0, 0);
+    }
+    if (slot.getHours() < operation_start_hour) {
+      slot.setHours(operation_start_hour, 0, 0, 0);
+    }
+    return slot;
+  }, [classConfig]);
+
+  const toLocalISOString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  };
+
+  // Effects for data fetching (Modal logic)
+  React.useEffect(() => {
+    if (showRequestModal && (useRegularFlow || useDailyFlow || useWeeklyFlow)) {
+      axios.get('/api/student/class-config')
+        .then((res: any) => setClassConfig(res.data))
+        .catch(err => console.error('Error loading class config:', err));
+    }
+  }, [showRequestModal, useRegularFlow, useDailyFlow, useWeeklyFlow]);
+
+  React.useEffect(() => {
+    if (showRequestModal && useRegularFlow && nextAvailableSlot && selectedTemplate) {
+      setLoadingClasses(true);
+      axios.get(`/api/student/available-classes/${selectedTemplate.id}`, {
+        params: { datetime: toLocalISOString(nextAvailableSlot) }
+      })
+        .then((res: any) => {
+          const classes = res.data.classes || [];
+          setAvailableClasses(classes);
+          const available = classes.find((c: any) => c.available_spots > 0);
+          if (available) setSelectedClassId(available.id);
+        })
+        .finally(() => setLoadingClasses(false));
+    }
+  }, [showRequestModal, useRegularFlow, nextAvailableSlot, selectedTemplate]);
+
+  const handleRequestClass = (template: ClassTemplate, type: 'regular' | 'practice' = 'regular') => {
     setSelectedTemplate(template);
+    setRequestType(type);
     setRequestMessage('');
+    setSelectedClassId(null);
+    setPreferredDatetime('');
     setShowRequestModal(true);
   };
 
@@ -153,18 +245,37 @@ const StudentMyClasses: React.FC<Props> = ({
     if (!selectedTemplate) return;
     
     setSubmitting(true);
+    
+    let requestedDatetime: string | null = null;
+    let targetClassId: number | null = null;
+
+    if (useRegularFlow) {
+      if (selectedClassId) {
+        const selectedClass = availableClasses.find(c => c.id === selectedClassId);
+        requestedDatetime = selectedClass?.scheduled_at || null;
+        targetClassId = selectedClassId;
+      } else if (nextAvailableSlot) {
+        requestedDatetime = toLocalISOString(nextAvailableSlot);
+      }
+    } else if ((useDailyFlow || useWeeklyFlow) && preferredDatetime) {
+      requestedDatetime = preferredDatetime;
+      if (selectedClassId) targetClassId = selectedClassId;
+    }
+
     router.post('/student/class-requests', {
       class_template_id: selectedTemplate.id,
+      type: requestType,
       message: requestMessage,
+      requested_datetime: requestedDatetime,
+      target_scheduled_class_id: targetClassId,
     }, {
       onSuccess: () => {
-        toast.success('Solicitud enviada', {
-          description: 'El administrador revisará tu solicitud pronto.'
-        });
+        toast.success(targetClassId ? '¡Inscripción exitosa!' : 'Solicitud enviada exitosamente');
         setShowRequestModal(false);
       },
-      onError: () => {
-        toast.error('Error al enviar solicitud');
+      onError: (errors) => {
+        const errorMsg = Object.values(errors)[0] as string || 'Error al enviar solicitud';
+        toast.error(errorMsg);
       },
       onFinish: () => setSubmitting(false),
     });
@@ -346,29 +457,112 @@ const StudentMyClasses: React.FC<Props> = ({
                           </span>
                         )}
                       </div>
-                      <div className="flex gap-3">
-                        <Link href={`/student/class-templates/${nextSession.id}`}>
-                          <Button className="bg-[#073372] hover:bg-[#052555]">
-                            {sessionStats[nextSession.id]?.regular_completed 
-                              ? <Zap className="w-4 h-4 mr-2" />
-                              : <Eye className="w-4 h-4 mr-2" />
+                      <div className="flex flex-wrap gap-2">
+                        {(() => {
+                          const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+                          const stats = sessionStats[nextSession.id];
+                          
+                          // Buscar práctica agendada para hoy
+                          const activePractice = stats?.practice_sessions.find(ps => {
+                            const psDateStr = new Date(ps.scheduled_at).toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+                            return psDateStr === todayStr && ps.status === 'scheduled';
+                          });
+
+                          // Buscar solicitud de práctica pendiente para hoy
+                          const pendingPracticeToday = stats?.pending_request?.type === 'practice' && 
+                                 stats.pending_request.requested_datetime && 
+                                 new Date(stats.pending_request.requested_datetime).toLocaleDateString('en-CA', { timeZone: 'America/Lima' }) === todayStr;
+
+                          if (stats?.regular_completed) {
+                            if (activePractice) {
+                              return (
+                                <div className="w-full bg-cyan-50 rounded-xl border-2 border-cyan-200 p-4 animate-pulse-subtle">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                      <Zap className="w-4 h-4 text-cyan-600" />
+                                      <span className="text-xs font-bold text-cyan-700 uppercase tracking-wider">Práctica para hoy</span>
+                                    </div>
+                                    <Badge className="bg-cyan-500 text-white border-0 text-[10px]">Confirmado</Badge>
+                                  </div>
+                                  <p className="text-gray-900 font-bold text-sm mb-3">
+                                    {new Date(activePractice.scheduled_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                                    {activePractice.teacher?.name && ` - Prof. ${activePractice.teacher.name}`}
+                                  </p>
+                                  {activePractice.meet_url ? (
+                                    <Button 
+                                      className="w-full bg-[#17BC91] hover:bg-[#14a77f] text-white font-bold h-12 shadow-md shadow-emerald-100"
+                                      onClick={() => window.open(activePractice.meet_url, '_blank')}
+                                    >
+                                      <Video className="w-4 h-4 mr-2" />
+                                      ENTRAR A PRÁCTICA
+                                    </Button>
+                                  ) : (
+                                    <p className="text-[10px] text-cyan-600 italic bg-white/50 p-2 rounded border border-cyan-100">
+                                      * Link de acceso disponible pronto
+                                    </p>
+                                  )}
+                                </div>
+                              );
                             }
-                            {sessionStats[nextSession.id]?.regular_completed 
-                              ? 'Hacer Prácticas'
-                              : 'Ver contenido'
+
+                            if (pendingPracticeToday) {
+                              return (
+                                <div className="w-full bg-orange-50 rounded-xl border border-orange-200 p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Clock className="w-4 h-4 text-orange-500" />
+                                    <span className="text-xs font-bold text-orange-700 uppercase">Solicitud en Revisión</span>
+                                  </div>
+                                  <p className="text-[11px] text-orange-800">
+                                    Ya solicitaste una práctica para hoy. Un instructor la revisará pronto.
+                                  </p>
+                                </div>
+                              );
                             }
-                          </Button>
-                        </Link>
-                        {/*!myRequests[nextSession.id] && !enrollments[nextSession.id] && (
-                          <Button 
-                            variant="outline"
-                            className="border-[#17BC91] text-[#17BC91] hover:bg-[#17BC91] hover:text-white"
-                            onClick={() => handleRequestClass(nextSession)}
-                          >
-                            <Send className="w-4 h-4 mr-2" />
-                            Solicitar clase
-                          </Button>
-                        )**/}
+
+                            // Si no hay nada para hoy, permitir programar
+                            return (
+                              <Button 
+                                className="bg-cyan-600 hover:bg-cyan-700 shadow-md shadow-cyan-600/20"
+                                onClick={() => handleRequestClass(nextSession, 'practice')}
+                              >
+                                <Zap className="w-4 h-4 mr-2" />
+                                Programar Práctica
+                              </Button>
+                            );
+                          }
+
+                          // Flujo normal de teoría
+                          return (
+                            <div className="flex flex-wrap gap-2">
+                              <Link href={`/student/class-templates/${nextSession.id}`}>
+                                <Button className="bg-[#073372] hover:bg-[#052555]">
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  Ver contenido
+                                </Button>
+                              </Link>
+                              
+                              {/* Quick join Regular today */}
+                              {(() => {
+                                 const regSession = stats?.regular_session;
+                                 if (regSession?.meet_url && regSession.status === 'scheduled') {
+                                   const regDateStr = new Date(regSession.scheduled_at).toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+                                   if (regDateStr === todayStr) {
+                                      return (
+                                        <Button 
+                                          className="bg-[#17BC91] hover:bg-[#14a77f]"
+                                          onClick={() => window.open(regSession.meet_url, '_blank')}
+                                        >
+                                          <Video className="w-4 h-4 mr-2" />
+                                          Unirse a Clase
+                                        </Button>
+                                      );
+                                   }
+                                 }
+                                 return null;
+                              })()}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                     <div className="hidden md:flex items-center justify-center w-48 bg-gradient-to-br from-[#17BC91] to-[#14a77f] text-white">
@@ -510,30 +704,103 @@ const StudentMyClasses: React.FC<Props> = ({
                           )}
 
                           {status.type === 'practices_pending' && (
-                            <Link href={`/student/class-templates/${template.id}`}>
-                              <Button size="sm" className="bg-cyan-600 hover:bg-cyan-700">
-                                <Zap className="w-4 h-4 mr-2" />
-                                Hacer Prácticas
-                              </Button>
-                            </Link>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {(() => {
+                                const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+                                const stats = sessionStats[template.id];
+                                
+                                const activePractice = stats?.practice_sessions.find(ps => {
+                                  const psDateStr = new Date(ps.scheduled_at).toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+                                  return psDateStr === todayStr && ps.status === 'scheduled';
+                                });
+
+                                const pendingPracticeToday = stats?.pending_request?.type === 'practice' && 
+                                       stats.pending_request.requested_datetime && 
+                                       new Date(stats.pending_request.requested_datetime).toLocaleDateString('en-CA', { timeZone: 'America/Lima' }) === todayStr;
+
+                                if (activePractice) {
+                                  return (
+                                    <div className="flex items-center gap-2 p-1 bg-emerald-50 rounded-lg border border-emerald-100">
+                                      <div className="text-[10px] text-emerald-800 font-bold px-2 py-0.5 bg-white rounded border border-emerald-200">
+                                        Hoy {new Date(activePractice.scheduled_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                                      </div>
+                                      {activePractice.meet_url ? (
+                                        <Button 
+                                          size="sm" 
+                                          className="h-7 px-3 bg-[#17BC91] hover:bg-[#14a77f] text-[10px] font-bold"
+                                          onClick={() => window.open(activePractice.meet_url, '_blank')}
+                                        >
+                                          <Video className="w-3 h-3 mr-1" />
+                                          ENTRAR
+                                        </Button>
+                                      ) : (
+                                        <span className="text-[9px] text-emerald-600 font-medium px-1">Link hoy</span>
+                                      )}
+                                    </div>
+                                  );
+                                }
+
+                                if (pendingPracticeToday) {
+                                  return (
+                                    <div className="flex items-center gap-2 p-1 bg-orange-50 rounded-lg border border-orange-100">
+                                      <Clock className="w-3 h-3 text-orange-500" />
+                                      <span className="text-[10px] text-orange-700 font-bold uppercase">En revisión para hoy</span>
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <Button 
+                                    size="sm" 
+                                    className="bg-cyan-600 hover:bg-cyan-700"
+                                    onClick={() => handleRequestClass(template, 'practice')}
+                                  >
+                                    <Zap className="w-4 h-4 mr-2" />
+                                    Programar Práctica
+                                  </Button>
+                                );
+                              })()}
+                              
+                              <Link href={`/student/class-templates/${template.id}`}>
+                                <Button variant="outline" size="sm">
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  Detalle
+                                </Button>
+                              </Link>
+                            </div>
                           )}
 
                           {(status.type === 'scheduled' || status.type === 'in_progress') && (
-                            <Link href={`/student/class-templates/${template.id}`}>
-                              <Button size="sm" className="bg-[#073372] hover:bg-[#052555]">
-                                {status.type === 'in_progress' ? (
-                                  <>
-                                    <PlayCircle className="w-4 h-4 mr-2" />
-                                    Entrar a clase
-                                  </>
-                                ) : (
-                                  <>
-                                    <Clock className="w-4 h-4 mr-2" />
-                                    Ver clase
-                                  </>
-                                )}
-                              </Button>
-                            </Link>
+                            <div className="flex items-center gap-2">
+                              {/* Quick join Regular today */}
+                              {(() => {
+                                 const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+                                 const regSession = sessionStats[template.id]?.regular_session;
+                                 if (regSession?.meet_url && regSession.status !== 'completed') {
+                                   const regDateStr = new Date(regSession.scheduled_at).toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+                                   if (regDateStr === todayStr) {
+                                      return (
+                                        <Button 
+                                          size="sm" 
+                                          className="bg-[#17BC91] hover:bg-[#14a77f]"
+                                          onClick={() => window.open(regSession.meet_url, '_blank')}
+                                        >
+                                          <PlayCircle className="w-4 h-4 mr-2" />
+                                          Entrar a Clase
+                                        </Button>
+                                      );
+                                   }
+                                 }
+                                 return null;
+                              })()}
+
+                              <Link href={`/student/class-templates/${template.id}`}>
+                                <Button size="sm" className="bg-[#073372] hover:bg-[#052555]">
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  Ver contenido
+                                </Button>
+                              </Link>
+                            </div>
                           )}
 
                           {status.type === 'request_pending' && stats?.pending_request && (
@@ -637,36 +904,95 @@ const StudentMyClasses: React.FC<Props> = ({
             {/* Content */}
             <div className="p-6 space-y-4">
               <div className="bg-gray-50 rounded-xl p-4">
-                <h4 className="font-semibold text-gray-900 mb-1">{selectedTemplate.title}</h4>
-                {selectedTemplate.description && (
-                  <p className="text-sm text-gray-600">{selectedTemplate.description}</p>
-                )}
-                <div className="flex items-center gap-3 mt-3 text-xs text-gray-500">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-gray-900">{selectedTemplate.title}</h4>
+                  <Badge variant="outline" className={requestType === 'practice' ? 'text-cyan-600 border-cyan-200' : 'text-blue-600 border-blue-200'}>
+                    {requestType === 'practice' ? 'Sesión de Práctica' : 'Clase Teórica'}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-gray-500">
                   <span className="flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5" />
                     {selectedTemplate.duration_minutes} min
                   </span>
-                  {selectedTemplate.has_exam && (
-                    <span className="flex items-center gap-1">
-                      <FileQuestion className="w-3.5 h-3.5" />
-                      Examen ({selectedTemplate.exam_questions_count} preguntas)
-                    </span>
-                  )}
                 </div>
               </div>
 
-              <Textarea
-                label="Mensaje (opcional)"
-                value={requestMessage}
-                onChange={(e) => setRequestMessage(e.target.value)}
-                placeholder="¿Tienes alguna preferencia de horario o comentario adicional?"
-                rows={3}
-              />
+              {/* Schedule Selection logic (Simplified for dashboard) */}
+              {(useRegularFlow || useDailyFlow || useWeeklyFlow) ? (
+                <div className="space-y-4">
+                   {useRegularFlow && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Horario Disponible</label>
+                        {loadingClasses ? (
+                          <div className="flex items-center justify-center p-4"><Loader2 className="w-6 h-6 animate-spin text-blue-500" /></div>
+                        ) : availableClasses.length > 0 ? (
+                          <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
+                            {availableClasses.map((c) => (
+                              <div 
+                                key={c.id}
+                                onClick={() => setSelectedClassId(c.id)}
+                                className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between ${
+                                  selectedClassId === c.id 
+                                    ? 'border-blue-500 bg-blue-50 shadow-sm' 
+                                    : 'border-gray-100 hover:border-gray-200 bg-white'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selectedClassId === c.id ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                    <Clock className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-bold text-gray-900">
+                                      {new Date(c.scheduled_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                    <p className="text-[10px] text-gray-500">{c.teacher ? `Prof. ${c.teacher.name}` : 'Asignación automática'}</p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <Badge className={c.available_spots > 1 ? 'bg-emerald-500' : 'bg-amber-500'}>
+                                    {c.available_spots} cupos
+                                  </Badge>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                           <div className="p-3 bg-blue-50 text-blue-700 text-xs rounded-lg border border-blue-100">
+                             El próximo horario disponible será calculado automáticamente.
+                           </div>
+                        )}
+                      </div>
+                   )}
+
+                   {(useDailyFlow || useWeeklyFlow) && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Selecciona Horario</label>
+                        <input 
+                          type="datetime-local" 
+                          className="w-full p-3 rounded-xl border-gray-200 text-sm focus:ring-2 focus:ring-[#17BC91]" 
+                          value={preferredDatetime}
+                          onChange={(e) => setPreferredDatetime(e.target.value)}
+                        />
+                      </div>
+                   )}
+                </div>
+              ) : (
+                <Textarea
+                  label="Preferencia de Horario"
+                  value={requestMessage}
+                  onChange={(e) => setRequestMessage(e.target.value)}
+                  placeholder="Ej: Lunes a las 10:00 AM"
+                  rows={3}
+                />
+              )}
 
               <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg">
                 <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-blue-700">
-                  Al solicitar esta clase, un administrador revisará tu petición y te asignará a una sesión disponible.
+                  {requestType === 'practice' 
+                    ? 'Podrás unirte a la sesión una vez que sea confirmada por un instructor.' 
+                    : 'Un administrador revisará tu petición y te asignará el horario solicitado.'}
                 </p>
               </div>
             </div>

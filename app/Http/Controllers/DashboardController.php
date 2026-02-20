@@ -36,8 +36,8 @@ class DashboardController extends Controller
     protected function studentDashboard($user): Response
     {
         $student = $user->student->load([
-            'groups', 
-            'badges', 
+            'groups',
+            'badges',
             'certificates',
             'activeEnrollment.paymentPlan',
             'activeEnrollment.installments.vouchers',
@@ -91,65 +91,65 @@ class DashboardController extends Controller
         $paymentStats = [];
         if ($student->activeEnrollment) {
             $enrollment = $student->activeEnrollment;
-            
+
             // ✅ Calcular mora automáticamente para todas las cuotas pendientes
             foreach ($enrollment->installments as $installment) {
                 if ($installment->status === 'pending') {
                     $installment->calculateLateFee();
                 }
             }
-            
+
             // Refrescar las cuotas después de calcular la mora
             $enrollment->load('installments');
-            
+
             // Contar cuotas verificadas (status = 'verified')
             $verifiedInstallments = $enrollment->installments->where('status', 'verified')->count();
-            
+
             // Contar cuotas en verificación (status = 'paid' pero no 'verified')
             $inVerificationInstallments = $enrollment->installments->where('status', 'paid')->count();
-            
+
             // Total de cuotas pagadas (verified + paid)
             $paidInstallments = $verifiedInstallments + $inVerificationInstallments;
-            
+
             // Cuotas pendientes
             $pendingInstallments = $enrollment->installments->where('status', 'pending')->count();
-            
+
             // Total de cuotas
             $totalInstallments = $enrollment->installments->count();
-            
+
             // Cuotas vencidas (con mora aplicada)
             $overdueInstallments = $enrollment->installments->filter(function ($installment) {
                 return $installment->status === 'pending' && $installment->is_overdue;
             })->count();
-            
+
             // Próximo pago pendiente
             $nextPayment = $enrollment->installments
                 ->where('status', 'pending')
                 ->sortBy('due_date')
                 ->first();
-            
+
             // Usar los valores calculados del enrollment (incluyen mora)
             $totalAmount = (float) $enrollment->paymentPlan->total_amount;
             $paidAmount = (float) $enrollment->total_paid;
             $pendingAmount = (float) $enrollment->total_pending;
-            
+
             // ✅ Calcular días hasta vencimiento y período de gracia para el próximo pago
             $nextPaymentData = null;
             if ($nextPayment) {
                 $today = \Carbon\Carbon::today();
                 $dueDate = $nextPayment->due_date;
                 $gracePeriodDays = $enrollment->paymentPlan->grace_period_days ?? 0;
-                
+
                 // Calcular días hasta vencimiento (positivo = futuro, negativo = pasado)
                 $daysUntilDue = $today->diffInDays($dueDate, false);
-                
+
                 // Calcular fecha límite con período de gracia
                 $graceLimit = $dueDate->copy()->addDays($gracePeriodDays);
                 $daysUntilGraceLimit = $today->diffInDays($graceLimit, false);
-                
+
                 // Determinar si está en período de gracia
                 $isInGracePeriod = $daysUntilDue < 0 && $daysUntilGraceLimit >= 0 && $gracePeriodDays > 0;
-                
+
                 $nextPaymentData = [
                     'amount' => (float) $nextPayment->total_due, // ✅ Usar total_due que incluye mora
                     'due_date' => $nextPayment->due_date->format('Y-m-d'),
@@ -201,6 +201,35 @@ class DashboardController extends Controller
             ];
         }
 
+        // Obtener la próxima clase o práctica programada
+        $nextSession = \App\Models\StudentClassEnrollment::where('student_id', $student->id)
+            ->whereHas('scheduledClass', function ($q) {
+                $q->where('scheduled_at', '>=', now()->subMinutes(60)) // Mostrar clases que empezaron hace poco o están por empezar
+                    ->whereIn('status', ['scheduled', 'in_progress']);
+            })
+            ->with(['scheduledClass' => function ($q) {
+                $q->with('template:id,title,session_number', 'teacher:id,name');
+            }])
+            ->get()
+            ->map(fn($enrollment) => $enrollment->scheduledClass)
+            ->sortBy('scheduled_at')
+            ->first();
+
+        $nextSessionData = null;
+        if ($nextSession) {
+            $nextSessionData = [
+                'id' => $nextSession->id,
+                'title' => $nextSession->template->title,
+                'session_number' => $nextSession->template->session_number,
+                'type' => $nextSession->type,
+                'scheduled_at' => $nextSession->scheduled_at->format('Y-m-d H:i:s'),
+                'meet_url' => $nextSession->meet_url,
+                'teacher_name' => $nextSession->teacher?->name,
+                'status' => $nextSession->status,
+                'is_today' => $nextSession->scheduled_at->isToday(),
+            ];
+        }
+
         $studentData = array_merge($student->toArray(), [
             'name' => $user->name,
             'email' => $user->email,
@@ -209,6 +238,7 @@ class DashboardController extends Controller
             'paymentStats' => $paymentStats,
             'hasPendingDocuments' => $hasPendingDocuments,
             'contract' => $contractData, // ✅ Información del contrato
+            'nextSession' => $nextSessionData, // ✅ Próxima clase
             // Asegurar que los campos de verificación estén en camelCase
             'enrollmentVerified' => $student->enrollment_verified,
             'enrollmentVerifiedAt' => $student->enrollment_verified_at,
@@ -356,7 +386,7 @@ class DashboardController extends Controller
             'activeTeachers' => Teacher::where('status', 'active')->count(),
             'totalGroups' => Group::count(),
             'activeGroups' => Group::where('status', 'active')->count(),
-            
+
             // Stats de prospectos
             'totalProspects' => Student::count(),
             'registrados' => Student::where('prospect_status', 'registrado')->count(),
@@ -365,14 +395,14 @@ class DashboardController extends Controller
             'matriculados' => Student::where('prospect_status', 'matriculado')->count(),
             'verificados' => Student::where('prospect_status', 'matriculado')
                 ->where('enrollment_verified', true)->count(),
-            
+
             // KPIs de hoy
             'prospectosHoy' => Student::whereDate('created_at', today())->count(),
             'verificadosHoy' => Student::where('prospect_status', 'matriculado')
                 ->where('enrollment_verified', true)
                 ->whereDate('enrollment_verified_at', today())->count(),
             'enProceso' => Student::whereIn('prospect_status', ['propuesta_enviada', 'pago_por_verificar'])->count(),
-            
+
             // Stats de usuarios del sistema
             'totalUsers' => User::count(),
             'admins' => User::where('role', 'admin')->count(),
@@ -451,7 +481,7 @@ class DashboardController extends Controller
             'verificados' => Student::where('registered_by', $user->id)
                 ->where('prospect_status', 'matriculado')
                 ->where('enrollment_verified', true)->count(),
-            
+
             // KPIs de hoy
             'prospectosHoy' => Student::where('registered_by', $user->id)
                 ->whereDate('created_at', today())->count(),
@@ -560,9 +590,9 @@ class DashboardController extends Controller
         for ($i = 29; $i >= 0; $i--) {
             $date = now()->subDays($i);
             $dateKey = $date->format('d/m');
-            
+
             $existing = $dailyVerifications->firstWhere('date', $dateKey);
-            
+
             $dailyData[] = [
                 'date' => $dateKey,
                 'verificados' => $existing ? $existing['verificados'] : 0,
@@ -615,31 +645,31 @@ class DashboardController extends Controller
         $stats = [
             'totalStudents' => Student::count(),
             'activeStudents' => Student::where('status', 'active')->count(),
-            
+
             // Stats de prospectos - Solo los que YO verifiqué
             'totalProspects' => Student::count(),
             'registrados' => Student::where('prospect_status', 'registrado')->count(),
             'propuestasEnviadas' => Student::where('prospect_status', 'propuesta_enviada')->count(),
             'pagosPorVerificar' => Student::where('prospect_status', 'pago_por_verificar')->count(),
             'matriculados' => Student::where('prospect_status', 'matriculado')->count(),
-            
+
             // Verificados POR MÍ - Esta es la métrica clave para el verifier
             'verificados' => Student::where('prospect_status', 'matriculado')
                 ->where('enrollment_verified', true)
                 ->where('verified_enrollment_by', $user->id)
                 ->count(),
-            
+
             // KPIs de hoy
             'prospectosHoy' => Student::whereDate('created_at', today())->count(),
-            
+
             // Verificados HOY por MÍ
             'verificadosHoy' => Student::where('prospect_status', 'matriculado')
                 ->where('enrollment_verified', true)
                 ->where('verified_enrollment_by', $user->id)
                 ->whereDate('enrollment_verified_at', today())->count(),
-                
+
             'enProceso' => Student::whereIn('prospect_status', ['propuesta_enviada', 'pago_por_verificar'])->count(),
-            
+
             // Stats de usuarios del sistema
             'totalUsers' => User::count(),
             'admins' => User::where('role', 'admin')->count(),

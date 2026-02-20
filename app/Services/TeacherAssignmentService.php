@@ -71,7 +71,7 @@ class TeacherAssignmentService
 
         // REGLA DE ROTACIÓN:
         if ($type === 'practice') {
-            // Si es práctica, solo buscamos al profesor asignado
+            // Si es práctica, solo buscamos al profesor asignado para este día
             if ($practiceTeacherId) {
                 $query->where('user_id', $practiceTeacherId);
             } else {
@@ -79,7 +79,7 @@ class TeacherAssignmentService
                 return null;
             }
         } else {
-            // Si es regular (teoría), EXCLUIMOS al profesor de prácticas de hoy
+            // Si es regular (teoría), EXCLUIMOS al profesor de prácticas de hoy para que esté libre solo para su rotación
             if ($practiceTeacherId) {
                 $query->where('user_id', '!=', $practiceTeacherId);
             }
@@ -113,7 +113,7 @@ class TeacherAssignmentService
             return null;
         }
 
-        // Return a random available teacher
+        // Return a random available teacher from the pool (esperamos solo 1 si es práctica)
         return $availableTeachers->random();
     }
 

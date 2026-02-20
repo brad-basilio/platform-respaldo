@@ -101,7 +101,8 @@ class ClassRequestController extends Controller
         // Obtener todas las inscripciones (regulares y prácticas)
         $enrollments = StudentClassEnrollment::where('student_id', $student->id)
             ->with(['scheduledClass' => function ($q) {
-                $q->select('id', 'class_template_id', 'type', 'status');
+                $q->select('id', 'class_template_id', 'type', 'status', 'scheduled_at', 'meet_url', 'teacher_id')
+                    ->with('teacher:id,name');
             }])
             ->get();
 
@@ -109,16 +110,20 @@ class ClassRequestController extends Controller
         $sessionStats = $templates->mapWithKeys(function ($template) use ($enrollments, $user) {
             $templateEnrollments = $enrollments->filter(fn($e) => $e->scheduledClass->class_template_id === $template->id);
             $regularEnrollment = $templateEnrollments->where('scheduledClass.type', 'regular')->first();
+            $practiceSessions = $templateEnrollments->where('scheduledClass.type', 'practice');
 
             return [$template->id => [
                 'regular_enrolled' => $regularEnrollment !== null,
                 'regular_completed' => $regularEnrollment && $regularEnrollment->scheduledClass->status === 'completed',
                 'regular_status' => $regularEnrollment ? $regularEnrollment->scheduledClass->status : null,
-                'practice_count' => $templateEnrollments->where('scheduledClass.type', 'practice')->count(),
-                'practice_completed_count' => $templateEnrollments->where('scheduledClass.type', 'practice')->where('scheduledClass.status', 'completed')->count(),
+                'regular_session' => $regularEnrollment ? $regularEnrollment->scheduledClass : null,
+                'practice_count' => $practiceSessions->count(),
+                'practice_completed_count' => $practiceSessions->where('scheduledClass.status', 'completed')->count(),
+                'practice_sessions' => $practiceSessions->map(fn($e) => $e->scheduledClass)->values(),
                 'pending_request' => ClassRequest::where('student_id', $user->id)
                     ->where('class_template_id', $template->id)
                     ->whereIn('status', ['pending', 'approved'])
+                    ->select('id', 'status', 'type', 'requested_datetime', 'class_template_id')
                     ->first(),
             ]];
         });
@@ -126,6 +131,10 @@ class ClassRequestController extends Controller
         return Inertia::render('Student/MyClasses', [
             'templates' => $templates,
             'sessionStats' => $sessionStats,
+            'studentInfo' => [
+                'studentType' => $student->student_type ?? 'regular',
+                'isVerified' => (bool)$student->enrollment_verified,
+            ],
             'academicLevel' => $student->academicLevel,
             'practiceSettings' => [
                 'min_required' => (int) (Setting::where('key', 'practice_min_required')->value('content') ?? 2),
@@ -196,19 +205,19 @@ class ClassRequestController extends Controller
             ->with('scheduledClass.teacher')
             ->first();
 
-        $existingPracticeRequest = ClassRequest::where('student_id', $user->id)
+        $practiceRequests = ClassRequest::where('student_id', $user->id)
             ->where('class_template_id', $template->id)
             ->where('type', 'practice')
             ->whereIn('status', ['pending', 'approved', 'scheduled'])
             ->with('scheduledClass.teacher')
-            ->first();
+            ->get();
 
         return Inertia::render('Student/ClassTemplateView', [
             'template' => $template,
             'enrollment' => $enrollment,
             'practiceEnrollments' => $practiceEnrollments,
             'existingRequest' => $existingRequest,
-            'existingPracticeRequest' => $existingPracticeRequest,
+            'practiceRequests' => $practiceRequests,
             'studentInfo' => [
                 'studentType' => $student->student_type ?? 'regular',
                 'isVerified' => $student->enrollment_verified ?? false,
@@ -268,30 +277,12 @@ class ClassRequestController extends Controller
                 return back()->withErrors(['error' => 'Ya tienes una solicitud pendiente para la sesión teórica.']);
             }
         } else {
-            // Para PRÁCTICAS: Verificar si ya tiene una práctica PROGRAMADA (sin completar)
-            $hasActivePracticeEnrollment = StudentClassEnrollment::where('student_id', $student->id)
-                ->whereHas('scheduledClass', function ($q) use ($template) {
-                    $q->where('class_template_id', $template->id)
-                        ->where('type', 'practice')
-                        ->where('status', '!=', 'completed')
-                        ->where('status', '!=', 'cancelled');
-                })
-                ->exists();
+            // Para PRÁCTICAS: Las validaciones de "una a la vez" se han relajado para permitir 
+            // múltiples sesiones en diferentes días, permitiendo a los alumnos programar su semana.
+            // La validación de "un día a la vez" se mantiene más abajo en las reglas críticas.
 
-            if ($hasActivePracticeEnrollment) {
-                return back()->withErrors(['error' => 'Ya tienes una práctica programada. Debes realizarla antes de solicitar otra.']);
-            }
-
-            // Verificar solicitud pendiente de PRÁCTICA
-            $hasPendingPractice = ClassRequest::where('student_id', $user->id)
-                ->where('class_template_id', $template->id)
-                ->where('type', 'practice')
-                ->whereIn('status', ['pending', 'approved'])
-                ->exists();
-
-            if ($hasPendingPractice) {
-                return back()->withErrors(['error' => 'Ya tienes una solicitud de práctica en proceso.']);
-            }
+            // Se permite tener solicitudes en proceso para diferentes días.
+            // La validación de duplicados para el mismo día ocurre más adelante.
         }
 
         // VALIDACIÓN DE PROGRESIÓN (REGLAS DE PRÁCTICA)

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import {
   BookOpen, FileText,
   Award, Clock, Trophy, AlertTriangle, CheckCircle2,
-  CreditCard, TrendingUp, Calendar, AlertCircle, FileCheck, X, AlertOctagon
+  CreditCard, TrendingUp, Calendar, AlertCircle, FileCheck, X, AlertOctagon, Video
 } from 'lucide-react';
+import { RiUserStarLine, RiVideoLine } from 'react-icons/ri';
 import { Student } from '@/types/models';
 
 // Colores institucionales UNCED
@@ -50,6 +51,17 @@ interface StudentDashboardProps {
   student: Student & {
     paymentStats?: PaymentStats;
     hasPendingDocuments?: boolean;
+    nextSession?: {
+      id: number;
+      title: string;
+      session_number: string;
+      type: 'regular' | 'practice';
+      scheduled_at: string;
+      meet_url?: string;
+      teacher_name?: string;
+      status: string;
+      is_today: boolean;
+    } | null;
   };
 }
 
@@ -309,6 +321,76 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student }) => {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🚀 PRÓXIMA CLASE / PRÁCTICA - ACCESO RÁPIDO */}
+      {student.nextSession && (
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border-2 border-[#17BC91]/20 group hover:border-[#17BC91]/40 transition-all duration-300">
+          <div className="flex flex-col md:flex-row">
+            {/* Indicador de Fecha/Hora */}
+            <div className="bg-gradient-to-br from-[#073372] to-[#17BC91] p-6 text-white flex flex-col items-center justify-center min-w-[180px]">
+              <Calendar className="w-8 h-8 mb-2 opacity-80" />
+              <span className="text-sm font-bold uppercase tracking-widest opacity-80">
+                {student.nextSession.is_today ? 'Hoy' : new Date(student.nextSession.scheduled_at).toLocaleDateString('es-PE', { weekday: 'long' })}
+              </span>
+              <span className="text-2xl font-black mt-1">
+                {new Date(student.nextSession.scheduled_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+
+            {/* Contenido de la Clase */}
+            <div className="flex-1 p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter ${
+                    student.nextSession.type === 'practice' 
+                    ? 'bg-cyan-100 text-cyan-700 border border-cyan-200' 
+                    : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                  }`}>
+                    {student.nextSession.type === 'practice' ? 'Sesión Práctica' : 'Clase Teórica'}
+                  </span>
+                  {student.nextSession.status === 'in_progress' && (
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-red-600 animate-pulse bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
+                      <span className="w-1.5 h-1.5 bg-red-600 rounded-full" />
+                      EN CURSO
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-xl font-black text-gray-900 leading-tight">
+                  Sesión {student.nextSession.session_number}: {student.nextSession.title}
+                </h2>
+                {student.nextSession.teacher_name && (
+                  <p className="text-gray-500 text-sm flex items-center gap-1.5">
+                    <RiUserStarLine className="w-4 h-4 text-[#17BC91]" />
+                    Instructor: <span className="font-semibold text-gray-700">{student.nextSession.teacher_name}</span>
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                <a 
+                  href="/student/my-classes"
+                  className="flex items-center justify-center gap-2 text-sm font-bold text-[#073372] hover:text-[#052555] px-4 py-2 rounded-xl transition-colors bg-gray-50 border border-gray-200"
+                >
+                  Ver mis clases
+                </a>
+                {student.nextSession.meet_url ? (
+                  <button 
+                    onClick={() => window.open(student.nextSession?.meet_url, '_blank')}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#17BC91] hover:bg-[#14a77f] text-white font-black px-8 py-4 rounded-xl shadow-lg shadow-[#17BC91]/20 transition-all hover:-translate-y-1 active:scale-95"
+                  >
+                    <RiVideoLine className="w-5 h-5 animate-pulse" />
+                    ENTRAR AHORA
+                  </button>
+                ) : (
+                  <div className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-gray-100 text-gray-400 px-8 py-4 rounded-xl border border-gray-200 cursor-not-allowed italic text-sm">
+                    Link pronto...
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

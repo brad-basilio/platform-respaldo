@@ -266,12 +266,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
             section: 'ACADÉMICO',
             items: [
               { id: 'my-classes', label: 'Mis Clases', icon: RiBookOpenLine },
-              { 
-                id: 'practice-rotations', 
-                label: 'Mis días de práctica', 
-                icon: RiCalendarCheckLine,
-                badge: todayTeacher
-              },
             ]
           },
           // ✅ Solo mostrar secciones financieras si el aprendiz ha firmado el contrato
