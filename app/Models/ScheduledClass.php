@@ -13,6 +13,7 @@ class ScheduledClass extends Model
 
     protected $fillable = [
         'class_template_id',
+        'type',
         'teacher_id',
         'group_id',
         'scheduled_at',
@@ -140,6 +141,30 @@ class ScheduledClass extends Model
     public function scopeScheduled($query)
     {
         return $query->where('status', 'scheduled');
+    }
+
+    /**
+     * Scope para clases regulares
+     */
+    public function scopeRegular($query)
+    {
+        return $query->where('type', 'regular');
+    }
+
+    /**
+     * Scope para prácticas
+     */
+    public function scopePractice($query)
+    {
+        return $query->where('type', 'practice');
+    }
+
+    /**
+     * Verifica si es una práctica
+     */
+    public function isPractice(): bool
+    {
+        return $this->type === 'practice';
     }
 
     /**

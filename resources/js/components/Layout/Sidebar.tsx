@@ -71,7 +71,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
     if (currentUrl.startsWith('/admin/analytics')) return 'analytics';
     if (currentUrl.startsWith('/admin/class-templates')) return 'class-templates';
     if (currentUrl.startsWith('/admin/scheduled-classes')) return 'scheduled-classes';
+    if (currentUrl.startsWith('/admin/scheduled-practices')) return 'scheduled-practices';
     if (currentUrl.startsWith('/admin/class-requests')) return 'class-requests';
+    if (currentUrl.startsWith('/admin/practice-requests')) return 'practice-requests';
     if (currentUrl.startsWith('/student/payment-control')) return 'payment-control';
     if (currentUrl.startsWith('/student/billing')) return 'billing';
     if (currentUrl.startsWith('/student/my-plan')) return 'my-plan';
@@ -80,7 +82,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
     if (currentUrl.startsWith('/student/class-templates')) return 'my-classes';
     if (currentUrl.startsWith('/student/class-enrollments')) return 'my-classes';
     // Teacher routes
-    if (currentUrl.startsWith('/teacher/my-classes')) return 'teacher-my-classes';
+    if (currentUrl.startsWith('/teacher/my-classes')) {
+        // Si estamos en el detalle, intentamos obtener el tipo de las props
+        const scheduledClass = page.props.scheduledClass as any;
+        if (scheduledClass?.type === 'practice' || currentUrl.includes('type=practice')) {
+            return 'teacher-my-practices';
+        }
+        return 'teacher-my-classes';
+    }
     if (currentUrl.startsWith('/teacher/my-students')) return 'teacher-my-students';
     if (currentUrl.startsWith('/teacher/class-templates')) return 'teacher-class-templates';
     if (currentUrl.startsWith('/teacher/availability')) return 'teacher-availability';
@@ -124,7 +133,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
       'my-classes': '/student/my-classes',
       
       // Rutas de Teacher
-      'teacher-my-classes': '/teacher/my-classes',
+      'teacher-my-classes': '/teacher/my-classes?type=regular',
+      'teacher-my-practices': '/teacher/my-classes?type=practice',
       'teacher-my-students': '/teacher/my-students',
       'teacher-class-templates': '/teacher/class-templates',
       'teacher-availability': '/teacher/availability',
@@ -137,7 +147,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
       'users': '/admin/users',
       'class-templates': '/admin/class-templates',
       'scheduled-classes': '/admin/scheduled-classes',
+      'scheduled-practices': '/admin/scheduled-practices',
       'class-requests': '/admin/class-requests',
+      'practice-requests': '/admin/practice-requests',
     };
 
     const route = routes[view];
@@ -168,7 +180,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
             items: [
               { id: 'class-templates', label: 'Plantillas de Clases', icon: RiBookOpenLine },
               { id: 'scheduled-classes', label: 'Grupos de Clase', icon: RiVideoLine },
+              { id: 'scheduled-practices', label: 'Grupos de Práctica', icon: RiGroupLine },
               { id: 'class-requests', label: 'Solicitudes de Clases', icon: RiMessage3Line },
+              { id: 'practice-requests', label: 'Solicitudes de Práctica', icon: RiFileListLine },
             ]
           },
           {
@@ -210,7 +224,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewChange, hasUnsignedContract = f
             section: 'ACADÉMICO',
             items: [
             //  { id: 'teacher-class-templates', label: 'Plantillas de Clases', icon: RiBookOpenLine },
-              { id: 'teacher-my-classes', label: 'Mis Clases', icon: RiVideoLine },
+              { id: 'teacher-my-classes', label: 'Mis Clases Teóricas', icon: RiVideoLine },
+              { id: 'teacher-my-practices', label: 'Mis Sesiones Prácticas', icon: RiGroupLine },
               { id: 'teacher-my-students', label: 'Mis Participantes', icon: RiTeamLine },
             ]
           },

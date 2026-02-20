@@ -13,6 +13,7 @@ class ClassRequest extends Model
     protected $fillable = [
         'student_id',
         'class_template_id',
+        'type',
         'status',
         'student_message',
         'requested_datetime',
@@ -60,6 +61,16 @@ class ClassRequest extends Model
         return $query->where('status', 'pending');
     }
 
+    public function scopeRegular($query)
+    {
+        return $query->where('type', 'regular');
+    }
+
+    public function scopePractice($query)
+    {
+        return $query->where('type', 'practice');
+    }
+
     public function scopeForStudent($query, $studentId)
     {
         return $query->where('student_id', $studentId);
@@ -69,6 +80,11 @@ class ClassRequest extends Model
     public function isPending(): bool
     {
         return $this->status === 'pending';
+    }
+
+    public function isPractice(): bool
+    {
+        return $this->type === 'practice';
     }
 
     public function approve(int $adminId, ?string $response = null): void

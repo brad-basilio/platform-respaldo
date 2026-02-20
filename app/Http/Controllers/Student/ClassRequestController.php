@@ -26,6 +26,9 @@ class ClassRequestController extends Controller
             'operation_start_hour' => (int) (Setting::where('key', 'class_operation_start_hour')->value('content') ?? 8),
             'operation_end_hour' => (int) (Setting::where('key', 'class_operation_end_hour')->value('content') ?? 22),
             'max_students' => (int) (Setting::where('key', 'class_max_students')->value('content') ?? 6),
+            'practice_min_required' => (int) (Setting::where('key', 'practice_min_required')->value('content') ?? 2),
+            'practice_max_allowed' => (int) (Setting::where('key', 'practice_max_allowed')->value('content') ?? 5),
+            'practice_max_students' => (int) (Setting::where('key', 'practice_max_students')->value('content') ?? 10),
         ]);
     }
 
@@ -73,6 +76,7 @@ class ClassRequestController extends Controller
      */
     public function index()
     {
+        /** @var \App\Models\User $user */
         $user = auth()->user();
         $student = $user->student; // Relación correcta es 'student', no 'studentProfile'
 
@@ -94,23 +98,39 @@ class ClassRequestController extends Controller
             ->orderBy('session_number')
             ->get();
 
-        // Obtener las clases en las que está inscrito el estudiante
+        // Obtener todas las inscripciones (regulares y prácticas)
         $enrollments = StudentClassEnrollment::where('student_id', $student->id)
-            ->with(['scheduledClass.template.academicLevel'])
-            ->get()
-            ->keyBy(fn($e) => $e->scheduledClass->class_template_id);
+            ->with(['scheduledClass' => function ($q) {
+                $q->select('id', 'class_template_id', 'type', 'status');
+            }])
+            ->get();
 
-        // Obtener las solicitudes pendientes del estudiante
-        $myRequests = ClassRequest::where('student_id', $user->id)
-            ->whereIn('status', ['pending', 'approved', 'scheduled'])
-            ->get()
-            ->keyBy('class_template_id');
+        // Agrupar datos por plantilla para facilitar el consumo en React
+        $sessionStats = $templates->mapWithKeys(function ($template) use ($enrollments, $user) {
+            $templateEnrollments = $enrollments->filter(fn($e) => $e->scheduledClass->class_template_id === $template->id);
+            $regularEnrollment = $templateEnrollments->where('scheduledClass.type', 'regular')->first();
+
+            return [$template->id => [
+                'regular_enrolled' => $regularEnrollment !== null,
+                'regular_completed' => $regularEnrollment && $regularEnrollment->scheduledClass->status === 'completed',
+                'regular_status' => $regularEnrollment ? $regularEnrollment->scheduledClass->status : null,
+                'practice_count' => $templateEnrollments->where('scheduledClass.type', 'practice')->count(),
+                'practice_completed_count' => $templateEnrollments->where('scheduledClass.type', 'practice')->where('scheduledClass.status', 'completed')->count(),
+                'pending_request' => ClassRequest::where('student_id', $user->id)
+                    ->where('class_template_id', $template->id)
+                    ->whereIn('status', ['pending', 'approved'])
+                    ->first(),
+            ]];
+        });
 
         return Inertia::render('Student/MyClasses', [
             'templates' => $templates,
-            'enrollments' => $enrollments,
-            'myRequests' => $myRequests,
+            'sessionStats' => $sessionStats,
             'academicLevel' => $student->academicLevel,
+            'practiceSettings' => [
+                'min_required' => (int) (Setting::where('key', 'practice_min_required')->value('content') ?? 2),
+                'max_allowed' => (int) (Setting::where('key', 'practice_max_allowed')->value('content') ?? 5),
+            ]
         ]);
     }
 
@@ -119,6 +139,7 @@ class ClassRequestController extends Controller
      */
     public function show(ClassTemplate $template)
     {
+        /** @var \App\Models\User $user */
         $user = auth()->user();
         $student = $user->student;
 
@@ -129,14 +150,26 @@ class ClassRequestController extends Controller
 
         $template->load(['academicLevel', 'questions', 'resources']);
 
-        // Verificar si ya tiene una inscripción o solicitud
+        // Verificar si ya tiene una inscripción o solicitud (CLASE REGULAR)
         $enrollment = StudentClassEnrollment::where('student_id', $student->id)
-            ->whereHas('scheduledClass', fn($q) => $q->where('class_template_id', $template->id))
+            ->whereHas('scheduledClass', function ($q) use ($template) {
+                $q->where('class_template_id', $template->id)
+                    ->where('type', 'regular');
+            })
             ->with(['scheduledClass' => function ($q) {
-                $q->select('id', 'class_template_id', 'teacher_id', 'status', 'scheduled_at', 'meet_url', 'recording_url', 'max_students');
+                $q->select('id', 'class_template_id', 'teacher_id', 'status', 'scheduled_at', 'meet_url', 'recording_url', 'max_students', 'type');
             }, 'scheduledClass.teacher:id,name', 'latestExamAttempt'])
             ->withCount('examAttempts')
             ->first();
+
+        // Obtener inscripciones de PRÁCTICAS
+        $practiceEnrollments = StudentClassEnrollment::where('student_id', $student->id)
+            ->whereHas('scheduledClass', function ($q) use ($template) {
+                $q->where('class_template_id', $template->id)
+                    ->where('type', 'practice');
+            })
+            ->with(['scheduledClass.teacher:id,name'])
+            ->get();
 
         // Add latest exam attempt info to enrollment if exists
         if ($enrollment) {
@@ -158,6 +191,14 @@ class ClassRequestController extends Controller
 
         $existingRequest = ClassRequest::where('student_id', $user->id)
             ->where('class_template_id', $template->id)
+            ->where('type', 'regular')
+            ->whereIn('status', ['pending', 'approved', 'scheduled'])
+            ->with('scheduledClass.teacher')
+            ->first();
+
+        $existingPracticeRequest = ClassRequest::where('student_id', $user->id)
+            ->where('class_template_id', $template->id)
+            ->where('type', 'practice')
             ->whereIn('status', ['pending', 'approved', 'scheduled'])
             ->with('scheduledClass.teacher')
             ->first();
@@ -165,11 +206,17 @@ class ClassRequestController extends Controller
         return Inertia::render('Student/ClassTemplateView', [
             'template' => $template,
             'enrollment' => $enrollment,
+            'practiceEnrollments' => $practiceEnrollments,
             'existingRequest' => $existingRequest,
+            'existingPracticeRequest' => $existingPracticeRequest,
             'studentInfo' => [
                 'studentType' => $student->student_type ?? 'regular',
                 'isVerified' => $student->enrollment_verified ?? false,
             ],
+            'practiceSettings' => [
+                'min_required' => (int) (Setting::where('key', 'practice_min_required')->value('content') ?? 2),
+                'max_allowed' => (int) (Setting::where('key', 'practice_max_allowed')->value('content') ?? 5),
+            ]
         ]);
     }
 
@@ -180,6 +227,7 @@ class ClassRequestController extends Controller
     {
         $rules = [
             'class_template_id' => 'required|exists:class_templates,id',
+            'type' => 'nullable|in:regular,practice',
             'message' => 'nullable|string|max:500',
             'requested_datetime' => 'nullable|date',
             'target_scheduled_class_id' => 'nullable|exists:scheduled_classes,id',
@@ -187,6 +235,7 @@ class ClassRequestController extends Controller
 
         $request->validate($rules);
 
+        /** @var \App\Models\User $user */
         $user = auth()->user();
         $student = $user->student;
         $template = ClassTemplate::findOrFail($request->class_template_id);
@@ -196,23 +245,136 @@ class ClassRequestController extends Controller
             return back()->withErrors(['error' => 'No puedes solicitar clases de otro nivel.']);
         }
 
-        // Verificar que no tenga una solicitud pendiente
-        $existingRequest = ClassRequest::where('student_id', $user->id)
-            ->where('class_template_id', $template->id)
-            ->whereIn('status', ['pending', 'approved'])
-            ->exists();
+        $type = $request->input('type', 'regular');
 
-        if ($existingRequest) {
-            return back()->withErrors(['error' => 'Ya tienes una solicitud pendiente para esta clase.']);
+        if ($type === 'regular') {
+            // Verificar que no esté ya inscrito en clase REGULAR
+            $alreadyEnrolledRegular = StudentClassEnrollment::where('student_id', $student->id)
+                ->whereHas('scheduledClass', fn($q) => $q->where('class_template_id', $template->id)->where('type', 'regular'))
+                ->exists();
+
+            if ($alreadyEnrolledRegular) {
+                return back()->withErrors(['error' => 'Ya estás inscrito en la sesión teórica de esta clase.']);
+            }
+
+            // Verificar solicitud pendiente REGULAR
+            $hasPendingRegular = ClassRequest::where('student_id', $user->id)
+                ->where('class_template_id', $template->id)
+                ->where('type', 'regular')
+                ->whereIn('status', ['pending', 'approved'])
+                ->exists();
+
+            if ($hasPendingRegular) {
+                return back()->withErrors(['error' => 'Ya tienes una solicitud pendiente para la sesión teórica.']);
+            }
+        } else {
+            // Para PRÁCTICAS: Verificar si ya tiene una práctica PROGRAMADA (sin completar)
+            $hasActivePracticeEnrollment = StudentClassEnrollment::where('student_id', $student->id)
+                ->whereHas('scheduledClass', function ($q) use ($template) {
+                    $q->where('class_template_id', $template->id)
+                        ->where('type', 'practice')
+                        ->where('status', '!=', 'completed')
+                        ->where('status', '!=', 'cancelled');
+                })
+                ->exists();
+
+            if ($hasActivePracticeEnrollment) {
+                return back()->withErrors(['error' => 'Ya tienes una práctica programada. Debes realizarla antes de solicitar otra.']);
+            }
+
+            // Verificar solicitud pendiente de PRÁCTICA
+            $hasPendingPractice = ClassRequest::where('student_id', $user->id)
+                ->where('class_template_id', $template->id)
+                ->where('type', 'practice')
+                ->whereIn('status', ['pending', 'approved'])
+                ->exists();
+
+            if ($hasPendingPractice) {
+                return back()->withErrors(['error' => 'Ya tienes una solicitud de práctica en proceso.']);
+            }
         }
 
-        // Verificar que no esté ya inscrito en una clase de esta plantilla
-        $alreadyEnrolled = StudentClassEnrollment::where('student_id', $user->id)
-            ->whereHas('scheduledClass', fn($q) => $q->where('class_template_id', $template->id))
-            ->exists();
+        // VALIDACIÓN DE PROGRESIÓN (REGLAS DE PRÁCTICA)
+        if ($type === 'regular') {
+            // Verificar si la plantilla solicitada es la siguiente a una ya completada
+            // Si es mayor a la primera, verificar que la anterior tenga las prácticas mínimas completadas
+            $previousTemplate = ClassTemplate::where('academic_level_id', $template->academic_level_id)
+                ->where('order', '<', $template->order)
+                ->orderBy('order', 'desc')
+                ->first();
 
-        if ($alreadyEnrolled) {
-            return back()->withErrors(['error' => 'Ya estás inscrito en una clase de esta sesión.']);
+            if ($previousTemplate) {
+                $minPractices = (int) (Setting::where('key', 'practice_min_required')->value('content') ?? 2);
+
+                $completedPractices = StudentClassEnrollment::where('student_id', $student->id)
+                    ->whereHas('scheduledClass', function ($q) use ($previousTemplate) {
+                        $q->where('class_template_id', $previousTemplate->id)
+                            ->where('type', 'practice')
+                            ->where('status', 'completed');
+                    })
+                    ->count();
+
+                if ($completedPractices < $minPractices) {
+                    return back()->withErrors(['error' => "No puedes solicitar esta sesión aún. Debes completar al menos {$minPractices} prácticas de la sesión anterior (llevas {$completedPractices})."]);
+                }
+            }
+        } else {
+            // Reglas para PRÁCTICAS
+            // 1. Verificar que ya haya completado la Clase Regular de esta plantilla
+            $regularCompleted = StudentClassEnrollment::where('student_id', $student->id)
+                ->whereHas('scheduledClass', function ($q) use ($template) {
+                    $q->where('class_template_id', $template->id)
+                        ->where('type', 'regular')
+                        ->where('status', 'completed');
+                })
+                ->exists();
+
+            if (!$regularCompleted) {
+                return back()->withErrors(['error' => 'Debes completar la sesión teórica antes de solicitar prácticas.']);
+            }
+
+            // 2. Verificar máximo de prácticas permitidas
+            $maxPractices = (int) (Setting::where('key', 'practice_max_allowed')->value('content') ?? 5);
+            $totalPractices = StudentClassEnrollment::where('student_id', $student->id)
+                ->whereHas('scheduledClass', function ($q) use ($template) {
+                    $q->where('class_template_id', $template->id)
+                        ->where('type', 'practice');
+                })
+                ->count();
+
+            $pendingPracticeRequests = ClassRequest::where('student_id', $user->id)
+                ->where('class_template_id', $template->id)
+                ->where('type', 'practice')
+                ->whereIn('status', ['pending', 'approved'])
+                ->count();
+
+            if (($totalPractices + $pendingPracticeRequests) >= $maxPractices) {
+                return back()->withErrors(['error' => "Ya has alcanzado el máximo de {$maxPractices} prácticas permitidas para esta sesión."]);
+            }
+
+            // 3. REGLA CRÍTICA: No 2 prácticas el mismo día
+            if ($request->requested_datetime) {
+                $requestedDate = Carbon::parse($request->requested_datetime)->toDateString();
+
+                // Buscar en inscripciones
+                $hasPracticeSameDay = StudentClassEnrollment::where('student_id', $student->id)
+                    ->whereHas('scheduledClass', function ($q) use ($requestedDate) {
+                        $q->where('type', 'practice')
+                            ->whereDate('scheduled_at', $requestedDate);
+                    })
+                    ->exists();
+
+                // Buscar en otras solicitudes
+                $hasRequestSameDay = ClassRequest::where('student_id', $user->id)
+                    ->where('type', 'practice')
+                    ->whereIn('status', ['pending', 'approved'])
+                    ->whereDate('requested_datetime', $requestedDate)
+                    ->exists();
+
+                if ($hasPracticeSameDay || $hasRequestSameDay) {
+                    return back()->withErrors(['error' => 'No puedes realizar más de una práctica el mismo día.']);
+                }
+            }
         }
 
         // Si es estudiante regular verificado, validar el datetime
@@ -272,6 +434,7 @@ class ClassRequestController extends Controller
                 ClassRequest::create([
                     'student_id' => $user->id,
                     'class_template_id' => $template->id,
+                    'type' => $type,
                     'student_message' => $request->message,
                     'requested_datetime' => $targetClass->scheduled_at,
                     'target_scheduled_class_id' => $targetClass->id,
@@ -293,13 +456,15 @@ class ClassRequestController extends Controller
                     $template,
                     $requestedDatetime,
                     $teacher,
-                    $student
+                    $student,
+                    $type
                 );
 
                 // Create the class request marked as scheduled
                 ClassRequest::create([
                     'student_id' => $user->id,
                     'class_template_id' => $template->id,
+                    'type' => $type,
                     'student_message' => $request->message,
                     'requested_datetime' => $requestedDatetime,
                     'scheduled_class_id' => $scheduledClass->id,
@@ -367,6 +532,7 @@ class ClassRequestController extends Controller
                 ClassRequest::create([
                     'student_id' => $user->id,
                     'class_template_id' => $template->id,
+                    'type' => $type,
                     'student_message' => $request->message,
                     'requested_datetime' => $targetClass->scheduled_at,
                     'target_scheduled_class_id' => $targetClass->id,
@@ -388,13 +554,15 @@ class ClassRequestController extends Controller
                     $template,
                     $requestedDatetime,
                     $teacher,
-                    $student
+                    $student,
+                    $type
                 );
 
                 // Create the class request marked as scheduled
                 ClassRequest::create([
                     'student_id' => $user->id,
                     'class_template_id' => $template->id,
+                    'type' => $type,
                     'student_message' => $request->message,
                     'requested_datetime' => $requestedDatetime,
                     'scheduled_class_id' => $scheduledClass->id,
@@ -463,6 +631,7 @@ class ClassRequestController extends Controller
                 ClassRequest::create([
                     'student_id' => $user->id,
                     'class_template_id' => $template->id,
+                    'type' => $type,
                     'student_message' => $request->message,
                     'requested_datetime' => $targetClass->scheduled_at,
                     'target_scheduled_class_id' => $targetClass->id,
@@ -484,13 +653,15 @@ class ClassRequestController extends Controller
                     $template,
                     $requestedDatetime,
                     $teacher,
-                    $student
+                    $student,
+                    $type
                 );
 
                 // Create the class request marked as scheduled
                 ClassRequest::create([
                     'student_id' => $user->id,
                     'class_template_id' => $template->id,
+                    'type' => $type,
                     'student_message' => $request->message,
                     'requested_datetime' => $requestedDatetime,
                     'scheduled_class_id' => $scheduledClass->id,
@@ -507,6 +678,8 @@ class ClassRequestController extends Controller
                     ->withErrors(['no_teacher' => 'No hay profesores disponibles en este horario.']);
             }
         } else {
+            /** @var \App\Models\User $user */
+            $user = auth()->user();
             // Flujo para no verificados: guardar la preferencia de horario sin validaciones estrictas
             if ($request->requested_datetime) {
                 $requestedDatetime = Carbon::parse($request->requested_datetime);
@@ -517,6 +690,7 @@ class ClassRequestController extends Controller
         ClassRequest::create([
             'student_id' => $user->id,
             'class_template_id' => $template->id,
+            'type' => $type,
             'student_message' => $request->message,
             'requested_datetime' => $requestedDatetime,
             'target_scheduled_class_id' => $targetScheduledClassId,

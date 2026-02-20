@@ -110,14 +110,17 @@ class TeacherAssignmentService
         ClassTemplate $template,
         Carbon $datetime,
         Teacher $teacher,
-        Student $student
+        Student $student,
+        string $type = 'regular'
     ): ScheduledClass {
         // Get max students from settings
-        $maxStudents = (int) (\App\Models\Setting::where('key', 'class_max_students')->value('content') ?? 6);
+        $settingKey = $type === 'practice' ? 'practice_max_students' : 'class_max_students';
+        $maxStudents = (int) (\App\Models\Setting::where('key', $settingKey)->value('content') ?? ($type === 'practice' ? 10 : 6));
 
         // Create the scheduled class
         $scheduledClass = ScheduledClass::create([
             'class_template_id' => $template->id,
+            'type' => $type,
             'teacher_id' => $teacher->user_id, // ScheduledClass uses user_id
             'scheduled_at' => $datetime,
             'status' => 'scheduled',

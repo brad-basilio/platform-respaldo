@@ -53,6 +53,7 @@ interface ScheduledClass {
   scheduled_at: string;
   ended_at?: string;
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  type: 'regular' | 'practice';
   meet_url?: string;
   recording_url?: string;
   max_students: number;
@@ -81,6 +82,7 @@ interface Props {
   filters: {
     status?: string;
     date?: string;
+    type?: string;
   };
 }
 
@@ -111,6 +113,10 @@ export default function MyClasses({ scheduledClasses, stats, filters }: Props) {
     });
   };
 
+  const isPractice = filters.type === 'practice';
+  const pageTitle = isPractice ? 'Mis Sesiones Prácticas' : (filters.type === 'regular' ? 'Mis Clases Teóricas' : 'Todas mis Sesiones');
+  const pageSubtitle = isPractice ? 'Refuerza los conocimientos de tus alumnos' : 'Imparte clases teóricas de la ruta académica';
+
   const handleUpdateStatus = (classId: number, newStatus: string) => {
     router.put(`/teacher/my-classes/${classId}/status`, { status: newStatus }, {
       onSuccess: () => toast.success('Estado actualizado'),
@@ -123,6 +129,7 @@ export default function MyClasses({ scheduledClasses, stats, filters }: Props) {
     const params: Record<string, string> = {};
     if (statusFilter) params.status = statusFilter;
     if (dateFilter) params.date = dateFilter.toISOString().split('T')[0];
+    if (filters.type) params.type = filters.type;
     router.get('/teacher/my-classes', params, { preserveState: true });
   };
 
@@ -130,16 +137,34 @@ export default function MyClasses({ scheduledClasses, stats, filters }: Props) {
     setStatusFilter('');
     setDateFilter(null);
     setQuickFilterText('');
-    router.get('/teacher/my-classes');
+    const params: any = {};
+    if (filters.type) params.type = filters.type;
+    router.get('/teacher/my-classes', params);
   };
 
   // AG Grid Column Definitions
   const columnDefs = useMemo<ColDef<ScheduledClass>[]>(() => [
     {
+      headerName: 'Tipo',
+      field: 'type',
+      minWidth: 100,
+      maxWidth: 130,
+      cellRenderer: (params: any) => {
+        const isPrac = params.value === 'practice';
+        return (
+          <div className="flex items-center h-full">
+            <Badge className={`${isPrac ? 'bg-cyan-100 text-cyan-700 border-cyan-200' : 'bg-blue-100 text-blue-700 border-blue-200'} border shadow-none`}>
+               {isPrac ? 'Práctica' : 'Teórica'}
+            </Badge>
+          </div>
+        );
+      }
+    },
+    {
       headerName: 'Sesión',
       field: 'template.session_number',
-      minWidth: 100,
-      maxWidth: 120,
+      minWidth: 80,
+      maxWidth: 100,
       cellRenderer: (params: any) => {
         const levelColor = params.data.template.academic_level?.color || '#073372';
         return (
@@ -322,8 +347,8 @@ export default function MyClasses({ scheduledClasses, stats, filters }: Props) {
                   <ArrowLeft className="w-4 h-4" />
                   <span className="text-sm font-medium">Volver al Dashboard</span>
                 </Link>
-                <h1 className="text-3xl font-bold text-gray-900">Mis Clases</h1>
-                <p className="text-gray-500 mt-1">Gestiona y monitorea tus sesiones de clase</p>
+                <h1 className="text-3xl font-bold text-gray-900">{pageTitle}</h1>
+                <p className="text-gray-500 mt-1">{pageSubtitle}</p>
               </div>
               
               {/* Stats KPIs */}

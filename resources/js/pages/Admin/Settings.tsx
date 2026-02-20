@@ -147,6 +147,9 @@ const Settings: React.FC<Props> = ({ settings }) => {
     class_operation_start_hour: settings.general?.find(s => s.key === 'class_operation_start_hour')?.content || '8',
     class_operation_end_hour: settings.general?.find(s => s.key === 'class_operation_end_hour')?.content || '22',
     class_max_students: settings.general?.find(s => s.key === 'class_max_students')?.content || '6',
+    practice_min_required: settings.general?.find(s => s.key === 'practice_min_required')?.content || '2',
+    practice_max_allowed: settings.general?.find(s => s.key === 'practice_max_allowed')?.content || '5',
+    practice_max_students: settings.general?.find(s => s.key === 'practice_max_students')?.content || '10',
   });
 
   const sections = [
@@ -487,6 +490,24 @@ const Settings: React.FC<Props> = ({ settings }) => {
         content: classesForm.data.class_max_students,
         type: 'general',
         description: 'Número máximo de aprendices por clase',
+      },
+      {
+        key: 'practice_min_required',
+        content: classesForm.data.practice_min_required,
+        type: 'general',
+        description: 'Mínimo de prácticas requeridas antes de pasar al siguiente módulo',
+      },
+      {
+        key: 'practice_max_allowed',
+        content: classesForm.data.practice_max_allowed,
+        type: 'general',
+        description: 'Máximo de prácticas permitidas por módulo',
+      },
+      {
+        key: 'practice_max_students',
+        content: classesForm.data.practice_max_students,
+        type: 'general',
+        description: 'Número máximo de aprendices por práctica',
       },
     ];
 
@@ -1362,23 +1383,56 @@ const Settings: React.FC<Props> = ({ settings }) => {
                 {/* Max Students */}
                 <div className="bg-white border border-gray-200 rounded-xl p-6">
                   <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    🎓 Capacidad de Clases
+                    🎓 Capacidad y Reglas de Académicas
                   </h4>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Define el número máximo de aprendices permitidos por clase. Esto se utilizará como valor predeterminado al crear nuevos grupos.
-                  </p>
-                  
-                  <div className="max-w-md">
-                    <Input
-                      label="Máximo de Aprendices por Clase"
-                      type="number"
-                      min="1"
-                      max="50"
-                      value={classesForm.data.class_max_students}
-                      onChange={(e) => classesForm.setData('class_max_students', e.target.value)}
-                      helperText="Capacidad máxima sugerida para nuevas clases"
-                      variant="outlined"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <h5 className="text-sm font-bold text-gray-700">Sesiones Regulares</h5>
+                      <Input
+                        label="Máximo de Aprendices por Clase"
+                        type="number"
+                        min="1"
+                        max="50"
+                        value={classesForm.data.class_max_students}
+                        onChange={(e) => classesForm.setData('class_max_students', e.target.value)}
+                        helperText="Capacidad máxima sugerida para nuevas clases"
+                        variant="outlined"
+                      />
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <h5 className="text-sm font-bold text-gray-700">Sesiones de Práctica</h5>
+                      <Input
+                        label="Máximo de Aprendices por Práctica"
+                        type="number"
+                        min="1"
+                        max="50"
+                        value={classesForm.data.practice_max_students}
+                        onChange={(e) => classesForm.setData('practice_max_students', e.target.value)}
+                        helperText="Capacidad máxima sugerida para nuevas prácticas"
+                        variant="outlined"
+                      />
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input
+                          label="Prácticas Mínimas"
+                          type="number"
+                          min="0"
+                          max="10"
+                          value={classesForm.data.practice_min_required}
+                          onChange={(e) => classesForm.setData('practice_min_required', e.target.value)}
+                          helperText="Mínimo obligatorio"
+                        />
+                        <Input
+                          label="Prácticas Máximas"
+                          type="number"
+                          min="1"
+                          max="20"
+                          value={classesForm.data.practice_max_allowed}
+                          onChange={(e) => classesForm.setData('practice_max_allowed', e.target.value)}
+                          helperText="Máximo opcional"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1399,9 +1453,15 @@ const Settings: React.FC<Props> = ({ settings }) => {
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-purple-700">Capacidad Máxima:</span>
+                      <span className="text-purple-700">Capacidad (Clase/Práctica):</span>
                       <span className="font-bold text-purple-900">
-                        {classesForm.data.class_max_students} aprendices
+                        {classesForm.data.class_max_students} / {classesForm.data.practice_max_students} aprendices
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-purple-700">Rango de Prácticas:</span>
+                      <span className="font-bold text-purple-900">
+                        Min: {classesForm.data.practice_min_required} - Max: {classesForm.data.practice_max_allowed}
                       </span>
                     </div>
                   </div>

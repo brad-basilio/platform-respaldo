@@ -38,19 +38,33 @@ class TeacherClassController extends Controller
             $query->whereDate('scheduled_at', $request->date);
         }
 
+        // Filtrar por tipo (regular, practice)
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
         // Por defecto, ordenar por fecha más reciente primero
         $scheduledClasses = $query->orderBy('scheduled_at', 'desc')->paginate(20);
 
+        // Estadísticas filtradas por tipo si se especifica
+        $baseStatsQuery = ScheduledClass::where('teacher_id', $user->id);
+        if ($request->filled('type')) {
+            $baseStatsQuery->where('type', $request->type);
+        }
+
         // Estadísticas del profesor
         $stats = [
-            'totalClasses' => ScheduledClass::where('teacher_id', $user->id)->count(),
-            'scheduledClasses' => ScheduledClass::where('teacher_id', $user->id)->where('status', 'scheduled')->count(),
-            'inProgressClasses' => ScheduledClass::where('teacher_id', $user->id)->where('status', 'in_progress')->count(),
-            'completedClasses' => ScheduledClass::where('teacher_id', $user->id)->where('status', 'completed')->count(),
-            'totalStudents' => StudentClassEnrollment::whereHas('scheduledClass', function ($q) use ($user) {
+            'totalClasses' => (clone $baseStatsQuery)->count(),
+            'scheduledClasses' => (clone $baseStatsQuery)->where('status', 'scheduled')->count(),
+            'inProgressClasses' => (clone $baseStatsQuery)->where('status', 'in_progress')->count(),
+            'completedClasses' => (clone $baseStatsQuery)->where('status', 'completed')->count(),
+            'totalStudents' => StudentClassEnrollment::whereHas('scheduledClass', function ($q) use ($user, $request) {
                 $q->where('teacher_id', $user->id);
+                if ($request->filled('type')) {
+                    $q->where('type', $request->type);
+                }
             })->distinct('student_id')->count('student_id'),
-            'todayClasses' => ScheduledClass::where('teacher_id', $user->id)
+            'todayClasses' => (clone $baseStatsQuery)
                 ->whereDate('scheduled_at', today())
                 ->whereIn('status', ['scheduled', 'in_progress'])
                 ->count(),
@@ -59,7 +73,7 @@ class TeacherClassController extends Controller
         return Inertia::render('Teacher/MyClasses', [
             'scheduledClasses' => $scheduledClasses,
             'stats' => $stats,
-            'filters' => $request->only(['status', 'date'])
+            'filters' => $request->only(['status', 'date', 'type'])
         ]);
     }
 

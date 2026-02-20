@@ -23,6 +23,7 @@ interface ClassTemplate {
   has_exam: boolean;
   duration_minutes: number;
   questions_count: number;
+  exam_questions_count: number;
   resources_count: number;
   academic_level: AcademicLevel;
 }
@@ -50,19 +51,33 @@ interface ClassRequest {
   created_at: string;
 }
 
+interface SessionStat {
+  regular_enrolled: boolean;
+  regular_completed: boolean;
+  regular_status: string | null;
+  practice_count: number;
+  practice_completed_count: number;
+  pending_request: ClassRequest | null;
+}
+
+interface PracticeSettings {
+  min_required: number;
+  max_allowed: number;
+}
+
 interface Props {
   templates: ClassTemplate[];
-  enrollments: Record<number, ClassEnrollment>; // keyed by template_id
-  myRequests: Record<number, ClassRequest>; // keyed by template_id
+  sessionStats: Record<number, SessionStat>; // keyed by template_id
   academicLevel?: AcademicLevel;
+  practiceSettings: PracticeSettings;
   message?: string;
 }
 
 const StudentMyClasses: React.FC<Props> = ({ 
   templates, 
-  enrollments, 
-  myRequests, 
+  sessionStats, 
   academicLevel,
+  practiceSettings,
   message 
 }) => {
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -79,12 +94,16 @@ const StudentMyClasses: React.FC<Props> = ({
     });
   }, [templates]);
 
-  // Verificar si una sesión está completada
+  // Verificar si una sesión está completada (Regular OK + Prácticas Mínimas OK)
   const isSessionCompleted = (templateId: number): boolean => {
-    const enrollment = enrollments[templateId];
-    if (!enrollment) return false;
-    const sc = enrollment.scheduled_class;
-    return sc.status === 'completed' && enrollment.attended && enrollment.exam_completed;
+    const stats = sessionStats[templateId];
+    if (!stats) return false;
+    
+    // Debe haber completado la clase regular
+    if (!stats.regular_completed) return false;
+    
+    // Debe haber completado el mínimo de prácticas
+    return stats.practice_completed_count >= practiceSettings.min_required;
   };
 
   // Verificar si una sesión está desbloqueada (puede ser solicitada)
@@ -103,13 +122,13 @@ const StudentMyClasses: React.FC<Props> = ({
     // Si no hay sesión anterior, está desbloqueada
     if (!previousSession) return true;
     
-    // La sesión anterior debe estar completada
+    // La sesión anterior debe estar COMPLETAMENTE completada (incluyendo prácticas)
     return isSessionCompleted(previousSession.id);
   };
 
   // Calcular progreso
-  const completedCount = Object.values(enrollments).filter(e => 
-    e.scheduled_class.status === 'completed' && e.attended && e.exam_completed
+  const completedCount = Object.values(sessionStats).filter(s => 
+    s.regular_completed && s.practice_completed_count >= practiceSettings.min_required
   ).length;
   const totalCount = templates.length;
   const progressPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -122,7 +141,7 @@ const StudentMyClasses: React.FC<Props> = ({
       }
     }
     return null;
-  }, [sortedTemplates, enrollments]);
+  }, [sortedTemplates, sessionStats]);
 
   const handleRequestClass = (template: ClassTemplate) => {
     setSelectedTemplate(template);
@@ -161,8 +180,7 @@ const StudentMyClasses: React.FC<Props> = ({
   };
 
   const getTemplateStatus = (template: ClassTemplate) => {
-    const enrollment = enrollments[template.id];
-    const request = myRequests[template.id];
+    const stats = sessionStats[template.id];
     const unlocked = isSessionUnlocked(template);
 
     // Si está bloqueada
@@ -170,26 +188,27 @@ const StudentMyClasses: React.FC<Props> = ({
       return { type: 'locked', label: 'Bloqueada', color: 'bg-gray-300', icon: Lock };
     }
 
-    if (enrollment) {
-      const sc = enrollment.scheduled_class;
-      if (sc.status === 'completed' && enrollment.attended && enrollment.exam_completed) {
+    if (stats) {
+      if (stats.regular_completed && stats.practice_completed_count >= practiceSettings.min_required) {
         return { type: 'completed', label: 'Completada', color: 'bg-emerald-500', icon: CheckCircle };
       }
-      if (sc.status === 'completed') {
-        return { type: 'pending_exam', label: 'Pendiente examen', color: 'bg-amber-500', icon: FileQuestion };
+      if (stats.regular_completed) {
+        return { type: 'practices_pending', label: `Prácticas (${stats.practice_completed_count}/${practiceSettings.min_required})`, color: 'bg-cyan-500', icon: Zap };
       }
-      if (sc.status === 'in_progress') {
-        return { type: 'in_progress', label: 'En curso', color: 'bg-blue-500', icon: PlayCircle };
+      if (stats.regular_enrolled && !stats.regular_completed) {
+        if (stats.regular_status === 'in_progress') {
+          return { type: 'in_progress', label: 'En curso', color: 'bg-blue-500', icon: PlayCircle };
+        }
+        return { type: 'scheduled', label: 'Programada', color: 'bg-violet-500', icon: Clock };
       }
-      return { type: 'scheduled', label: 'Programada', color: 'bg-violet-500', icon: Clock };
-    }
-
-    if (request) {
-      if (request.status === 'pending') {
-        return { type: 'request_pending', label: 'Pendiente', color: 'bg-orange-500', icon: Clock };
-      }
-      if (request.status === 'approved') {
-        return { type: 'request_approved', label: 'Aprobada', color: 'bg-cyan-500', icon: CheckCircle };
+      if (stats.pending_request) {
+        const request = stats.pending_request;
+        if (request.status === 'pending') {
+          return { type: 'request_pending', label: 'En revisión', color: 'bg-orange-500', icon: Clock };
+        }
+        if (request.status === 'approved') {
+          return { type: 'request_approved', label: 'Aprobada', color: 'bg-cyan-500', icon: CheckCircle };
+        }
       }
     }
 
@@ -299,9 +318,20 @@ const StudentMyClasses: React.FC<Props> = ({
                         </span>
                       </div>
                       <h3 className="text-xl font-bold text-gray-900 mb-2">
-                        Sesión {nextSession.session_number}: {nextSession.title}
+                        {sessionStats[nextSession.id]?.regular_completed 
+                          ? `Refuerzo: Prácticas de Sesión ${nextSession.session_number}`
+                          : `Sesión ${nextSession.session_number}: ${nextSession.title}`
+                        }
                       </h3>
-                      {nextSession.description && (
+                      {sessionStats[nextSession.id]?.regular_completed && (
+                         <div className="mb-4 p-3 bg-cyan-100/50 rounded-lg border border-cyan-200">
+                           <p className="text-sm text-cyan-800 font-medium">
+                             Has completado la teoría. Ahora debes realizar al menos {practiceSettings.min_required} prácticas para avanzar a la siguiente sesión.
+                             <span className="block mt-1 font-bold">Llevas: {sessionStats[nextSession.id].practice_completed_count} / {practiceSettings.min_required}</span>
+                           </p>
+                         </div>
+                      )}
+                      {nextSession.description && !sessionStats[nextSession.id]?.regular_completed && (
                         <p className="text-gray-600 mb-4 line-clamp-2">{nextSession.description}</p>
                       )}
                       <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
@@ -312,15 +342,21 @@ const StudentMyClasses: React.FC<Props> = ({
                         {nextSession.has_exam && (
                           <span className="flex items-center gap-1">
                             <FileQuestion className="w-4 h-4" />
-                            {nextSession.questions_count} preguntas
+                            {nextSession.exam_questions_count} preguntas
                           </span>
                         )}
                       </div>
                       <div className="flex gap-3">
                         <Link href={`/student/class-templates/${nextSession.id}`}>
                           <Button className="bg-[#073372] hover:bg-[#052555]">
-                            <Eye className="w-4 h-4 mr-2" />
-                            Ver contenido
+                            {sessionStats[nextSession.id]?.regular_completed 
+                              ? <Zap className="w-4 h-4 mr-2" />
+                              : <Eye className="w-4 h-4 mr-2" />
+                            }
+                            {sessionStats[nextSession.id]?.regular_completed 
+                              ? 'Hacer Prácticas'
+                              : 'Ver contenido'
+                            }
                           </Button>
                         </Link>
                         {/*!myRequests[nextSession.id] && !enrollments[nextSession.id] && (
@@ -382,8 +418,7 @@ const StudentMyClasses: React.FC<Props> = ({
             <div className="space-y-3">
               {sortedTemplates.map((template, index) => {
                 const status = getTemplateStatus(template);
-                const enrollment = enrollments[template.id];
-                const request = myRequests[template.id];
+                const stats = sessionStats[template.id];
                 const isLocked = status.type === 'locked';
                 const isCompleted = status.type === 'completed';
                 const StatusIcon = status.icon;
@@ -442,7 +477,7 @@ const StudentMyClasses: React.FC<Props> = ({
                             {template.has_exam && (
                               <span className="flex items-center gap-1">
                                 <FileQuestion className="w-3.5 h-3.5" />
-                                {template.questions_count} preguntas
+                                {template.exam_questions_count} preguntas
                               </span>
                             )}
                             {template.resources_count > 0 && (
@@ -465,7 +500,7 @@ const StudentMyClasses: React.FC<Props> = ({
                             </div>
                           )}
 
-                          {status.type === 'completed' && enrollment && (
+                          {status.type === 'completed' && (
                             <Link href={`/student/class-templates/${template.id}`}>
                               <Button variant="outline" size="sm" className="border-emerald-300 text-emerald-600 hover:bg-emerald-50">
                                 <Eye className="w-4 h-4 mr-2" />
@@ -474,16 +509,34 @@ const StudentMyClasses: React.FC<Props> = ({
                             </Link>
                           )}
 
-                          {(status.type === 'in_progress' || status.type === 'scheduled' || status.type === 'pending_exam') && enrollment && (
+                          {status.type === 'practices_pending' && (
                             <Link href={`/student/class-templates/${template.id}`}>
-                              <Button size="sm" className="bg-[#073372] hover:bg-[#052555]">
-                                <PlayCircle className="w-4 h-4 mr-2" />
-                                {status.type === 'pending_exam' ? 'Completar examen' : 'Ver clase'}
+                              <Button size="sm" className="bg-cyan-600 hover:bg-cyan-700">
+                                <Zap className="w-4 h-4 mr-2" />
+                                Hacer Prácticas
                               </Button>
                             </Link>
                           )}
 
-                          {status.type === 'request_pending' && request && (
+                          {(status.type === 'scheduled' || status.type === 'in_progress') && (
+                            <Link href={`/student/class-templates/${template.id}`}>
+                              <Button size="sm" className="bg-[#073372] hover:bg-[#052555]">
+                                {status.type === 'in_progress' ? (
+                                  <>
+                                    <PlayCircle className="w-4 h-4 mr-2" />
+                                    Entrar a clase
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clock className="w-4 h-4 mr-2" />
+                                    Ver clase
+                                  </>
+                                )}
+                              </Button>
+                            </Link>
+                          )}
+
+                          {status.type === 'request_pending' && stats?.pending_request && (
                             <div className="flex items-center gap-2">
                               <Link href={`/student/class-templates/${template.id}`}>
                                 <Button variant="outline" size="sm">
@@ -495,7 +548,7 @@ const StudentMyClasses: React.FC<Props> = ({
                                 variant="ghost" 
                                 size="sm"
                                 className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => cancelRequest(request.id)}
+                                onClick={() => cancelRequest(stats.pending_request!.id)}
                               >
                                 Cancelar
                               </Button>
@@ -596,7 +649,7 @@ const StudentMyClasses: React.FC<Props> = ({
                   {selectedTemplate.has_exam && (
                     <span className="flex items-center gap-1">
                       <FileQuestion className="w-3.5 h-3.5" />
-                      Incluye examen
+                      Examen ({selectedTemplate.exam_questions_count} preguntas)
                     </span>
                   )}
                 </div>

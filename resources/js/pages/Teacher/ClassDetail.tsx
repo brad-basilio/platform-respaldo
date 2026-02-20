@@ -82,6 +82,7 @@ interface ScheduledClass {
   recording_url?: string;
   recording_thumbnail?: string;
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  type: 'regular' | 'practice';
   notes?: string;
   max_students: number;
   template: ClassTemplate;
@@ -237,11 +238,11 @@ const ClassDetail: React.FC<Props> = ({ scheduledClass }) => {
         <div className="bg-white border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <Link 
-              href="/teacher/my-classes" 
-              className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+              href={scheduledClass.type === 'practice' ? "/teacher/my-classes?type=practice" : "/teacher/my-classes?type=regular"} 
+              className="inline-flex items-center gap-2 text-gray-600 hover:text-[#073372] transition-colors font-medium"
             >
               <ArrowLeft className="w-5 h-5" />
-              <span>Volver a Mis Clases</span>
+              <span>Volver a {scheduledClass.type === 'practice' ? 'Sesiones Prácticas' : 'Clases Teóricas'}</span>
             </Link>
           </div>
         </div>

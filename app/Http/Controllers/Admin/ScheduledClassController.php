@@ -20,6 +20,7 @@ class ScheduledClassController extends Controller
     public function index(Request $request)
     {
         $query = ScheduledClass::with(['template.academicLevel', 'teacher', 'group'])
+            ->regular()
             ->withCount('enrollments');
 
         // Filtrar por estado
@@ -58,6 +59,48 @@ class ScheduledClassController extends Controller
             'groups' => $groups,
             'filters' => $request->only(['status', 'teacher_id', 'date', 'from_date', 'to_date']),
             'classMaxStudents' => (int) (\App\Models\Setting::where('key', 'class_max_students')->value('content') ?? 6),
+            'type' => 'regular',
+        ]);
+    }
+
+    /**
+     * Display a listing of practices.
+     */
+    public function indexPractices(Request $request)
+    {
+        $query = ScheduledClass::with(['template.academicLevel', 'teacher', 'group'])
+            ->practice()
+            ->withCount('enrollments');
+
+        // Filtrar por estado
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filtrar por profesor
+        if ($request->filled('teacher_id')) {
+            $query->where('teacher_id', $request->teacher_id);
+        }
+
+        // Filtrar por fecha
+        if ($request->filled('date')) {
+            $query->whereDate('scheduled_at', $request->date);
+        }
+
+        $scheduledClasses = $query->orderBy('scheduled_at', 'desc')->paginate(20);
+
+        $templates = ClassTemplate::with('academicLevel')->active()->ordered()->get();
+        $teachers = User::where('role', 'teacher')->get();
+        $groups = Group::where('status', 'active')->get();
+
+        return Inertia::render('Admin/ScheduledClasses/Index', [
+            'scheduledClasses' => $scheduledClasses,
+            'templates' => $templates,
+            'teachers' => $teachers,
+            'groups' => $groups,
+            'filters' => $request->only(['status', 'teacher_id', 'date', 'from_date', 'to_date']),
+            'classMaxStudents' => (int) (\App\Models\Setting::where('key', 'practice_max_students')->value('content') ?? 10),
+            'type' => 'practice',
         ]);
     }
 
@@ -68,6 +111,7 @@ class ScheduledClassController extends Controller
     {
         $validated = $request->validate([
             'class_template_id' => 'required|exists:class_templates,id',
+            'type' => 'nullable|in:regular,practice',
             'teacher_id' => 'nullable|exists:users,id',
             'group_id' => 'nullable|exists:groups,id',
             'scheduled_at' => 'required|date|after:now',
@@ -76,7 +120,10 @@ class ScheduledClassController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $scheduledClass = ScheduledClass::create($validated);
+        $scheduledClass = ScheduledClass::create([
+            ...$validated,
+            'type' => $validated['type'] ?? 'regular',
+        ]);
 
         return redirect()->back()->with('success', 'Clase programada exitosamente');
     }
