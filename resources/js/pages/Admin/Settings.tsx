@@ -1354,7 +1354,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                       <select
                         value={classesForm.data.class_operation_start_hour}
                         onChange={(e) => classesForm.setData('class_operation_start_hour', e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17BC91] focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17BC91] focus:border-transparent transition-all"
                       >
                         {Array.from({ length: 24 }, (_, i) => (
                           <option key={i} value={i.toString()}>
@@ -1368,7 +1368,7 @@ const Settings: React.FC<Props> = ({ settings }) => {
                       <select
                         value={classesForm.data.class_operation_end_hour}
                         onChange={(e) => classesForm.setData('class_operation_end_hour', e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17BC91] focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17BC91] focus:border-transparent transition-all"
                       >
                         {Array.from({ length: 24 }, (_, i) => (
                           <option key={i} value={i.toString()}>
