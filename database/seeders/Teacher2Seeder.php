@@ -6,6 +6,7 @@ use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\Teacher;
 use App\Models\TimeSlot;
+use App\Models\StudentClassEnrollment;
 use Illuminate\Support\Facades\Hash;
 
 class Teacher2Seeder extends Seeder
@@ -76,6 +77,22 @@ class Teacher2Seeder extends Seeder
                 'language_level' => 'Nativo',
                 'contract_status' => 'contratado',
             ]);
+        }
+
+        // 5. Limpieza de clases tipo práctica para el estudiante específico
+        $studentUser = User::where('email', 'basiliohinostrozabrad@gmail.com')->first();
+        if ($studentUser && $studentUser->student) {
+            $enrollmentsToDelete = StudentClassEnrollment::where('student_id', $studentUser->student->id)
+                ->whereHas('scheduledClass', function ($query) {
+                    $query->where('type', 'practice');
+                })
+                ->get();
+
+            foreach ($enrollmentsToDelete as $enrollment) {
+                // Opcional: Podríamos borrar la clase programada si es una práctica huérfana
+                // $enrollment->scheduledClass->delete(); 
+                $enrollment->delete();
+            }
         }
     }
 }
