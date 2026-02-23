@@ -7,7 +7,10 @@ use App\Models\User;
 use App\Models\Teacher;
 use App\Models\TimeSlot;
 use App\Models\StudentClassEnrollment;
+use App\Models\ScheduledClass;
+use App\Models\Group;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 
 class Teacher2Seeder extends Seeder
 {
@@ -89,9 +92,27 @@ class Teacher2Seeder extends Seeder
                 ->get();
 
             foreach ($enrollmentsToDelete as $enrollment) {
-                // Opcional: Podríamos borrar la clase programada si es una práctica huérfana
-                // $enrollment->scheduledClass->delete(); 
                 $enrollment->delete();
+            }
+        }
+
+        // 6. Borrar todas las clases y grupos asignados a este profesor (Mike Wilson ID 19)
+        $mikeTeacherProfile = Teacher::where('user_id', 19)->first();
+
+        if ($mikeTeacherProfile) {
+            // Borrar inscripciones de Clases donde Mike es el profesor
+            StudentClassEnrollment::whereHas('scheduledClass', function ($q) {
+                $q->where('teacher_id', 19);
+            })->delete();
+
+            // Borrar Clases de Mike
+            ScheduledClass::where('teacher_id', 19)->delete();
+
+            // Borrar Grupos de Mike (limpiando pivot primero)
+            $groupIds = Group::where('teacher_id', $mikeTeacherProfile->id)->pluck('id');
+            if ($groupIds->count() > 0) {
+                DB::table('group_student')->whereIn('group_id', $groupIds)->delete();
+                Group::whereIn('id', $groupIds)->delete();
             }
         }
     }
